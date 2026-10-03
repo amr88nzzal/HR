@@ -1,0 +1,6 @@
+{
+  "name": "نظام شؤون الموظفين المتكامل (HRMS)",
+  "description": "نظام متكامل لإدارة شؤون الموظفين وسجلات الحضور والانصراف والرواتب الشهرية والإجازات والوثائق",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
