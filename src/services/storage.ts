@@ -15,6 +15,7 @@ import {
   SystemSettings,
   UserSession
 } from '../types/hrms';
+import { apiService } from './api';
 
 const STORAGE_KEYS = {
   COMPANY: 'hrms_company_v2',
@@ -624,16 +625,19 @@ class StorageService {
     const list = this.getEmployees();
     list.push(emp);
     this.saveEmployees(list);
+    apiService.saveEmployee(emp).catch(() => {});
   }
 
   updateEmployee(emp: Employee): void {
     const list = this.getEmployees().map(e => e.id === emp.id ? emp : e);
     this.saveEmployees(list);
+    apiService.saveEmployee(emp).catch(() => {});
   }
 
   deleteEmployee(id: string): void {
     const list = this.getEmployees().filter(e => e.id !== id);
     this.saveEmployees(list);
+    apiService.deleteEmployee(id).catch(() => {});
   }
 
   // Shifts
@@ -732,6 +736,162 @@ class StorageService {
 
   setUserSession(session: UserSession): void {
     this.set(STORAGE_KEYS.SESSION, session);
+  }
+
+  async syncFromDatabase(): Promise<boolean> {
+    try {
+      const data = await apiService.getBootstrapData();
+      if (!data) return false;
+
+      if (data.companies && data.companies.length > 0) {
+        const mappedCompanies: Company[] = data.companies.map((c: any) => ({
+          id: c.id,
+          nameAr: c.name_ar,
+          nameEn: c.name_en,
+          crNumber: c.cr_number || '',
+          taxNumber: c.tax_number || '',
+          socialSecurityNumber: c.social_security_number || '',
+          phone: c.phone || '',
+          email: c.email || '',
+          website: c.website || '',
+          address: c.address || '',
+          country: c.country || 'المملكة الأردنية الهاشمية',
+          currency: c.currency || 'JOD',
+          currencySymbol: c.currency_symbol || 'د.أ',
+          currencyDecimals: c.currency_decimals || 3
+        }));
+        this.saveCompanies(mappedCompanies);
+        this.set(STORAGE_KEYS.COMPANY, mappedCompanies[0]);
+      }
+
+      if (data.branches && data.branches.length > 0) {
+        const mappedBranches: Branch[] = data.branches.map((b: any) => ({
+          id: b.id,
+          companyId: b.company_id,
+          nameAr: b.name_ar,
+          nameEn: b.name_en,
+          city: b.city,
+          address: b.address || '',
+          phone: b.phone || '',
+          isMain: !!b.is_main
+        }));
+        this.saveBranches(mappedBranches);
+      }
+
+      if (data.departments && data.departments.length > 0) {
+        const mappedDepts: Department[] = data.departments.map((d: any) => ({
+          id: d.id,
+          branchId: d.branch_id,
+          nameAr: d.name_ar,
+          nameEn: d.name_en,
+          code: d.code,
+          costCenterCode: d.cost_center_code,
+          managerId: d.manager_id
+        }));
+        this.saveDepartments(mappedDepts);
+      }
+
+      if (data.jobTitles && data.jobTitles.length > 0) {
+        const mappedJobs: JobTitle[] = data.jobTitles.map((j: any) => ({
+          id: j.id,
+          departmentId: j.department_id,
+          titleAr: j.title_ar,
+          titleEn: j.title_en,
+          grade: j.grade || 'A1'
+        }));
+        this.saveJobTitles(mappedJobs);
+      }
+
+      if (data.employees && data.employees.length > 0) {
+        const mappedEmployees: Employee[] = data.employees.map((e: any) => {
+          const names = (e.full_name_ar || '').split(' ');
+          return {
+            id: e.id,
+            employeeNo: e.employee_no,
+            zktecoId: e.zkteco_id,
+            accountingRefNo: e.accounting_ref_no,
+            nationalId: e.national_id,
+            firstNameAr: names[0] || '',
+            secondNameAr: names[1] || '',
+            thirdNameAr: names[2] || '',
+            lastNameAr: names.slice(3).join(' ') || '',
+            fullNameAr: e.full_name_ar,
+            fullNameEn: e.full_name_en || e.full_name_ar,
+            email: e.email || '',
+            phone: e.phone || '',
+            gender: e.gender || 'male',
+            birthDate: e.birth_date ? String(e.birth_date).substring(0, 10) : '',
+            nationality: e.nationality || 'أردني',
+            maritalStatus: e.marital_status || 'married',
+            dependentsCount: Number(e.dependents_count || 0),
+            branchId: e.branch_id,
+            departmentId: e.department_id,
+            jobTitleId: e.job_title_id,
+            hireDate: e.hire_date ? String(e.hire_date).substring(0, 10) : '',
+            employmentType: e.employment_type || 'full_time',
+            status: e.status || 'active',
+            basicSalary: Number(e.basic_salary || 0),
+            housingAllowance: Number(e.housing_allowance || 0),
+            transportAllowance: Number(e.transport_allowance || 0),
+            phoneAllowance: Number(e.phone_allowance || 0),
+            bankName: e.bank_name || '',
+            bankIban: e.bank_iban || '',
+            isSocialSecuritySubscribed: e.is_subject_to_social_security !== false,
+            annualLeaveBalance: Number(e.annual_leave_balance || 14),
+            sickLeaveBalance: Number(e.sick_leave_balance || 14)
+          };
+        });
+        this.saveEmployees(mappedEmployees);
+      }
+
+      if (data.leaves && data.leaves.length > 0) {
+        const mappedLeaves: LeaveRequest[] = data.leaves.map((l: any) => ({
+          id: l.id,
+          employeeId: l.employee_id,
+          leaveType: l.leave_type || 'annual',
+          startDate: String(l.start_date).substring(0, 10),
+          endDate: String(l.end_date).substring(0, 10),
+          totalDays: Number(l.days_count || 1),
+          reason: l.reason || '',
+          status: l.status || 'pending',
+          submittedAt: l.created_at || new Date().toISOString()
+        }));
+        this.saveLeaveRequests(mappedLeaves);
+      }
+
+      if (data.advances && data.advances.length > 0) {
+        const mappedLoans: Loan[] = data.advances.map((a: any) => ({
+          id: a.id,
+          employeeId: a.employee_id,
+          amount: Number(a.total_amount),
+          monthlyInstallment: Number(a.monthly_installment),
+          installmentsCount: Math.ceil(Number(a.total_amount) / (Number(a.monthly_installment) || 1)),
+          remainingAmount: Number(a.remaining_balance),
+          startDate: String(a.request_date).substring(0, 7),
+          status: a.status || 'active',
+          notes: a.reason || ''
+        }));
+        this.saveLoans(mappedLoans);
+      }
+
+      if (data.debts && data.debts.length > 0) {
+        const mappedDebts: EmployeeDebtInvoice[] = data.debts.map((d: any) => ({
+          id: d.id,
+          employeeId: d.employee_id,
+          invoiceNo: d.invoice_number,
+          description: d.description || '',
+          amount: Number(d.total_amount),
+          date: String(d.invoice_date).substring(0, 10),
+          isDeducted: !!d.is_settled
+        }));
+        this.saveDebts(mappedDebts);
+      }
+
+      return true;
+    } catch (e) {
+      console.warn('Error during syncFromDatabase:', e);
+      return false;
+    }
   }
 
   resetAll(): void {

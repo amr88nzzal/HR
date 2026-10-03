@@ -1,5 +1,4 @@
-# Stage 1: Build the React Application
-FROM node:22-alpine AS builder
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -15,20 +14,11 @@ COPY . .
 # Build production assets
 RUN npm run build
 
-# Stage 2: Serve production assets with lightweight Nginx
-FROM nginx:alpine
+# Expose application port
+EXPOSE 3000
 
-# Remove default nginx static assets
-RUN rm -rf /usr/share/nginx/html/*
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# Copy built assets from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy custom Nginx configuration for React SPA routing
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Expose HTTP port
-EXPOSE 80
-
-# Run nginx in foreground
-CMD ["nginx", "-g", "daemon off;"]
+# Run full-stack server
+CMD ["npx", "tsx", "server.ts"]

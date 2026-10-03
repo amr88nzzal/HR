@@ -6,11 +6,19 @@ services:
     container_name: hrms-app
     restart: unless-stopped
     ports:
-      - "3400:80"
+      - "3400:3000"
     environment:
       - NODE_ENV=production
+      - PORT=3000
+      - DB_HOST=host.docker.internal
+      - DB_PORT=5432
+      - DB_NAME=hrms_db
+      - DB_USER=hrms_admin
+      - DB_PASSWORD=hrms_secure_password_2026
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/db/status || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

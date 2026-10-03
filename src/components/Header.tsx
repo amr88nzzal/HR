@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MapPin,
   Calendar,
@@ -9,11 +9,15 @@ import {
   Globe,
   PanelRightClose,
   PanelRightOpen,
-  Building2
+  Building2,
+  Database,
+  RefreshCw
 } from 'lucide-react';
 import { NavTab } from './Sidebar';
 import { Branch } from '../types/hrms';
 import { formatDateAr, getDayName, getTodayDateString } from '../utils/date';
+import { apiService, DatabaseStatus } from '../services/api';
+import { storage } from '../services/storage';
 
 interface HeaderProps {
   currentTab: NavTab;
@@ -80,6 +84,31 @@ export const Header: React.FC<HeaderProps> = ({
   const todayStr = getTodayDateString();
   const dayName = getDayName(todayStr);
 
+  const [dbStatus, setDbStatus] = useState<DatabaseStatus>({ connected: false });
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = apiService.subscribeStatus(status => {
+      setDbStatus(status);
+    });
+    // Attempt initial sync if connected
+    apiService.checkStatus().then(status => {
+      if (status.connected) {
+        storage.syncFromDatabase();
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleDbSync = async () => {
+    setIsSyncing(true);
+    const status = await apiService.checkStatus();
+    if (status.connected) {
+      await storage.syncFromDatabase();
+    }
+    setTimeout(() => setIsSyncing(false), 600);
+  };
+
   return (
     <header className="h-18 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 px-4 md:px-7 flex items-center justify-between shrink-0 shadow-xs z-20 transition-colors duration-200">
       {/* Title & Subtitle + Sidebar toggle button */}
@@ -121,6 +150,28 @@ export const Header: React.FC<HeaderProps> = ({
           <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
           <span>{isEn ? todayStr : `${dayName}، ${formatDateAr(todayStr)}`}</span>
         </div>
+
+        {/* Database Status & Sync Button */}
+        <button
+          onClick={handleDbSync}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer shadow-xs ${
+            dbStatus.connected
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+              : 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50'
+          }`}
+          title={
+            dbStatus.connected
+              ? (isEn ? 'Connected to PostgreSQL (hrms_db). Click to refresh.' : 'متصل بقاعدة بيانات PostgreSQL (hrms_db) - انقر للمزامنة الفورية')
+              : (isEn ? 'Local Storage Mode. Click to connect to PostgreSQL.' : 'وضع التخزين المحلي (Local) - انقر لإعادة فحص الاتصال بقاعدة البيانات')
+          }
+        >
+          <Database className={`w-3.5 h-3.5 ${dbStatus.connected ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`} />
+          <span className="hidden sm:inline">
+            {dbStatus.connected ? 'PostgreSQL: hrms_db' : (isEn ? 'Local Mode' : 'وضع محلي')}
+          </span>
+          <RefreshCw className={`w-3 h-3 text-slate-400 ${isSyncing ? 'animate-spin text-emerald-600' : ''}`} />
+          <span className={`w-2 h-2 rounded-full ${dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
+        </button>
 
         {/* Language Switcher Button */}
         {onToggleLanguage && (
