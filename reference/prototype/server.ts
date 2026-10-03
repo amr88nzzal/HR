@@ -22,7 +22,7 @@ const dbConfig: pg.PoolConfig = {
   port: parseInt(process.env.DB_PORT || '5432', 10),
   database: process.env.DB_NAME || 'hrms_db',
   user: process.env.DB_USER || 'hrms_admin',
-  password: process.env.DB_PASSWORD || 'hrms_secure_password_2026',
+  password: process.env.DB_PASSWORD || 'CHANGE_ME',
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 4000,

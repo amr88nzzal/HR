@@ -14,7 +14,7 @@ services:
       - DB_PORT=5432
       - DB_NAME=hrms_db
       - DB_USER=hrms_admin
-      - DB_PASSWORD=hrms_secure_password_2026
+      - DB_PASSWORD=CHANGE_ME
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
