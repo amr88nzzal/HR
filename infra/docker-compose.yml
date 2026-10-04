@@ -24,17 +24,17 @@ services:
     build:
       context: ..
       dockerfile: infra/Dockerfile.api
+    # يرحّل بحساب المالك ثم يضبط دور التطبيق hrms_app ويزامن كتالوج الصلاحيات
     command:
-      - node_modules/.bin/node-pg-migrate
-      - -m
-      - migrations
-      - --migration-file-language
-      - sql
-      - -d
-      - DATABASE_URL
-      - up
+      - sh
+      - -c
+      - >-
+        node_modules/.bin/node-pg-migrate -m migrations --migration-file-language sql -d DATABASE_URL up
+        && node dist/cli.js post-migrate
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_ADMIN_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set in .env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,7 +50,11 @@ services:
       NODE_ENV: production
       PORT: 3000
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # التطبيق يتصل بدور hrms_app (ليس المالك) فتسري عليه سياسات RLS
+      DATABASE_URL: postgresql://hrms_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET:?set in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      DEFAULT_COMPANY_SLUG: ${DEFAULT_COMPANY_SLUG:-main}
     depends_on:
       migrate:
         condition: service_completed_successfully

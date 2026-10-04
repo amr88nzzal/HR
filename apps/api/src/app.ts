@@ -1,6 +1,8 @@
 import express, { type Express } from 'express';
 import type { Logger } from 'pino';
 import type { ApiEnvelope, Health } from '@hrms/shared';
+import type { Db } from './db/index.js';
+import { createAuthRouter, type AuthSettings } from './modules/identity/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
 import { requestIdMiddleware } from './shared/logging.js';
 
@@ -8,9 +10,11 @@ export type AppDeps = {
   logger: Logger;
   /** فحص جاهزية القاعدة (يرمي عند الفشل)؛ غير موجود = متخطّى */
   checkDb?: () => Promise<void>;
+  /** المصادقة: تتطلب اتصال قاعدة وإعدادات JWT */
+  auth?: { db: Db; settings: AuthSettings; cookieSecure: boolean; rateLimit?: boolean };
 };
 
-export const createApp = ({ logger, checkDb }: AppDeps): Express => {
+export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', true); // خلف Nginx/Cloudflare
@@ -39,6 +43,8 @@ export const createApp = ({ logger, checkDb }: AppDeps): Express => {
     const body: ApiEnvelope<Health> = { data: health };
     res.status(health.status === 'ok' ? 200 : 503).json(body);
   });
+
+  if (auth) app.use('/api/v1/auth', createAuthRouter(auth));
 
   app.use(notFoundHandler);
   app.use(createErrorHandler(logger));

@@ -19,9 +19,20 @@ pnpm typecheck && pnpm lint && pnpm test
 ## التشغيل بـ Docker
 
 ```bash
-cp .env.example .env         # ضع كلمة مرور قوية لـ POSTGRES_PASSWORD
+cp .env.example .env         # عدّل: POSTGRES_PASSWORD و APP_DB_PASSWORD و JWT_SECRET
 docker compose -f infra/docker-compose.yml --env-file .env up -d --build
 ```
+
+أنشئ أول مدير (مرة واحدة؛ كلمة المرور تُمرَّر بمتغير بيئة لا بسطر الأوامر):
+
+```bash
+docker compose -f infra/docker-compose.yml --env-file .env run --rm \
+  -e ADMIN_PASSWORD='كلمة-مرور-طويلة-وغير-شائعة' migrate \
+  node dist/cli.js create-admin --email admin@example.com --name "المدير" --company-name "اسم الشركة"
+```
+
+أوامر أخرى: `post-migrate` (تلقائي عند كل نشر)، `reset-password --email ...`.
+التطبيق يتصل بدور `hrms_app` (غير مالك) فتُطبَّق سياسات RLS؛ المالك للترحيل والـ CLI فقط.
 
 > **تنبيه:** صورة PostgreSQL تقرأ `POSTGRES_USER` و`POSTGRES_PASSWORD` عند إنشاء الـ volume أول مرة فقط. إن غيّرتهما لاحقاً فنفّذ `docker compose ... down -v` (يمسح بيانات القاعدة!) أو غيّرهما داخل PostgreSQL نفسه.
 
