@@ -8,16 +8,22 @@
     "build": "tsup",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "migrate": "node-pg-migrate -m migrations --migration-file-language sql -d DATABASE_URL",
+    "migrate:create": "node-pg-migrate -m migrations --migration-file-language sql create",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@hrms/shared": "workspace:*",
     "express": "^5.2.1",
+    "kysely": "^0.29.6",
+    "node-pg-migrate": "^9.0.0",
     "pg": "^8.23.1",
     "pino": "^10.4.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^12.2.0",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",

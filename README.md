@@ -22,3 +22,16 @@ pnpm typecheck && pnpm lint && pnpm test
 cp .env.example .env         # ضع كلمة مرور قوية لـ POSTGRES_PASSWORD
 docker compose -f infra/docker-compose.yml --env-file .env up -d --build
 ```
+
+> **تنبيه:** صورة PostgreSQL تقرأ `POSTGRES_USER` و`POSTGRES_PASSWORD` عند إنشاء الـ volume أول مرة فقط. إن غيّرتهما لاحقاً فنفّذ `docker compose ... down -v` (يمسح بيانات القاعدة!) أو غيّرهما داخل PostgreSQL نفسه.
+
+## التهجيرات
+
+ملفات SQL في `apps/api/migrations` (قسما `-- Up Migration` و`-- Down Migration`):
+
+```bash
+pnpm --filter @hrms/api migrate:create اسم_التهجير
+DATABASE_URL=... pnpm --filter @hrms/api migrate up     # أو down
+```
+
+في Docker تعمل خدمة `migrate` تلقائياً قبل الـ API. اختبار التكامل (يتطلب Docker): `pnpm --filter @hrms/api test:integration`.

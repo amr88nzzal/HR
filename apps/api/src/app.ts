@@ -6,8 +6,8 @@ import { requestIdMiddleware } from './shared/logging.js';
 
 export type AppDeps = {
   logger: Logger;
-  /** فحص جاهزية القاعدة؛ غير موجود = متخطّى */
-  checkDb?: () => Promise<boolean>;
+  /** فحص جاهزية القاعدة (يرمي عند الفشل)؛ غير موجود = متخطّى */
+  checkDb?: () => Promise<void>;
 };
 
 export const createApp = ({ logger, checkDb }: AppDeps): Express => {
@@ -22,7 +22,16 @@ export const createApp = ({ logger, checkDb }: AppDeps): Express => {
   });
 
   app.get('/health/ready', async (_req, res) => {
-    const db = checkDb ? ((await checkDb().catch(() => false)) ? 'up' : 'down') : 'skipped';
+    let db: 'up' | 'down' | 'skipped' = 'skipped';
+    if (checkDb) {
+      try {
+        await checkDb();
+        db = 'up';
+      } catch (err) {
+        db = 'down';
+        logger.error({ err }, 'database readiness check failed');
+      }
+    }
     const health: Health = {
       status: db === 'down' ? 'degraded' : 'ok',
       checks: { database: db },
