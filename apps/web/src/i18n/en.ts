@@ -1,0 +1,68 @@
+import type { Messages } from './ar';
+
+export const en: Messages = {
+  app: { name: 'HR Management System', loading: 'Loading…' },
+  common: {
+    save: 'Save',
+    cancel: 'Cancel',
+    logout: 'Sign out',
+    language: 'العربية',
+    theme: 'Toggle theme',
+    back: 'Back',
+    comingSoon: 'This screen is under development',
+  },
+  login: {
+    title: 'Sign in',
+    identifier: 'Email or username',
+    password: 'Password',
+    company: 'Company code',
+    submit: 'Sign in',
+    errors: {
+      INVALID_CREDENTIALS: 'Incorrect sign-in details',
+      ACCOUNT_LOCKED: 'Account temporarily locked after failed attempts, try again later',
+      RATE_LIMITED: 'Too many attempts, try again shortly',
+      generic: 'Could not sign in, please try again',
+    },
+  },
+  password: {
+    title: 'Change password',
+    forced: 'You must change your password before continuing',
+    current: 'Current password',
+    next: 'New password',
+    confirm: 'Confirm new password',
+    mismatch: 'Passwords do not match',
+    hint: 'At least ten characters, not a common password',
+    done: 'Password changed, please sign in again',
+    errors: {
+      INVALID_CREDENTIALS: 'Current password is incorrect',
+      generic: 'Could not change password',
+    },
+  },
+  nav: {
+    dashboard: 'Home',
+    org: 'Organization',
+    branches: 'Branches',
+    departments: 'Departments',
+    jobTitles: 'Job titles',
+    jobGrades: 'Job grades',
+    workLocations: 'Work locations',
+    costCenters: 'Cost centers',
+    currencies: 'Currencies',
+    admin: 'Administration',
+    users: 'Users',
+    roles: 'Roles & permissions',
+    settings: 'Settings',
+    audit: 'Audit log',
+  },
+  dashboard: {
+    welcome: 'Welcome, {{name}}',
+    empty: 'No sections are available to your account yet',
+  },
+  errors: {
+    forbiddenTitle: 'Not authorized',
+    forbidden: 'You do not have permission to view this page',
+    notFoundTitle: 'Page not found',
+    notFound: 'We could not find the page you requested',
+    home: 'Back to home',
+  },
+};
