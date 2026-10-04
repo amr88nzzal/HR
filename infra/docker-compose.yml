@@ -19,6 +19,28 @@ services:
     networks: [internal]
     # لا منافذ منشورة: القاعدة داخل الشبكة الخاصة فقط
 
+  # خطوة تهجير القاعدة (تعمل مرة عند كل نشر ثم تنتهي)؛ الـ API ينتظر نجاحها
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    command:
+      - node_modules/.bin/node-pg-migrate
+      - -m
+      - migrations
+      - --migration-file-language
+      - sql
+      - -d
+      - DATABASE_URL
+      - up
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+    networks: [internal]
+
   api:
     build:
       context: ..
@@ -30,8 +52,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ['CMD-SHELL', 'wget -q --spider http://localhost:3000/health/live || exit 1']
       interval: 30s

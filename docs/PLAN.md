@@ -95,7 +95,11 @@
 - ✅ مونوريبو pnpm يعمل: `apps/api` (Express 5، `/health/live` و`/health/ready`، غلاف الاستجابة، شكل الخطأ الموحّد، `requestId`، pino، إعدادات بـ Zod)، `apps/web` (Vite + React)، `packages/shared`. نجحت: typecheck وlint وprettier و4 اختبارات و`build`، وشُغِّل الخادم المبني فعلياً.
 - ⚠️ TypeScript مثبّت على 5.9 لأن typescript-eslint لا يدعم 7.0 بعد.
 - ⚠️ ملفات Docker وNginx وCI مكتوبة لكن **لم تُجرَّب** (لا يوجد Docker daemon في بيئة التطوير هذه)؛ يتحقق منها CI عند أول دفع.
-- ⬜ المتبقي: نشر Staging عبر SSH، Kysely والتهجيرات، eslint-plugin-boundaries، ونماذج spikes الثلاثة (Mantine/Ant، الشهادة العربية على ARM64، Kysely)، وعيّنة CSV البصمة.
+- ✅ نُشر أول تشغيل على سيرفر ARM64 (Oracle) خلف Docker وCloudflare Tunnel: الواجهة والبوابة وPostgreSQL 18 تعمل. **درس:** صورة PostgreSQL تتجاهل `POSTGRES_USER/PASSWORD` إن كان الـ volume موجوداً؛ أُضيف تنبيه في README.
+- ✅ Kysely (+CamelCasePlugin) وتهجيرات SQL بـ node-pg-migrate (تهجير baseline)، وخدمة `migrate` في compose، واختبار تكامل بـ Testcontainers على PostgreSQL 18 يعمل في CI. جُرّب up/down محلياً على PostgreSQL 16، أما `uuidv7()` فتُختبر في CI فقط (تحتاج 18).
+- ✅ تسجيل خطأ فحص القاعدة في `/health/ready`.
+- ✅ eslint-plugin-boundaries مفعّل لحدود الوحدات (جُرّب بملف مخالف فرُفض، والاستيراد عبر `index` مسموح).
+- ⬜ المتبقي: نشر Staging عبر SSH (يحتاج بيانات السيرفر)، ونماذج spikes (الشهادة العربية على ARM64، Mantine/Ant)، وعيّنة CSV البصمة.
 
 ---
 

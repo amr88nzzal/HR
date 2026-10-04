@@ -14,14 +14,19 @@ describe('health', () => {
   });
 
   it('ready يرجع 503 عند فشل القاعدة', async () => {
-    const app = createApp({ logger, checkDb: async () => false });
+    const app = createApp({
+      logger,
+      checkDb: async () => {
+        throw new Error('down');
+      },
+    });
     const res = await request(app).get('/health/ready');
     expect(res.status).toBe(503);
     expect(res.body.data.checks.database).toBe('down');
   });
 
   it('ready يرجع 200 عندما تعمل القاعدة', async () => {
-    const app = createApp({ logger, checkDb: async () => true });
+    const app = createApp({ logger, checkDb: async () => undefined });
     const res = await request(app).get('/health/ready');
     expect(res.status).toBe(200);
   });

@@ -1,23 +1,16 @@
-import pg from 'pg';
 import { createApp } from './app.js';
+import { createDb, pingDb } from './db/index.js';
 import { loadConfig } from './shared/config.js';
 import { createLogger } from './shared/logging.js';
 
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
 
-const pool = config.DATABASE_URL
-  ? new pg.Pool({ connectionString: config.DATABASE_URL, max: 10 })
-  : undefined;
+const db = config.DATABASE_URL ? createDb(config.DATABASE_URL) : undefined;
 
 const app = createApp({
   logger,
-  checkDb: pool
-    ? async () => {
-        await pool.query('select 1');
-        return true;
-      }
-    : undefined,
+  checkDb: db ? () => pingDb(db) : undefined,
 });
 
 const server = app.listen(config.PORT, () => {
@@ -27,7 +20,7 @@ const server = app.listen(config.PORT, () => {
 const shutdown = (signal: string) => {
   logger.info({ signal }, 'shutting down');
   server.close(async () => {
-    await pool?.end();
+    await db?.destroy();
     process.exit(0);
   });
   setTimeout(() => process.exit(1), 10_000).unref();
