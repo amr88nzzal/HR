@@ -21,3 +21,4 @@ export const healthSchema = z.object({
 export type Health = z.infer<typeof healthSchema>;
 
 export * from './org.js';
+export * from './identity.js';
