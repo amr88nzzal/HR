@@ -14,6 +14,26 @@ export class AppError extends Error {
   }
 }
 
+type PgError = { code: string; constraint?: string; detail?: string; message: string };
+const isPgError = (err: unknown): err is PgError =>
+  typeof err === 'object' &&
+  err !== null &&
+  typeof (err as PgError).code === 'string' &&
+  /^[0-9A-Z]{5}$/.test((err as PgError).code);
+
+const mapPgError = (err: PgError): { status: number; code: string; message: string } | null => {
+  switch (err.code) {
+    case '23505':
+      return { status: 409, code: 'DUPLICATE', message: 'القيمة موجودة مسبقاً (رمز أو اسم مكرر)' };
+    case '23503':
+      return { status: 409, code: 'REFERENCE_CONFLICT', message: 'السجل مرتبط ببيانات أخرى' };
+    case '23514':
+      return { status: 400, code: 'CONSTRAINT_VIOLATION', message: err.message };
+    default:
+      return null;
+  }
+};
+
 export const notFoundHandler: RequestHandler = (req, _res, next) => {
   next(new AppError('NOT_FOUND', 404, `المسار غير موجود: ${req.method} ${req.path}`));
 };
@@ -34,6 +54,9 @@ export const createErrorHandler =
       code = 'VALIDATION_ERROR';
       message = 'بيانات غير صالحة';
       details = err.flatten();
+    } else if (isPgError(err)) {
+      const mapped = mapPgError(err);
+      if (mapped) ({ status, code, message } = mapped);
     }
 
     if (status >= 500) logger.error({ err, requestId }, 'unhandled error');

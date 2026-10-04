@@ -31,6 +31,7 @@ export const seedDefaultRoles = async (ctx: Ctx): Promise<void> => {
     const existing = await ctx.trx
       .selectFrom('roles')
       .select('id')
+      .where('companyId', '=', ctx.companyId) // صريح: اتصال المالك يتجاوز RLS
       .where('code', '=', role.code)
       .executeTakeFirst();
     let roleId = existing?.id;

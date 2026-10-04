@@ -90,3 +90,13 @@ export const requirePermission =
     }
     next();
   };
+
+/**
+ * الفروع المسموح بها لمستخدم بصلاحية معيّنة: 'all' إن كان له نطاق الشركة،
+ * وإلا معرّفات الفروع المسندة له بنطاق branch. (نطاقات القسم/الفريق/الذات تُعالج في وحداتها.)
+ */
+export const allowedBranchIds = (auth: AuthContext, code: string): 'all' | string[] => {
+  const grants = auth.grants.filter((g) => g.code === code);
+  if (grants.some((g) => g.scopeType === 'company')) return 'all';
+  return grants.flatMap((g) => (g.scopeType === 'branch' && g.scopeId ? [g.scopeId] : []));
+};

@@ -73,6 +73,7 @@ const main = async (): Promise<void> => {
         const role = await ctx.trx
           .selectFrom('roles')
           .select('id')
+          .where('companyId', '=', companyId)
           .where('code', '=', 'admin')
           .executeTakeFirstOrThrow();
         const user = await ctx.trx

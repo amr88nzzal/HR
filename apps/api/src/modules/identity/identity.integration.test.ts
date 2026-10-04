@@ -39,6 +39,7 @@ describe('الهوية والمصادقة وRLS', () => {
       const role = await ctx.trx
         .selectFrom('roles')
         .select('id')
+        .where('companyId', '=', companyId)
         .where('code', '=', roleCode)
         .executeTakeFirstOrThrow();
       const user = await ctx.trx
