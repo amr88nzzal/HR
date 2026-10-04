@@ -48,7 +48,12 @@ export const startTestPg = async (): Promise<TestPg> => {
     if ((rows[0]?.v ?? 0) < 180000) {
       await c.query('create extension if not exists pgcrypto');
       await c.query(`create function uuidv7() returns uuid language sql as $$
-        select encode(overlay(overlay(gen_random_bytes(16) placing substring(int8send((extract(epoch from clock_timestamp())*1000)::bigint) from 3) from 1 for 6) placing '\\x70'::bytea from 7 for 1),'hex')::uuid $$`);
+        with r as (select gen_random_bytes(16) as b,
+                          int8send((extract(epoch from clock_timestamp()) * 1000)::bigint) as t)
+        select encode(
+                 set_byte(set_byte(overlay(r.b placing substring(r.t from 3) from 1 for 6),
+                                   6, (get_byte(r.b, 6) & 15) | 112),
+                          8, (get_byte(r.b, 8) & 63) | 128), 'hex')::uuid from r $$`);
     }
     await c.end();
     stop = async () => {

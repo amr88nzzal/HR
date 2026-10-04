@@ -122,6 +122,9 @@
 **ملاحظات التنفيذ:**
 - 🟦 **1a (الهوية والقاعدة) جاهز للمراجعة:** تهجير `identity_core` (companies, users, refresh_tokens, password_resets, permissions, roles, role_permissions, user_role_assignments, audit_logs)؛ RLS مفعّل على كل جداول الشركة بسياسة `app.company_id`، والتطبيق يتصل بدور `hrms_app` غير المالك؛ مشغّل تدقيق عام يسجّل الفروق فقط ويستثني الحقول الحساسة؛ `audit_logs` للإضافة فقط؛ رفع `permissions_version` آلياً عند تغيّر الأدوار.
 - المصادقة: JWT قصير (15د) + refresh دوّار بكوكي httpOnly/SameSite=Strict مع كشف إعادة الاستخدام (مهلة سباق 10ث)، argon2id، قفل بعد 5 محاولات، تحديد معدل، سياسة كلمة مرور (≥10 ومنع الشائعة)، `X-Permissions-Version`، ذاكرة مؤقتة للصلاحيات 30ث، 32 صلاحية و5 أدوار افتراضية، وأوامر CLI (`post-migrate`, `create-admin`, `reset-password`).
+- 🟦 **1b (المنظمة والإعدادات والتدقيق) جاهز للمراجعة:** تهجير `org_settings` (currencies, branches, departments + department_branches, job_grades, job_titles, work_locations, cost_centers, settings) مع RLS وتدقيق آلي. CRUD موحّد بقفل متفائل (`version` ← 409)، بحث وترقيم صفحات، 409 عند تكرار الرمز أو الحذف المستخدم، تحقق من أن المراجع (فرع/درجة/أب) ضمن الشركة نفسها، نطاق الفرع (مدير فرع يرى فرعه فقط والبقية 404)، منع حلقات الشجرة، وقيد «قسم بفرع واحد على الأقل» يُفحص عند COMMIT. إعدادات متدرجة (افتراضي ← شركة ← فرع ← مستخدم) بمفاتيح وقيم محققة، و`GET /audit-logs` بالمرشحات.
+- 🔧 إصلاح: `seedDefaultRoles` وأمر `create-admin` يقيّدان الأدوار بالشركة صراحةً (اتصال المالك يتجاوز RLS).
+- ⏸ مؤجَّل لما بعده: `exchange_rates, files, period_locks, job_runs` (تُضاف مع أول استخدام فعلي)، وواجهات المستخدمين والأدوار (API في 1d مع الشاشات).
 - ⚠️ **تأجيل:** التقسيم الشهري لـ `audit_logs` (جدول عادي بفهارس مناسبة الآن)؛ واجهة 2FA (الأعمدة موجودة).
 - متغيرات جديدة على السيرفر: `APP_DB_PASSWORD` (أحرف وأرقام) و`JWT_SECRET` (≥32 حرفاً) — انظر README.
 

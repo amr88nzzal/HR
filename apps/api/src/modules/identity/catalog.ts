@@ -28,6 +28,8 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   ...crud('org', 'department', 'الأقسام'),
   ...crud('org', 'job_title', 'المسميات الوظيفية'),
   ...crud('org', 'job_grade', 'الدرجات الوظيفية'),
+  ...crud('org', 'work_location', 'مواقع العمل'),
+  ...crud('org', 'cost_center', 'مراكز التكلفة'),
   def('identity', 'user', 'read', 'عرض المستخدمين'),
   def('identity', 'user', 'create', 'إضافة مستخدم'),
   def('identity', 'user', 'update', 'تعديل مستخدم'),

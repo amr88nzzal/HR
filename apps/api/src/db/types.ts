@@ -117,7 +117,112 @@ export type AuditLogsTable = {
   ip: string | null;
 };
 
+type Audited = {
+  isActive: Generated<boolean>;
+  version: Generated<number>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
+export type CurrenciesTable = Audited & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  symbol: string;
+  symbolPosition: Generated<'before' | 'after'>;
+  displayDecimals: Generated<number>;
+  roundingMode: Generated<'half_up' | 'half_even' | 'down' | 'up'>;
+  isBase: Generated<boolean>;
+};
+
+export type BranchesTable = Audited & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  country: string | null;
+  city: string | null;
+  address: string | null;
+  phone: string | null;
+  timezone: string | null;
+};
+
+export type DepartmentsTable = Audited & {
+  id: Generated<string>;
+  companyId: string;
+  parentId: string | null;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+};
+
+export type DepartmentBranchesTable = {
+  departmentId: string;
+  branchId: string;
+  companyId: string;
+};
+
+export type JobGradesTable = Audited & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  level: Generated<number>;
+};
+
+export type JobTitlesTable = Audited & {
+  id: Generated<string>;
+  companyId: string;
+  jobGradeId: string | null;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+};
+
+export type WorkLocationsTable = Audited & {
+  id: Generated<string>;
+  companyId: string;
+  branchId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  address: string | null;
+};
+
+export type CostCentersTable = Audited & {
+  id: Generated<string>;
+  companyId: string;
+  parentId: string | null;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+};
+
+export type SettingsTable = {
+  id: Generated<string>;
+  companyId: string;
+  scopeType: 'company' | 'branch' | 'user';
+  scopeId: string | null;
+  key: string;
+  value: ColumnType<unknown, string, string>;
+  version: Generated<number>;
+  updatedAt: Generated<Date>;
+};
+
 export type Database = {
+  currencies: CurrenciesTable;
+  branches: BranchesTable;
+  departments: DepartmentsTable;
+  departmentBranches: DepartmentBranchesTable;
+  jobGrades: JobGradesTable;
+  jobTitles: JobTitlesTable;
+  workLocations: WorkLocationsTable;
+  costCenters: CostCentersTable;
+  settings: SettingsTable;
   companies: CompaniesTable;
   users: UsersTable;
   refreshTokens: RefreshTokensTable;

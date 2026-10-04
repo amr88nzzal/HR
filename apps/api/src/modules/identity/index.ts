@@ -1,5 +1,6 @@
 export { createAuthRouter, REFRESH_COOKIE, type IdentityRoutesDeps } from './routes.js';
 export {
+  allowedBranchIds,
   createAuthenticate,
   hasPermission,
   requirePermission,

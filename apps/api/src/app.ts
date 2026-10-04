@@ -1,8 +1,13 @@
-import express, { type Express } from 'express';
+import express, { Router, type Express } from 'express';
 import type { Logger } from 'pino';
 import type { ApiEnvelope, Health } from '@hrms/shared';
 import type { Db } from './db/index.js';
-import { createAuthRouter, type AuthSettings } from './modules/identity/index.js';
+import {
+  createAuthRouter,
+  createAuthenticate,
+  type AuthSettings,
+} from './modules/identity/index.js';
+import { mountOrgRoutes } from './modules/org/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
 import { requestIdMiddleware } from './shared/logging.js';
 
@@ -44,7 +49,12 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     res.status(health.status === 'ok' ? 200 : 503).json(body);
   });
 
-  if (auth) app.use('/api/v1/auth', createAuthRouter(auth));
+  if (auth) {
+    app.use('/api/v1/auth', createAuthRouter(auth));
+    const api = Router();
+    mountOrgRoutes(api, auth.db, createAuthenticate(auth.db, auth.settings.jwtSecret));
+    app.use('/api/v1', api);
+  }
 
   app.use(notFoundHandler);
   app.use(createErrorHandler(logger));
