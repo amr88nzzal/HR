@@ -1,0 +1,12 @@
+{
+  "name": "spike-arabic-certificate",
+  "private": true,
+  "type": "module",
+  "scripts": { "render": "node scripts/render.mjs" },
+  "dependencies": {
+    "docxtemplater": "^3.67.0",
+    "pizzip": "^3.2.0",
+    "playwright-core": "^1.55.0",
+    "qrcode": "^1.5.4"
+  }
+}

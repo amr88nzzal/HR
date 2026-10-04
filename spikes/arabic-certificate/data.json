@@ -1,0 +1,23 @@
+{
+  "company_name": "شركة النخبة للحلول والتقنية الذكية ذ.م.م",
+  "company_name_en": "Elite Smart Solutions & Tech LLC",
+  "company_address": "عمّان - شارع الملكة رانيا العبدالله - ص.ب 12345",
+  "doc_title": "شهادة تعريف بالراتب والعمل",
+  "doc_no": "HR-2026-000123",
+  "issue_date": "2026-10-04",
+  "issue_date_hijri": "٢٠ ربيع الآخر ١٤٤٨ هـ",
+  "addressee": "السادة / بنك الاتحاد - فرع عمّان المحترمين",
+  "employee_name": "محمد عبد الرحمن أحمد الخطيب",
+  "employee_no": "EMP-00457",
+  "national_id": "9871012345",
+  "job_title": "محاسب أول",
+  "department": "الإدارة المالية",
+  "hire_date": "2019-03-01",
+  "salary": "1,250.000",
+  "currency": "دينار أردني",
+  "purpose": "تقديم الشهادة إلى الجهة الطالبة دون أي مسؤولية على الشركة",
+  "signatory_name": "ليلى سمير العلي",
+  "signatory_title": "مديرة الموارد البشرية",
+  "verify_url": "https://hr.example.com/verify/7f3a9c2e-4b1d-4a8e-9c55-0d2e6b7a1f10",
+  "email": "hr@example.com"
+}
