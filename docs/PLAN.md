@@ -99,8 +99,9 @@
 - ✅ Kysely (+CamelCasePlugin) وتهجيرات SQL بـ node-pg-migrate (تهجير baseline)، وخدمة `migrate` في compose، واختبار تكامل بـ Testcontainers على PostgreSQL 18 يعمل في CI. جُرّب up/down محلياً على PostgreSQL 16، أما `uuidv7()` فتُختبر في CI فقط (تحتاج 18).
 - ✅ تسجيل خطأ فحص القاعدة في `/health/ready`.
 - ✅ eslint-plugin-boundaries مفعّل لحدود الوحدات (جُرّب بملف مخالف فرُفض، والاستيراد عبر `index` مسموح).
-- 🟦 نموذج الشهادة العربية (`spikes/arabic-certificate/`): يعمل HTML→PDF وDOCX→PDF بجودة ممتازة على x86_64 مع الخطوط المضمّنة؛ اكتُشف انعكاس التواريخ في DOCX وعُولج بتغليف LRI/PDI (يلزم اختباره في Word). **المتبقي:** تشغيل `run-docker.sh` على سيرفر ARM64 وإرسال الناتج.
-- ⬜ المتبقي: نشر Staging آلي (الآلية المعتمدة حالياً: الدفع إلى GitHub ثم `git pull` وإعادة بناء الحاوية يدوياً على السيرفر)، ومقارنة Mantine/Ant، وعيّنة CSV البصمة.
+- 🟦 نموذج الشهادة العربية (`spikes/arabic-certificate/`): يعمل HTML→PDF وDOCX→PDF بجودة ممتازة على x86_64 مع الخطوط المضمّنة؛ اكتُشف انعكاس التواريخ في DOCX وعُولج بتغليف LRI/PDI (يلزم اختباره في Word). وصلت صورتا ناتج مطابقتان للعيّنات (تأكيد أنها من ARM64 + فحص DOCX في Word هما المتبقيان).
+- ✅ مقارنة Mantine مقابل Ant Design (`spikes/ui-comparison/`): بُنيت الشاشة نفسها بالمكتبتين؛ **القرار: Mantine** (حزمة أصغر بنحو النصف: ~195KB مقابل ~348KB gzip، RTL ونماذج أنظف، يتكامل مع RHF وTanStack Table). لا تقويم هجري أصلاً في أيٍّ منهما.
+- ⬜ المتبقي: نشر Staging آلي (الآلية المعتمدة حالياً: الدفع إلى GitHub ثم `git pull` وإعادة بناء الحاوية يدوياً على السيرفر)، وعيّنة CSV البصمة.
 
 ---
 
