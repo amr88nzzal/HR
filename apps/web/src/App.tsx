@@ -1,21 +1,33 @@
-import { useEffect, useState } from 'react';
-import type { ApiEnvelope, Health } from '@hrms/shared';
+import { DirectionProvider, MantineProvider, createTheme } from '@mantine/core';
+import { Notifications } from '@mantine/notifications';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from '@tanstack/react-router';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { AuthProvider } from './auth/AuthContext';
+import { dirOf, type Lang } from './i18n';
+import { router } from './routes';
+
+const theme = createTheme({
+  fontFamily: '"Noto Sans Arabic Variable", system-ui, -apple-system, "Segoe UI", sans-serif',
+  primaryColor: 'teal',
+});
 
 export const App = () => {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    fetch('/health/ready')
-      .then((r) => r.json() as Promise<ApiEnvelope<Health>>)
-      .then((body) => setHealth(body.data))
-      .catch(() => setFailed(true));
-  }, []);
-
+  const { i18n } = useTranslation();
+  const [queryClient] = useState(
+    () => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } }),
+  );
   return (
-    <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif' }}>
-      <h1>نظام شؤون الموظفين</h1>
-      <p>حالة الخادم: {failed ? 'غير متاح' : (health?.status ?? '...')}</p>
-    </main>
+    <DirectionProvider initialDirection={dirOf(i18n.language as Lang)} detectDirection={false}>
+      <MantineProvider theme={theme} defaultColorScheme="auto">
+        <Notifications position="top-center" />
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <RouterProvider router={router} />
+          </AuthProvider>
+        </QueryClientProvider>
+      </MantineProvider>
+    </DirectionProvider>
   );
 };
