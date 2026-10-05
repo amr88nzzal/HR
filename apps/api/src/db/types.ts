@@ -213,7 +213,129 @@ export type SettingsTable = {
   updatedAt: Generated<Date>;
 };
 
+type Versioned = {
+  version: Generated<number>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+type DateCol = ColumnType<string | null, string | null | undefined, string | null>;
+
+export type NumberingSequencesTable = {
+  companyId: string;
+  key: string;
+  nextValue: ColumnType<string, number | string, number | string>;
+};
+
+export type EmployeesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeNo: string;
+  firstNameAr: string;
+  fatherNameAr: string | null;
+  grandfatherNameAr: string | null;
+  familyNameAr: string;
+  firstNameEn: string | null;
+  fatherNameEn: string | null;
+  grandfatherNameEn: string | null;
+  familyNameEn: string | null;
+  fullNameAr: string;
+  fullNameEn: string | null;
+  searchText: Generated<string>;
+  birthDate: DateCol;
+  gender: 'male' | 'female' | null;
+  maritalStatus: 'single' | 'married' | 'divorced' | 'widowed' | null;
+  nationality: string | null;
+  photoFileId: string | null;
+  status: Generated<'active' | 'suspended' | 'terminated'>;
+  firstHireDate: DateCol;
+  userId: string | null;
+  customFields: ColumnType<Record<string, unknown>, string | undefined, string>;
+};
+
+export type EmployeeContactsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  type: 'mobile' | 'phone' | 'email' | 'emergency';
+  value: string;
+  contactName: string | null;
+  relation: string | null;
+  isPrimary: Generated<boolean>;
+};
+
+export type EmployeeAddressesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  type: Generated<'home' | 'work' | 'other'>;
+  country: string | null;
+  city: string | null;
+  line1: string | null;
+  line2: string | null;
+  postalCode: string | null;
+  isPrimary: Generated<boolean>;
+};
+
+export type EmployeeDependentsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  name: string;
+  relation: 'spouse' | 'child' | 'parent' | 'other';
+  birthDate: DateCol;
+  gender: 'male' | 'female' | null;
+  isCovered: Generated<boolean>;
+  notes: string | null;
+};
+
+export type EmployeeBankAccountsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  bankName: string;
+  accountHolder: string | null;
+  ibanEnc: string;
+  ibanDigest: string;
+  ibanMasked: string;
+  currency: string;
+  isPrimary: Generated<boolean>;
+  validFrom: DateCol;
+  validTo: DateCol;
+};
+
+export type EmployeeEducationTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  degree: string;
+  field: string | null;
+  institution: string | null;
+  country: string | null;
+  startYear: number | null;
+  endYear: number | null;
+  grade: string | null;
+};
+
+export type EmployeeExperienceTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  employer: string;
+  title: string | null;
+  startDate: DateCol;
+  endDate: DateCol;
+  notes: string | null;
+};
+
 export type Database = {
+  numberingSequences: NumberingSequencesTable;
+  employees: EmployeesTable;
+  employeeContacts: EmployeeContactsTable;
+  employeeAddresses: EmployeeAddressesTable;
+  employeeDependents: EmployeeDependentsTable;
+  employeeBankAccounts: EmployeeBankAccountsTable;
+  employeeEducation: EmployeeEducationTable;
+  employeeExperience: EmployeeExperienceTable;
   currencies: CurrenciesTable;
   branches: BranchesTable;
   departments: DepartmentsTable;

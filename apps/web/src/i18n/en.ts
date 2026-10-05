@@ -206,6 +206,7 @@ export const en: Messages = {
       numberDigits: 'Number digits',
       decimalSeparator: 'Decimal separator',
       thousandsSeparator: 'Thousands separator',
+      employeeNoFormat: 'Employee number format (e.g. EMP-{seq:5}) — company level',
     },
     values: {
       ar: 'العربية',

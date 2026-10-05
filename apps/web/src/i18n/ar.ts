@@ -196,6 +196,7 @@ export const ar = {
       numberDigits: 'شكل الأرقام',
       decimalSeparator: 'الفاصلة العشرية',
       thousandsSeparator: 'فاصل الآلاف',
+      employeeNoFormat: 'صيغة الرقم الوظيفي (مثل EMP-{seq:5}) — على مستوى الشركة',
     },
     values: {
       ar: 'العربية',
