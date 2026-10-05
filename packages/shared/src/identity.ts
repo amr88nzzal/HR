@@ -3,15 +3,20 @@ import { z } from 'zod';
 const uuid = z.string().uuid();
 const nameAr = z.string().trim().min(1).max(200);
 
-export const scopeTypeSchema = z.enum(['company', 'branch', 'department', 'self']);
+export const scopeTypeSchema = z.enum(['company', 'branch', 'department', 'team', 'self']);
 export type ScopeTypeInput = z.infer<typeof scopeTypeSchema>;
 
 export const roleAssignmentInput = z
   .object({ roleId: uuid, scopeType: scopeTypeSchema, scopeId: uuid.nullish() })
-  .refine((v) => (v.scopeType === 'company' || v.scopeType === 'self') === !v.scopeId, {
-    message: 'نطاق الشركة/الذات بلا معرّف، ونطاق الفرع/القسم يتطلب معرّفاً',
-    path: ['scopeId'],
-  });
+  .refine(
+    (v) =>
+      (v.scopeType === 'company' || v.scopeType === 'team' || v.scopeType === 'self') ===
+      !v.scopeId,
+    {
+      message: 'نطاق الشركة/الفريق/الذات بلا معرّف، ونطاق الفرع/القسم يتطلب معرّفاً',
+      path: ['scopeId'],
+    },
+  );
 
 export const userCreateInput = z.object({
   email: z.string().trim().toLowerCase().email().max(254),

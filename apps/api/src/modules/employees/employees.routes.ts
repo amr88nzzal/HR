@@ -1,5 +1,5 @@
 import { Router, type Request, type RequestHandler } from 'express';
-import { sql } from 'kysely';
+import { sql, type RawBuilder } from 'kysely';
 import { z } from 'zod';
 import {
   employeeInput,
@@ -78,6 +78,22 @@ const derive = (n: NameParts, employeeNo: string) => {
   };
 };
 
+/** تعيين الموظف الحالي بتاريخ اليوم بتوقيت الشركة */
+const currentEmployment = (extra: RawBuilder<boolean>): RawBuilder<boolean> =>
+  sql<boolean>`exists (
+    select 1 from employments cur
+     where cur.employee_id = employees.id
+       and cur.valid_from <= company_today(employees.company_id)
+       and (cur.valid_to is null or cur.valid_to >= company_today(employees.company_id))
+       and ${extra})`;
+const currentValue = (column: string) =>
+  sql<string | null>`(
+    select ${sql.ref(`cur.${column}`)} from employments cur
+     where cur.employee_id = employees.id
+       and cur.valid_from <= company_today(employees.company_id)
+       and (cur.valid_to is null or cur.valid_to >= company_today(employees.company_id))
+     limit 1)`;
+
 const audit = (ctx: Ctx, entityId: string, action: string, changes: unknown) =>
   ctx.trx
     .insertInto('auditLogs')
@@ -128,6 +144,10 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
           let b = ctx.trx.selectFrom('employees');
           if (scope) b = b.where(scope);
           if (query.status) b = b.where('status', '=', query.status);
+          if (query.branchId)
+            b = b.where(currentEmployment(sql<boolean>`cur.branch_id = ${query.branchId}`));
+          if (query.departmentId)
+            b = b.where(currentEmployment(sql<boolean>`cur.department_id = ${query.departmentId}`));
           for (const t of tokens)
             b = b.where('searchText', 'like', `%${t.replace(/[%_\\]/g, '\\$&')}%`);
           return b;
@@ -140,6 +160,12 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
               : 'employeeNo';
         const rows = await build()
           .select([...COLUMNS])
+          .select([
+            currentValue('branch_id').as('currentBranchId'),
+            currentValue('department_id').as('currentDepartmentId'),
+            currentValue('job_title_id').as('currentJobTitleId'),
+            currentValue('manager_employee_id').as('currentManagerEmployeeId'),
+          ])
           .orderBy(sortCol, query.sort.startsWith('-') ? 'desc' : 'asc')
           .orderBy('id')
           .limit(query.pageSize)

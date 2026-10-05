@@ -27,6 +27,8 @@ const mapPgError = (err: PgError): { status: number; code: string; message: stri
       return { status: 409, code: 'DUPLICATE', message: 'القيمة موجودة مسبقاً (رمز أو اسم مكرر)' };
     case '23503':
       return { status: 409, code: 'REFERENCE_CONFLICT', message: 'السجل مرتبط ببيانات أخرى' };
+    case '23P01':
+      return { status: 409, code: 'OVERLAP', message: 'تتداخل الفترة مع سجل آخر للموظف' };
     case '23514':
       return { status: 400, code: 'CONSTRAINT_VIOLATION', message: err.message };
     default:

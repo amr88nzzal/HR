@@ -327,7 +327,70 @@ export type EmployeeExperienceTable = Versioned & {
   notes: string | null;
 };
 
+type DateReq = ColumnType<string, string, string>;
+
+export type ChangeReasonsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  changeType: string;
+  nameAr: string;
+  nameEn: string | null;
+  isActive: Generated<boolean>;
+};
+
+export type ContractsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  contractType: string;
+  startDate: DateReq;
+  endDate: DateCol;
+  probationEndDate: DateCol;
+  noticeDays: number | null;
+  status: Generated<string>;
+  fileId: string | null;
+  terms: ColumnType<unknown, string | undefined, string>;
+};
+
+export type EmploymentsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  contractId: string | null;
+  branchId: string;
+  departmentId: string;
+  jobTitleId: string | null;
+  jobGradeId: string | null;
+  managerEmployeeId: string | null;
+  costCenterId: string | null;
+  workLocationId: string | null;
+  employmentType: string;
+  workMode: Generated<string>;
+  workCountry: string | null;
+  validFrom: DateReq;
+  validTo: DateCol;
+};
+
+export type EmploymentChangesTable = {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  changeType: string;
+  effectiveDate: DateReq;
+  reasonId: string | null;
+  notes: string | null;
+  fromEmploymentId: string | null;
+  toEmploymentId: string | null;
+  createdBy: string | null;
+  createdAt: Generated<Date>;
+};
+
 export type Database = {
+  changeReasons: ChangeReasonsTable;
+  contracts: ContractsTable;
+  employments: EmploymentsTable;
+  employmentChanges: EmploymentChangesTable;
   numberingSequences: NumberingSequencesTable;
   employees: EmployeesTable;
   employeeContacts: EmployeeContactsTable;

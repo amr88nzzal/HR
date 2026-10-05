@@ -145,6 +145,7 @@ export const en: Messages = {
       company: 'Whole company',
       branch: 'Branch',
       department: 'Department',
+      team: 'Direct reports',
       self: 'Own data only',
     },
     resetPassword: 'Reset password',

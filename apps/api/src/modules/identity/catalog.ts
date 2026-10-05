@@ -32,6 +32,11 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   ...crud('org', 'cost_center', 'مراكز التكلفة'),
   ...crud('employees', 'employee', 'الموظفين'),
   def('employees', 'employee', 'set_number', 'تحديد الرقم الوظيفي يدوياً'),
+  def('employees', 'employment', 'read', 'عرض التعيين وسجل التغييرات'),
+  def('employees', 'employment', 'manage', 'تسجيل تغييرات التعيين (نقل، ترقية، إنهاء…)'),
+  def('employees', 'contract', 'read', 'عرض العقود'),
+  def('employees', 'contract', 'manage', 'إدارة العقود'),
+  ...crud('org', 'change_reason', 'أسباب التغيير'),
   def('employees', 'bank_account', 'read', 'عرض الحسابات البنكية (مقنّعة)'),
   def('employees', 'bank_account', 'manage', 'إدارة الحسابات البنكية'),
   def('employees', 'bank_account', 'reveal', 'كشف رقم الحساب البنكي كاملاً (مدقَّق)'),
@@ -73,12 +78,18 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
     code: 'manager',
     nameAr: 'مدير مباشر',
     nameEn: 'Line Manager',
-    grants: (c) => isRead(c) && c.startsWith('org.'),
+    grants: (c) =>
+      (isRead(c) && c.startsWith('org.')) ||
+      c === 'employees.employee.read' ||
+      c === 'employees.employment.read',
   },
   {
     code: 'employee',
     nameAr: 'موظف',
     nameEn: 'Employee',
-    grants: (c) => c === 'system.company.read' || c === 'employees.employee.read',
+    grants: (c) =>
+      c === 'system.company.read' ||
+      c === 'employees.employee.read' ||
+      c === 'employees.employment.read',
   },
 ];

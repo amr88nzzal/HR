@@ -1,6 +1,7 @@
 import type { RequestHandler, Router } from 'express';
 import {
   branchInput,
+  changeReasonInput,
   costCenterInput,
   currencyInput,
   jobGradeInput,
@@ -52,6 +53,13 @@ const CRUDS: Record<string, CrudConfig> = {
     orderBy: 'code',
     refs: { branchId: 'branches' },
     branchScopeColumn: 'branchId',
+  },
+  'change-reasons': {
+    table: 'changeReasons',
+    permission: 'org.change_reason',
+    create: changeReasonInput,
+    searchColumns: ['nameAr', 'nameEn'],
+    orderBy: 'code',
   },
   'cost-centers': {
     table: 'costCenters',
