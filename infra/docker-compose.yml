@@ -53,6 +53,10 @@ services:
       # التطبيق يتصل بدور hrms_app (ليس المالك) فتسري عليه سياسات RLS
       DATABASE_URL: postgresql://hrms_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET:?set in .env}
+      # تشفير الحقول الحساسة (IBAN وغيره): انظر README لتوليد المفاتيح واحفظها خارج الخادم أيضاً
+      ENCRYPTION_KEYS: ${ENCRYPTION_KEYS:?set in .env}
+      ENCRYPTION_KEY_ID: ${ENCRYPTION_KEY_ID:?set in .env}
+      ENCRYPTION_DIGEST_KEY: ${ENCRYPTION_DIGEST_KEY:?set in .env}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       DEFAULT_COMPANY_SLUG: ${DEFAULT_COMPANY_SLUG:-main}
     depends_on:

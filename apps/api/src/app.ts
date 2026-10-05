@@ -8,6 +8,8 @@ import {
   createIdentityAdminRouter,
   type AuthSettings,
 } from './modules/identity/index.js';
+import { mountEmployeesRoutes } from './modules/employees/index.js';
+import type { FieldCrypto } from './shared/crypto.js';
 import { mountOrgRoutes } from './modules/org/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
 import { requestIdMiddleware } from './shared/logging.js';
@@ -17,7 +19,13 @@ export type AppDeps = {
   /** فحص جاهزية القاعدة (يرمي عند الفشل)؛ غير موجود = متخطّى */
   checkDb?: () => Promise<void>;
   /** المصادقة: تتطلب اتصال قاعدة وإعدادات JWT */
-  auth?: { db: Db; settings: AuthSettings; cookieSecure: boolean; rateLimit?: boolean };
+  auth?: {
+    db: Db;
+    settings: AuthSettings;
+    cookieSecure: boolean;
+    rateLimit?: boolean;
+    crypto?: FieldCrypto;
+  };
 };
 
 export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
@@ -56,6 +64,7 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     const authenticate = createAuthenticate(auth.db, auth.settings.jwtSecret);
     api.use(createIdentityAdminRouter(auth.db, authenticate));
     mountOrgRoutes(api, auth.db, authenticate);
+    mountEmployeesRoutes(api, auth.db, authenticate, auth.crypto);
     app.use('/api/v1', api);
   }
 

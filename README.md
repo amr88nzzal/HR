@@ -19,8 +19,16 @@ pnpm typecheck && pnpm lint && pnpm test
 ## التشغيل بـ Docker
 
 ```bash
-cp .env.example .env         # عدّل: POSTGRES_PASSWORD و APP_DB_PASSWORD و JWT_SECRET
+cp .env.example .env         # عدّل: POSTGRES_PASSWORD و APP_DB_PASSWORD و JWT_SECRET ومفاتيح التشفير (ENCRYPTION_*)
 docker compose -f infra/docker-compose.yml --env-file .env up -d --build
+```
+
+مفاتيح التشفير (مرة واحدة، واحفظ نسخة منها خارج الخادم):
+
+```bash
+echo "ENCRYPTION_KEYS=k1:$(openssl rand -base64 32)"
+echo "ENCRYPTION_KEY_ID=k1"
+echo "ENCRYPTION_DIGEST_KEY=$(openssl rand -base64 32)"
 ```
 
 أنشئ أول مدير (مرة واحدة؛ كلمة المرور تُمرَّر بمتغير بيئة لا بسطر الأوامر):

@@ -105,6 +105,17 @@ export const SETTING_DEFS = {
   numberDigits: { schema: z.enum(['western', 'arabic']), default: 'western' },
   decimalSeparator: { schema: z.enum(['.', ',']), default: '.' },
   thousandsSeparator: { schema: z.enum([',', '.', ' ', '']), default: ',' },
+  /** صيغة الرقم الوظيفي: {seq:N} إلزامي، و{yy}/{yyyy} اختياريان */
+  employeeNoFormat: {
+    schema: z
+      .string()
+      .max(40)
+      .refine(
+        (v) => /\{seq:[1-9]\}/.test(v) && /^[A-Za-z0-9_\-{}:]+$/.test(v),
+        'صيغة رقم وظيفي غير صالحة',
+      ),
+    default: 'EMP-{seq:5}',
+  },
 } as const;
 export type SettingKey = keyof typeof SETTING_DEFS;
 export const settingKeys = Object.keys(SETTING_DEFS) as SettingKey[];

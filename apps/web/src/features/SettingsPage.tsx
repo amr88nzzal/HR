@@ -25,6 +25,7 @@ const DEFS: Def[] = [
   { key: 'numberDigits', type: 'select', options: ['western', 'arabic'] },
   { key: 'decimalSeparator', type: 'select', options: ['.', ','] },
   { key: 'thousandsSeparator', type: 'select', options: [',', '.', ' ', ''] },
+  { key: 'employeeNoFormat', type: 'text' },
 ];
 
 /** معاينة حيّة بالإعدادات الفعلية عبر Intl (التقويم الهجري والأرقام العربية بدعم المتصفح). */

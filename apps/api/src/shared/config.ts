@@ -17,6 +17,11 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  /** تشفير الحقول الحساسة: "k1:base64,k2:base64" (32 بايت لكل مفتاح) */
+  ENCRYPTION_KEYS: z.string().optional(),
+  ENCRYPTION_KEY_ID: z.string().optional(),
+  /** مفتاح HMAC للبصمات القابلة للبحث (32 بايت base64)؛ لا يُغيَّر بعد الاستخدام */
+  ENCRYPTION_DIGEST_KEY: z.string().optional(),
   /** الشركة الافتراضية عند غياب company في طلب الدخول (نشر الشركة الواحدة) */
   DEFAULT_COMPANY_SLUG: z.string().min(1).default('main'),
 });
