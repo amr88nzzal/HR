@@ -39,7 +39,7 @@ import { localName } from '../lib/names';
 const PAGE_SIZE = 25;
 type Assignment = {
   roleId: string;
-  scopeType: 'company' | 'branch' | 'department' | 'self';
+  scopeType: 'company' | 'branch' | 'department' | 'team' | 'self';
   scopeId: string | null;
 };
 
@@ -66,7 +66,8 @@ const RoleAssignmentsModal = ({ userId, onClose }: { userId: string; onClose: ()
     const body = current.map(({ roleId, scopeType, scopeId }) => ({
       roleId,
       scopeType,
-      scopeId: scopeType === 'company' || scopeType === 'self' ? null : scopeId,
+      scopeId:
+        scopeType === 'company' || scopeType === 'team' || scopeType === 'self' ? null : scopeId,
     }));
     const parsed = roleAssignmentInput.array().safeParse(body);
     if (!parsed.success)

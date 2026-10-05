@@ -3,6 +3,7 @@ import {
   addressInput,
   contactInput,
   dependentInput,
+  contractInput,
   educationInput,
   experienceInput,
 } from '@hrms/shared';
@@ -11,6 +12,7 @@ import type { FieldCrypto } from '../../shared/crypto.js';
 import { createBankRouter } from './bank.routes.js';
 import { createChildRouter, type ChildConfig } from './children.routes.js';
 import { createEmployeesRouter } from './employees.routes.js';
+import { createEmploymentsRouter } from './employments.routes.js';
 
 const CHILDREN: Record<string, ChildConfig> = {
   contacts: {
@@ -26,6 +28,13 @@ const CHILDREN: Record<string, ChildConfig> = {
     primaryGroup: [],
   },
   dependents: { table: 'employeeDependents', schema: dependentInput, orderBy: 'relation' },
+  contracts: {
+    table: 'contracts',
+    schema: contractInput,
+    orderBy: 'startDate',
+    readPermission: 'employees.contract.read',
+    writePermission: 'employees.contract.manage',
+  },
   education: { table: 'employeeEducation', schema: educationInput, orderBy: 'endYear' },
   experience: { table: 'employeeExperience', schema: experienceInput, orderBy: 'startDate' },
 };
@@ -38,6 +47,7 @@ export const mountEmployeesRoutes = (
   crypto: FieldCrypto | undefined,
 ): void => {
   api.use('/employees', createEmployeesRouter(db, authenticate));
+  api.use('/employees/:employeeId', createEmploymentsRouter(db, authenticate));
   for (const [path, cfg] of Object.entries(CHILDREN)) {
     api.use(`/employees/:employeeId/${path}`, createChildRouter(db, authenticate, cfg));
   }

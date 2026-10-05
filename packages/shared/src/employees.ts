@@ -41,6 +41,8 @@ export const employeeListQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(200).default(25),
   q: z.string().trim().max(100).optional(),
   status: employeeStatusEnum.optional(),
+  branchId: uuid.optional(),
+  departmentId: uuid.optional(),
   sort: z
     .enum(['employeeNo', '-employeeNo', 'name', '-name', 'createdAt', '-createdAt'])
     .default('employeeNo'),
