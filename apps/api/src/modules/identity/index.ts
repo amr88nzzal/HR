@@ -1,3 +1,4 @@
+export { createIdentityAdminRouter } from './admin.routes.js';
 export { createAuthRouter, REFRESH_COOKIE, type IdentityRoutesDeps } from './routes.js';
 export {
   allowedBranchIds,

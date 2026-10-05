@@ -5,6 +5,7 @@ import type { Db } from './db/index.js';
 import {
   createAuthRouter,
   createAuthenticate,
+  createIdentityAdminRouter,
   type AuthSettings,
 } from './modules/identity/index.js';
 import { mountOrgRoutes } from './modules/org/index.js';
@@ -52,7 +53,9 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
   if (auth) {
     app.use('/api/v1/auth', createAuthRouter(auth));
     const api = Router();
-    mountOrgRoutes(api, auth.db, createAuthenticate(auth.db, auth.settings.jwtSecret));
+    const authenticate = createAuthenticate(auth.db, auth.settings.jwtSecret);
+    api.use(createIdentityAdminRouter(auth.db, authenticate));
+    mountOrgRoutes(api, auth.db, authenticate);
     app.use('/api/v1', api);
   }
 
