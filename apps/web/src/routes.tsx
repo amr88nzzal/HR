@@ -1,4 +1,5 @@
 import { Center, Loader } from '@mantine/core';
+import type { ReactElement } from 'react';
 import {
   createRootRoute,
   createRoute,
@@ -12,6 +13,11 @@ import { AppLayout } from './layout/AppLayout';
 import { isGroup, NAV } from './layout/nav';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { LoginPage } from './pages/LoginPage';
+import { AuditPage } from './features/AuditPage';
+import { ResourcePage } from './features/ResourcePage';
+import { RolesPage } from './features/RolesPage';
+import { SettingsPage } from './features/SettingsPage';
+import { UsersPage } from './features/UsersPage';
 import { ComingSoonPage, DashboardPage, ForbiddenPage, NotFoundPage } from './pages/SimplePages';
 
 const Spinner = () => (
@@ -63,14 +69,30 @@ const passwordRoute = createRoute({
   component: ChangePasswordPage,
 });
 
-/** شاشات 1d تُستبدل بها لاحقاً؛ الحماية بالصلاحية فعّالة من الآن (403 بدل الشاشة). */
+/** كل مسار قائمة يرتبط بشاشته؛ الحماية بالصلاحية على المسار نفسه (403 بدل الشاشة). */
+const screens: Record<string, () => ReactElement> = {
+  '/org/branches': () => <ResourcePage resourceKey="branches" />,
+  '/org/departments': () => <ResourcePage resourceKey="departments" />,
+  '/org/job-titles': () => <ResourcePage resourceKey="job-titles" />,
+  '/org/job-grades': () => <ResourcePage resourceKey="job-grades" />,
+  '/org/work-locations': () => <ResourcePage resourceKey="work-locations" />,
+  '/org/cost-centers': () => <ResourcePage resourceKey="cost-centers" />,
+  '/org/currencies': () => <ResourcePage resourceKey="currencies" />,
+  '/admin/users': () => <UsersPage />,
+  '/admin/roles': () => <RolesPage />,
+  '/admin/settings': () => <SettingsPage />,
+  '/admin/audit': () => <AuditPage />,
+};
+
 const sectionRoutes = NAV.flatMap((n) => (isGroup(n) ? n.items : [])).map((leaf) =>
   createRoute({
     getParentRoute: () => authRoute,
     path: leaf.path,
     component: function Section() {
       const { can } = useAuth();
-      return can(leaf.permission) ? <ComingSoonPage titleKey={leaf.key} /> : <ForbiddenPage />;
+      const Screen = screens[leaf.path];
+      if (!can(leaf.permission)) return <ForbiddenPage />;
+      return Screen ? <Screen /> : <ComingSoonPage titleKey={leaf.key} />;
     },
   }),
 );
