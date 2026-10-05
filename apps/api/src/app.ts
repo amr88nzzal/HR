@@ -23,7 +23,7 @@ export type AppDeps = {
 export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', true); // خلف Nginx/Cloudflare
+  app.set('trust proxy', 1); // خطوة وسيطة واحدة موثوقة: بوابة nginx التي تضبط X-Forwarded-For
   app.use(requestIdMiddleware);
   app.use(express.json({ limit: '1mb' }));
 

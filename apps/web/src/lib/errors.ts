@@ -1,0 +1,9 @@
+import type { TFunction } from 'i18next';
+import { ApiError } from '../api/client';
+
+/** رسالة خطأ مترجمة من رمز الخطأ؛ رسائل الخادم المحددة (مثل كلمة المرور) تمر كما هي. */
+export const errorMessage = (err: unknown, t: TFunction): string => {
+  if (!(err instanceof ApiError)) return t('apiErrors.generic');
+  if (err.code === 'WEAK_PASSWORD') return err.message;
+  return t(`apiErrors.${err.code}`, { defaultValue: t('apiErrors.generic') });
+};

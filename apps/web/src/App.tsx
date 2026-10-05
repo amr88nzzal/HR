@@ -1,4 +1,5 @@
 import { DirectionProvider, MantineProvider, createTheme } from '@mantine/core';
+import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
@@ -22,11 +23,13 @@ export const App = () => {
     <DirectionProvider initialDirection={dirOf(i18n.language as Lang)} detectDirection={false}>
       <MantineProvider theme={theme} defaultColorScheme="auto">
         <Notifications position="top-center" />
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <RouterProvider router={router} />
-          </AuthProvider>
-        </QueryClientProvider>
+        <ModalsProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <RouterProvider router={router} />
+            </AuthProvider>
+          </QueryClientProvider>
+        </ModalsProvider>
       </MantineProvider>
     </DirectionProvider>
   );
