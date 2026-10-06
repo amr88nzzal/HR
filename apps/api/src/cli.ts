@@ -7,6 +7,7 @@ import {
   seedDefaultRoles,
   syncPermissionCatalog,
 } from './modules/identity/index.js';
+import { seedDefaultExternalSystems } from './modules/employees/external.routes.js';
 
 /**
  * أوامر الإدارة (تعمل بحساب المالك DATABASE_ADMIN_URL لأنها تتجاوز RLS):
@@ -70,6 +71,7 @@ const main = async (): Promise<void> => {
       });
       await withTenant(db, { companyId, requestId: 'cli' }, async (ctx) => {
         await seedDefaultRoles(ctx);
+        await seedDefaultExternalSystems(ctx);
         const role = await ctx.trx
           .selectFrom('roles')
           .select('id')

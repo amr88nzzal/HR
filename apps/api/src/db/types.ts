@@ -339,6 +339,49 @@ export type ChangeReasonsTable = Versioned & {
   isActive: Generated<boolean>;
 };
 
+export type ExternalSystemsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  key: string;
+  nameAr: string;
+  nameEn: string | null;
+  purpose: Generated<'accounting' | 'attendance_device' | 'other'>;
+  refScope: Generated<'company' | 'branch'>;
+  isUnique: Generated<boolean>;
+  validationRegex: string | null;
+  isSystem: Generated<boolean>;
+  isActive: Generated<boolean>;
+};
+
+export type EmployeeExternalRefsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  systemId: string;
+  value: string;
+  branchId: string | null;
+  validFrom: DateCol;
+  validTo: DateCol;
+  isPrimary: Generated<boolean>;
+  enforceUnique: Generated<boolean>;
+  notes: string | null;
+};
+
+export type CustomFieldDefinitionsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  entity: Generated<'employee'>;
+  key: string;
+  labelAr: string;
+  labelEn: string | null;
+  fieldType: 'text' | 'number' | 'date' | 'boolean' | 'select';
+  options: ColumnType<unknown[], string | undefined, string>;
+  isRequired: Generated<boolean>;
+  isSensitive: Generated<boolean>;
+  sortOrder: Generated<number>;
+  isActive: Generated<boolean>;
+};
+
 export type ContractsTable = Versioned & {
   id: Generated<string>;
   companyId: string;
@@ -391,6 +434,9 @@ export type Database = {
   contracts: ContractsTable;
   employments: EmploymentsTable;
   employmentChanges: EmploymentChangesTable;
+  externalSystems: ExternalSystemsTable;
+  employeeExternalRefs: EmployeeExternalRefsTable;
+  customFieldDefinitions: CustomFieldDefinitionsTable;
   numberingSequences: NumberingSequencesTable;
   employees: EmployeesTable;
   employeeContacts: EmployeeContactsTable;

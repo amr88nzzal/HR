@@ -5,7 +5,9 @@ import {
   employeeInput,
   employeeListQuery,
   employeeUpdateInput,
+  normalizeRefValue,
   normalizeSearch,
+  revealFieldInput,
   type ApiEnvelope,
 } from '@hrms/shared';
 import type { Db } from '../../db/index.js';
@@ -18,7 +20,13 @@ import {
   requirePermission,
   type AuthContext,
 } from '../identity/index.js';
+import type { FieldCrypto } from '../../shared/crypto.js';
 import { employeeScope } from './access.js';
+import {
+  decryptCustomField,
+  prepareCustomFields,
+  withMaskedCustomFields,
+} from './custom-fields.js';
 import { nextEmployeeNo } from './numbering.js';
 
 type Row = Record<string, unknown>;
@@ -109,7 +117,11 @@ const audit = (ctx: Ctx, entityId: string, action: string, changes: unknown) =>
     })
     .execute();
 
-export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Router => {
+export const createEmployeesRouter = (
+  db: Db,
+  authenticate: RequestHandler,
+  crypto?: FieldCrypto,
+): Router => {
   const router = Router();
   router.use(authenticate);
   const run = <T>(req: Request, fn: (ctx: Ctx, auth: AuthContext) => Promise<T>) => {
@@ -139,6 +151,7 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
       const query = employeeListQuery.parse(req.query);
       const out = await run(req, async (ctx, auth) => {
         const scope = employeeScope(auth, 'employees.employee.read');
+        const words = query.q ? query.q.split(/\s+/).filter(Boolean) : [];
         const tokens = query.q ? normalizeSearch(query.q).split(' ').filter(Boolean) : [];
         const build = () => {
           let b = ctx.trx.selectFrom('employees');
@@ -148,8 +161,16 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
             b = b.where(currentEmployment(sql<boolean>`cur.branch_id = ${query.branchId}`));
           if (query.departmentId)
             b = b.where(currentEmployment(sql<boolean>`cur.department_id = ${query.departmentId}`));
-          for (const t of tokens)
-            b = b.where('searchText', 'like', `%${t.replace(/[%_\\]/g, '\\$&')}%`);
+          // كل كلمة بحث: تطابق الاسم/الرقم الوظيفي أو بداية قيمة مرجع خارجي (رقم محاسبة، كود بصمة…)
+          tokens.forEach((t, i) => {
+            const esc = (v: string) => v.replace(/[%_\\]/g, '\\$&');
+            const ref = esc(normalizeRefValue(words[i] ?? t));
+            b = b.where(
+              sql<boolean>`(employees.search_text like ${`%${esc(t)}%`}
+                or exists (select 1 from employee_external_refs r
+                            where r.employee_id = employees.id and r.value ilike ${`${ref}%`}))`,
+            );
+          });
           return b;
         };
         const sortCol =
@@ -181,7 +202,7 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
         return { rows, total };
       });
       const body: ApiEnvelope<Row[]> = {
-        data: out.rows,
+        data: out.rows.map(withMaskedCustomFields),
         meta: { page: query.page, pageSize: query.pageSize, total: out.total },
       };
       res.json(body);
@@ -194,7 +215,9 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
     try {
       const id = idOf(req.params['id']);
       res.json({
-        data: await run(req, (ctx, auth) => loadVisible(ctx, auth, id, 'employees.employee.read')),
+        data: withMaskedCustomFields(
+          await run(req, (ctx, auth) => loadVisible(ctx, auth, id, 'employees.employee.read')),
+        ),
       });
     } catch (err) {
       next(err);
@@ -211,6 +234,7 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
           });
         }
         const employeeNo = input.employeeNo ?? (await nextEmployeeNo(ctx));
+        const customFields = await prepareCustomFields(ctx, crypto, input.customFields, {});
         const row = await ctx.trx
           .insertInto('employees')
           .values({
@@ -231,13 +255,14 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
             firstHireDate: input.firstHireDate ?? null,
             photoFileId: null,
             userId: null,
+            customFields: JSON.stringify(customFields),
             ...derive(input, employeeNo),
           })
           .returning([...COLUMNS])
           .executeTakeFirstOrThrow();
         return row;
       });
-      res.status(201).json({ data });
+      res.status(201).json({ data: withMaskedCustomFields(data) });
     } catch (err) {
       next(err);
     }
@@ -246,9 +271,21 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
   router.patch('/:id', requirePermission('employees.employee.update'), async (req, res, next) => {
     try {
       const id = idOf(req.params['id']);
-      const { version, ...changes } = employeeUpdateInput.parse(req.body);
+      const {
+        version,
+        customFields: incomingCustom,
+        ...changes
+      } = employeeUpdateInput.parse(req.body);
       const data = await run(req, async (ctx, auth) => {
         const current = await loadVisible(ctx, auth, id, 'employees.employee.update');
+        const customPatch =
+          incomingCustom === undefined
+            ? {}
+            : {
+                customFields: JSON.stringify(
+                  await prepareCustomFields(ctx, crypto, incomingCustom, current.customFields),
+                ),
+              };
         const merged = {
           ...current,
           ...Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined)),
@@ -258,6 +295,7 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
           .set({
             ...Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined)),
             ...derive(merged, current.employeeNo),
+            ...customPatch,
             version: sql`version + 1`,
           })
           .where('id', '=', id)
@@ -268,11 +306,35 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
           throw new AppError('VERSION_CONFLICT', 409, 'تم تعديل السجل من مستخدم آخر، أعد التحميل');
         return row;
       });
-      res.json({ data });
+      res.json({ data: withMaskedCustomFields(data) });
     } catch (err) {
       next(err);
     }
   });
+
+  // كشف قيمة حقل مخصص حساس: صلاحية مستقلة ويُسجَّل في التدقيق دائماً
+  router.post(
+    '/:id/reveal',
+    requirePermission('employees.custom_field.reveal'),
+    async (req, res, next) => {
+      try {
+        const id = idOf(req.params['id']);
+        const { key } = revealFieldInput.parse(req.body);
+        if (!crypto)
+          throw new AppError('ENCRYPTION_NOT_CONFIGURED', 503, 'التشفير غير مهيّأ على الخادم');
+        const value = await run(req, async (ctx, auth) => {
+          const row = await loadVisible(ctx, auth, id, 'employees.custom_field.reveal');
+          const plain = decryptCustomField(crypto, row.customFields, key);
+          await audit(ctx, id, 'reveal', { field: key });
+          return plain;
+        });
+        res.setHeader('Cache-Control', 'no-store');
+        res.json({ data: { key, value } });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
 
   router.delete('/:id', requirePermission('employees.employee.delete'), async (req, res, next) => {
     try {
@@ -324,7 +386,7 @@ export const createEmployeesRouter = (db: Db, authenticate: RequestHandler): Rou
             .executeTakeFirstOrThrow();
           return row;
         });
-        res.json({ data });
+        res.json({ data: withMaskedCustomFields(data) });
       } catch (err) {
         next(err);
       }
