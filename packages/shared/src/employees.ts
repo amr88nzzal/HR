@@ -33,6 +33,8 @@ export const employeeInput = z.object({
   maritalStatus: z.enum(['single', 'married', 'divorced', 'widowed']).nullish(),
   nationality: country.nullish(),
   firstHireDate: date.nullish(),
+  /** قيم الحقول المخصصة (مفتاح ← قيمة)؛ تُتحقق من تعريفاتها في الخادم */
+  customFields: z.record(z.string(), z.unknown()).optional(),
 });
 export const employeeUpdateInput = withVersion(employeeInput.omit({ employeeNo: true }).shape);
 

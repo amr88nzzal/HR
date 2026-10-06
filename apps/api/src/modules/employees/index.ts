@@ -13,6 +13,12 @@ import { createBankRouter } from './bank.routes.js';
 import { createChildRouter, type ChildConfig } from './children.routes.js';
 import { createEmployeesRouter } from './employees.routes.js';
 import { createEmploymentsRouter } from './employments.routes.js';
+import {
+  createCustomFieldsRouter,
+  createExternalRefResolveRouter,
+  createExternalRefsRouter,
+  createExternalSystemsRouter,
+} from './external.routes.js';
 
 const CHILDREN: Record<string, ChildConfig> = {
   contacts: {
@@ -46,7 +52,11 @@ export const mountEmployeesRoutes = (
   authenticate: RequestHandler,
   crypto: FieldCrypto | undefined,
 ): void => {
-  api.use('/employees', createEmployeesRouter(db, authenticate));
+  api.use('/employees', createEmployeesRouter(db, authenticate, crypto));
+  api.use('/external-systems', createExternalSystemsRouter(db, authenticate));
+  api.use('/external-refs', createExternalRefResolveRouter(db, authenticate));
+  api.use('/custom-field-definitions', createCustomFieldsRouter(db, authenticate));
+  api.use('/employees/:employeeId/external-refs', createExternalRefsRouter(db, authenticate));
   api.use('/employees/:employeeId', createEmploymentsRouter(db, authenticate));
   for (const [path, cfg] of Object.entries(CHILDREN)) {
     api.use(`/employees/:employeeId/${path}`, createChildRouter(db, authenticate, cfg));
