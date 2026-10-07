@@ -12,6 +12,8 @@ import type { FieldCrypto } from '../../shared/crypto.js';
 import { createBankRouter } from './bank.routes.js';
 import { createChildRouter, type ChildConfig } from './children.routes.js';
 import { createEmployeesRouter } from './employees.routes.js';
+import type { FileDeps } from '../../shared/stored-files.js';
+import { createPhotoRouter } from './photo.routes.js';
 import { createEmploymentsRouter } from './employments.routes.js';
 import {
   createCustomFieldsRouter,
@@ -51,6 +53,7 @@ export const mountEmployeesRoutes = (
   db: Db,
   authenticate: RequestHandler,
   crypto: FieldCrypto | undefined,
+  files: FileDeps = { storage: undefined, crypto },
 ): void => {
   api.use('/employees', createEmployeesRouter(db, authenticate, crypto));
   api.use('/external-systems', createExternalSystemsRouter(db, authenticate));
@@ -61,5 +64,8 @@ export const mountEmployeesRoutes = (
   for (const [path, cfg] of Object.entries(CHILDREN)) {
     api.use(`/employees/:employeeId/${path}`, createChildRouter(db, authenticate, cfg));
   }
+  api.use('/employees/:employeeId/photo', createPhotoRouter(db, authenticate, files));
   api.use('/employees/:employeeId/bank-accounts', createBankRouter(db, authenticate, crypto));
 };
+
+export { employeeScope, assertEmployeeVisible } from './access.js';

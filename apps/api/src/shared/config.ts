@@ -22,6 +22,8 @@ const envSchema = z.object({
   ENCRYPTION_KEY_ID: z.string().optional(),
   /** مفتاح HMAC للبصمات القابلة للبحث (32 بايت base64)؛ لا يُغيَّر بعد الاستخدام */
   ENCRYPTION_DIGEST_KEY: z.string().optional(),
+  /** مجلد تخزين الملفات المرفوعة (يُحمَّل كـ volume ويُنسخ احتياطياً مع القاعدة) */
+  STORAGE_DIR: z.string().min(1).default('./data/files'),
   /** الشركة الافتراضية عند غياب company في طلب الدخول (نشر الشركة الواحدة) */
   DEFAULT_COMPANY_SLUG: z.string().min(1).default('main'),
 });

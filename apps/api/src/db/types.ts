@@ -382,6 +382,93 @@ export type CustomFieldDefinitionsTable = Versioned & {
   isActive: Generated<boolean>;
 };
 
+export type StoredFilesTable = {
+  id: Generated<string>;
+  companyId: string;
+  storageKey: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: ColumnType<string, number | string, number | string>;
+  sha256: string;
+  isEncrypted: Generated<boolean>;
+  purpose: 'document' | 'employee_photo';
+  parentId: string | null;
+  variant: string | null;
+  createdBy: string | null;
+  createdAt: Generated<Date>;
+};
+
+export type DocumentTypesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  systemKey: string | null;
+  nameAr: string;
+  nameEn: string | null;
+  category: string | null;
+  ownerType: 'employee' | 'branch' | 'company';
+  isRequired: Generated<boolean>;
+  isActive: Generated<boolean>;
+};
+
+export type DocumentTypeFieldsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  documentTypeId: string;
+  key: string;
+  labelAr: string;
+  labelEn: string | null;
+  dataType:
+    | 'text'
+    | 'long_text'
+    | 'number'
+    | 'date'
+    | 'amount'
+    | 'boolean'
+    | 'select'
+    | 'file'
+    | 'reminder_date';
+  isRequired: Generated<boolean>;
+  isSensitive: Generated<boolean>;
+  isUnique: Generated<boolean>;
+  options: ColumnType<unknown, string | undefined, string>;
+  sortOrder: Generated<number>;
+  showInList: Generated<boolean>;
+  isActive: Generated<boolean>;
+};
+
+export type DocumentsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  documentTypeId: string;
+  ownerType: 'employee' | 'branch' | 'company';
+  ownerId: string;
+  values: ColumnType<Record<string, unknown>, string | undefined, string>;
+  status: Generated<'active' | 'superseded'>;
+  versionNo: Generated<number>;
+  supersededAt: ColumnType<Date | null, string | null | undefined, string | null>;
+  supersededBy: string | null;
+  createdBy: string | null;
+};
+
+export type DocumentFilesTable = {
+  id: Generated<string>;
+  companyId: string;
+  documentId: string;
+  fileId: string;
+  fieldKey: string | null;
+  pageNo: Generated<number>;
+  createdAt: Generated<Date>;
+};
+
+export type DocumentRemindersTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  documentId: string;
+  fieldKey: string;
+  dueDate: ColumnType<string, string, string>;
+  status: Generated<'pending' | 'done' | 'dismissed'>;
+};
+
 export type ContractsTable = Versioned & {
   id: Generated<string>;
   companyId: string;
@@ -437,6 +524,12 @@ export type Database = {
   externalSystems: ExternalSystemsTable;
   employeeExternalRefs: EmployeeExternalRefsTable;
   customFieldDefinitions: CustomFieldDefinitionsTable;
+  storedFiles: StoredFilesTable;
+  documentTypes: DocumentTypesTable;
+  documentTypeFields: DocumentTypeFieldsTable;
+  documents: DocumentsTable;
+  documentFiles: DocumentFilesTable;
+  documentReminders: DocumentRemindersTable;
   numberingSequences: NumberingSequencesTable;
   employees: EmployeesTable;
   employeeContacts: EmployeeContactsTable;

@@ -10,6 +10,8 @@ import {
 } from './modules/identity/index.js';
 import { mountEmployeesRoutes } from './modules/employees/index.js';
 import type { FieldCrypto } from './shared/crypto.js';
+import type { StorageProvider } from './shared/storage.js';
+import { mountArchiveRoutes } from './modules/archive/index.js';
 import { mountOrgRoutes } from './modules/org/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
 import { requestIdMiddleware } from './shared/logging.js';
@@ -25,6 +27,8 @@ export type AppDeps = {
     cookieSecure: boolean;
     rateLimit?: boolean;
     crypto?: FieldCrypto;
+    /** تخزين الملفات (الأرشيف وصور الموظفين)؛ غيابه يعطّل الرفع فقط */
+    storage?: StorageProvider;
   };
 };
 
@@ -64,7 +68,9 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     const authenticate = createAuthenticate(auth.db, auth.settings.jwtSecret);
     api.use(createIdentityAdminRouter(auth.db, authenticate));
     mountOrgRoutes(api, auth.db, authenticate);
-    mountEmployeesRoutes(api, auth.db, authenticate, auth.crypto);
+    const files = { storage: auth.storage, crypto: auth.crypto };
+    mountEmployeesRoutes(api, auth.db, authenticate, auth.crypto, files);
+    mountArchiveRoutes(api, auth.db, authenticate, files, auth.crypto);
     app.use('/api/v1', api);
   }
 

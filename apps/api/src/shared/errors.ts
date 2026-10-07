@@ -56,6 +56,14 @@ export const createErrorHandler =
       code = 'VALIDATION_ERROR';
       message = 'بيانات غير صالحة';
       details = err.flatten();
+    } else if ((err as { type?: string }).type === 'entity.too.large') {
+      status = 413;
+      code = 'PAYLOAD_TOO_LARGE';
+      message = 'حجم الطلب يتجاوز الحد المسموح';
+    } else if ((err as { type?: string }).type === 'entity.parse.failed') {
+      status = 400;
+      code = 'BAD_JSON';
+      message = 'جسم الطلب ليس JSON صالحاً';
     } else if (isPgError(err)) {
       const mapped = mapPgError(err);
       if (mapped) ({ status, code, message } = mapped);

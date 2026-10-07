@@ -57,8 +57,11 @@ services:
       ENCRYPTION_KEYS: ${ENCRYPTION_KEYS:?set in .env}
       ENCRYPTION_KEY_ID: ${ENCRYPTION_KEY_ID:?set in .env}
       ENCRYPTION_DIGEST_KEY: ${ENCRYPTION_DIGEST_KEY:?set in .env}
+      STORAGE_DIR: /data/files
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       DEFAULT_COMPANY_SLUG: ${DEFAULT_COMPANY_SLUG:-main}
+    volumes:
+      - filesdata:/data/files
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -81,5 +84,6 @@ services:
 
 volumes:
   pgdata:
+  filesdata:
 networks:
   internal:
