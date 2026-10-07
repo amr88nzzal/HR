@@ -1,6 +1,7 @@
 import { createApp } from './app.js';
 import { createDb, pingDb } from './db/index.js';
 import { createFieldCrypto } from './shared/crypto.js';
+import { createLocalStorage } from './shared/storage.js';
 import { loadConfig } from './shared/config.js';
 import { createLogger } from './shared/logging.js';
 
@@ -36,6 +37,7 @@ const app = createApp({
           db,
           cookieSecure: config.COOKIE_SECURE,
           crypto,
+          storage: createLocalStorage(config.STORAGE_DIR),
           settings: {
             jwtSecret: config.JWT_SECRET,
             accessTtlSeconds: config.ACCESS_TOKEN_TTL_SECONDS,

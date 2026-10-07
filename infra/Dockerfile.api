@@ -20,6 +20,7 @@ COPY --from=build /repo/packages/shared/package.json packages/shared/
 RUN pnpm install --prod --frozen-lockfile --filter @hrms/api...
 COPY --from=build /repo/apps/api/dist apps/api/dist
 COPY apps/api/migrations apps/api/migrations
+RUN mkdir -p /data/files && chown node:node /data/files
 USER node
 WORKDIR /app/apps/api
 EXPOSE 3000
