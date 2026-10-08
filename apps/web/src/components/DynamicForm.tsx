@@ -22,7 +22,7 @@ export type FieldDef = {
   /** مفتاح الترجمة تحت fields.* أو تسمية جاهزة */
   labelKey?: string;
   label?: string;
-  kind: 'text' | 'number' | 'select' | 'multiselect' | 'switch' | 'textarea' | 'password';
+  kind: 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'switch' | 'textarea' | 'password';
   required?: boolean;
   ltr?: boolean;
   /** خيارات ثابتة أو محمّلة من الخادم */
@@ -32,6 +32,8 @@ export type FieldDef = {
   description?: string;
   min?: number;
   max?: number;
+  /** رقم بكسور عشرية (الافتراضي أعداد صحيحة) */
+  decimal?: boolean;
 };
 
 type Props = {
@@ -41,7 +43,8 @@ type Props = {
   editing: boolean;
   submitting?: boolean;
   onSubmit: (values: Record<string, unknown>) => void;
-  onCancel: () => void;
+  /** غيابه يُخفي زر الإلغاء (نماذج داخل الصفحة) */
+  onCancel?: () => void;
 };
 
 /** نموذج مولَّد من تعريف الحقول، يتحقق بنفس مخطط zod المشترك مع الخادم. */
@@ -97,8 +100,18 @@ export const DynamicForm = ({
                   key={f.name}
                   min={f.min}
                   max={f.max}
-                  allowDecimal={false}
+                  allowDecimal={!!f.decimal}
                   {...common(f)}
+                />
+              );
+            case 'date':
+              return (
+                <TextInput
+                  key={f.name}
+                  type="date"
+                  dir="ltr"
+                  {...common(f)}
+                  value={(form.values[f.name] as string | null) ?? ''}
                 />
               );
             case 'password':
@@ -139,9 +152,11 @@ export const DynamicForm = ({
           }
         })}
         <Group justify="flex-end" mt="sm">
-          <Button variant="default" onClick={onCancel}>
-            {t('common.cancel')}
-          </Button>
+          {onCancel && (
+            <Button variant="default" onClick={onCancel}>
+              {t('common.cancel')}
+            </Button>
+          )}
           <Button type="submit" loading={submitting}>
             {t('common.save')}
           </Button>

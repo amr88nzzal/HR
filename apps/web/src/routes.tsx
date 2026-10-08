@@ -14,6 +14,13 @@ import { isGroup, NAV } from './layout/nav';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuditPage } from './features/AuditPage';
+import { CustomFieldsPage } from './features/admin/CustomFieldsPage';
+import { ExternalSystemsPage } from './features/admin/ExternalSystemsPage';
+import { OrgChartPage } from './features/admin/OrgChartPage';
+import { DocumentsPage } from './features/archive/DocumentsPage';
+import { DocumentTypesPage } from './features/archive/DocumentTypesPage';
+import { EmployeePage } from './features/employees/EmployeePage';
+import { EmployeesPage } from './features/employees/EmployeesPage';
 import { ResourcePage } from './features/ResourcePage';
 import { RolesPage } from './features/RolesPage';
 import { SettingsPage } from './features/SettingsPage';
@@ -78,6 +85,12 @@ const screens: Record<string, () => ReactElement> = {
   '/org/work-locations': () => <ResourcePage resourceKey="work-locations" />,
   '/org/cost-centers': () => <ResourcePage resourceKey="cost-centers" />,
   '/org/currencies': () => <ResourcePage resourceKey="currencies" />,
+  '/employees': () => <EmployeesPage />,
+  '/org/chart': () => <OrgChartPage />,
+  '/archive/documents': () => <DocumentsPage />,
+  '/archive/document-types': () => <DocumentTypesPage />,
+  '/admin/external-systems': () => <ExternalSystemsPage />,
+  '/admin/custom-fields': () => <CustomFieldsPage />,
   '/admin/users': () => <UsersPage />,
   '/admin/roles': () => <RolesPage />,
   '/admin/settings': () => <SettingsPage />,
@@ -97,9 +110,20 @@ const sectionRoutes = NAV.flatMap((n) => (isGroup(n) ? n.items : [])).map((leaf)
   }),
 );
 
+/** بطاقة الموظف: مسار ديناميكي بالصلاحية نفسها لقائمة الموظفين */
+const employeeRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: '/employees/$employeeId',
+  component: function EmployeeCard() {
+    const { can } = useAuth();
+    if (!can('employees.employee.read')) return <ForbiddenPage />;
+    return <EmployeePage />;
+  },
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  authRoute.addChildren([indexRoute, passwordRoute, ...sectionRoutes]),
+  authRoute.addChildren([indexRoute, passwordRoute, ...sectionRoutes, employeeRoute]),
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent' });

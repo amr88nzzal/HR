@@ -87,27 +87,33 @@ export const createApiClient = (
     return refreshing;
   };
 
-  const request = async <T>(
+  type Query = Record<string, string | number | boolean | undefined>;
+  const queryString = (query?: Query): string =>
+    query
+      ? `?${new URLSearchParams(Object.entries(query).flatMap(([k, v]) => (v === undefined || v === '' ? [] : [[k, String(v)]]))).toString()}`
+      : '';
+
+  /** طلب موثَّق مع تجديد الرمز عند 401 مرة واحدة؛ يرمي ApiError عند الفشل. */
+  const authed = async (
     path: string,
-    opts: {
+    init: {
       method?: string;
-      body?: unknown;
-      query?: Record<string, string | number | boolean | undefined>;
+      body?: BodyInit;
+      headers?: Record<string, string>;
+      query?: Query;
       retry?: boolean;
     } = {},
-  ): Promise<ApiEnvelope<T>> => {
-    const qs = opts.query
-      ? `?${new URLSearchParams(Object.entries(opts.query).flatMap(([k, v]) => (v === undefined || v === '' ? [] : [[k, String(v)]]))).toString()}`
-      : '';
+  ): Promise<Response> => {
     const send = () =>
-      raw(`${path}${qs}`, {
-        method: opts.method ?? 'GET',
-        body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+      raw(`${path}${queryString(init.query)}`, {
+        method: init.method ?? 'GET',
+        body: init.body,
+        headers: init.headers,
         token: accessToken,
       });
 
     let res = await send();
-    if (res.status === 401 && opts.retry !== false && accessToken) {
+    if (res.status === 401 && init.retry !== false && accessToken) {
       const renewed = await refresh();
       if (!renewed) {
         accessToken = null;
@@ -119,6 +125,19 @@ export const createApiClient = (
     const pv = res.headers.get('X-Permissions-Version');
     if (pv) onPermVersion.forEach((l) => l(Number(pv)));
     if (!res.ok) throw await parseError(res);
+    return res;
+  };
+
+  const request = async <T>(
+    path: string,
+    opts: { method?: string; body?: unknown; query?: Query; retry?: boolean } = {},
+  ): Promise<ApiEnvelope<T>> => {
+    const res = await authed(path, {
+      method: opts.method,
+      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+      query: opts.query,
+      retry: opts.retry,
+    });
     if (res.status === 204) return { data: undefined as T };
     return (await res.json()) as ApiEnvelope<T>;
   };
@@ -129,7 +148,28 @@ export const createApiClient = (
       request<T>(path, { query }),
     post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
     patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body }),
+    put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
     del: (path: string) => request<void>(path, { method: 'DELETE' }),
+    /** رفع ملف خام (الأرشيف وصورة الموظف): الاسم يُرسل مرمَّزاً في X-File-Name */
+    upload: async <T>(
+      path: string,
+      file: Blob,
+      opts: { method?: 'POST' | 'PUT'; query?: Query; name?: string } = {},
+    ): Promise<ApiEnvelope<T>> => {
+      const res = await authed(path, {
+        method: opts.method ?? 'POST',
+        body: file,
+        query: opts.query,
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          ...(opts.name ? { 'X-File-Name': encodeURIComponent(opts.name) } : {}),
+        },
+      });
+      return (await res.json()) as ApiEnvelope<T>;
+    },
+    /** تنزيل ملف موثَّق (الصور لا تحمل ترويسة Authorization عبر <img>) */
+    blob: async (path: string, query?: Query): Promise<Blob> =>
+      (await authed(path, { query })).blob(),
 
     /** تسجيل دخول: لا يُعاد الطلب عند 401 (بيانات خاطئة). */
     login: async (input: {

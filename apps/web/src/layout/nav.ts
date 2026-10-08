@@ -11,6 +11,11 @@ import {
   IconUsers,
   IconShieldLock,
   IconCash,
+  IconAdjustments,
+  IconArchive,
+  IconFileDescription,
+  IconPlugConnected,
+  IconTopologyStar3,
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
 
@@ -27,6 +32,40 @@ export type NavGroup = { key: string; items: NavLeaf[] };
 /** القائمة تُبنى من الصلاحيات: العنصر بلا صلاحية يختفي، والمجموعة الفارغة تختفي. */
 export const NAV: (NavLeaf | NavGroup)[] = [
   { key: 'dashboard', path: '/', icon: IconHome },
+  {
+    key: 'hrGroup',
+    items: [
+      {
+        key: 'employees',
+        path: '/employees',
+        icon: IconUsers,
+        permission: 'employees.employee.read',
+      },
+      {
+        key: 'orgChart',
+        path: '/org/chart',
+        icon: IconTopologyStar3,
+        permission: 'org.department.read',
+      },
+    ],
+  },
+  {
+    key: 'archiveGroup',
+    items: [
+      {
+        key: 'documents',
+        path: '/archive/documents',
+        icon: IconArchive,
+        permission: 'archive.document.read',
+      },
+      {
+        key: 'documentTypes',
+        path: '/archive/document-types',
+        icon: IconFileDescription,
+        permission: 'archive.document_type.read',
+      },
+    ],
+  },
   {
     key: 'org',
     items: [
@@ -84,6 +123,18 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         path: '/admin/settings',
         icon: IconSettings,
         permission: 'system.setting.read',
+      },
+      {
+        key: 'externalSystems',
+        path: '/admin/external-systems',
+        icon: IconPlugConnected,
+        permission: 'org.external_system.read',
+      },
+      {
+        key: 'customFields',
+        path: '/admin/custom-fields',
+        icon: IconAdjustments,
+        permission: 'org.custom_field.read',
       },
       { key: 'audit', path: '/admin/audit', icon: IconHistory, permission: 'system.audit.read' },
     ],
