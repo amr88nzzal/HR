@@ -1,3 +1,5 @@
+import { hrAr, hrFieldsAr, hrNavAr } from './hr.ar';
+
 export const ar = {
   app: { name: 'نظام شؤون الموظفين', loading: 'جارٍ التحميل…' },
   common: {
@@ -37,6 +39,7 @@ export const ar = {
     },
   },
   nav: {
+    ...hrNavAr,
     dashboard: 'الرئيسية',
     org: 'الهيكل التنظيمي',
     branches: 'الفروع',
@@ -54,6 +57,7 @@ export const ar = {
   },
   dashboard: { welcome: 'مرحباً، {{name}}', empty: 'لا توجد أقسام متاحة لحسابك بعد' },
   fields: {
+    ...hrFieldsAr,
     code: 'الرمز',
     nameAr: 'الاسم (عربي)',
     nameEn: 'الاسم (إنجليزي)',
@@ -102,6 +106,24 @@ export const ar = {
     all: 'الكل',
   },
   apiErrors: {
+    ALREADY_LINKED: 'الموظف مرتبط بحساب بالفعل',
+    AMBIGUOUS: 'أكثر من موظف يحمل هذه القيمة',
+    CUSTOM_FIELD_INVALID: 'قيمة حقل إضافي غير صالحة',
+    DOCUMENT_FIELD_INVALID: 'قيمة حقل في الوثيقة غير صالحة',
+    DOCUMENT_SUPERSEDED: 'الوثيقة مستبدلة ولا تُعدَّل',
+    EMPTY_FILE: 'الملف فارغ',
+    ENCRYPTION_NOT_CONFIGURED: 'التشفير غير مهيّأ على الخادم',
+    FILE_TOO_LARGE: 'حجم الملف أكبر من 20MB',
+    FILE_TYPE_NOT_ALLOWED: 'نوع الملف غير مسموح (PDF أو صورة أو Word أو Excel)',
+    INVALID_IMAGE: 'الصورة غير صالحة أو تالفة',
+    REF_DUPLICATE: 'القيمة مستخدمة لموظف آخر في الفترة نفسها',
+    REF_INVALID: 'القيمة لا تطابق صيغة هذا النظام',
+    STORAGE_NOT_CONFIGURED: 'تخزين الملفات غير مهيّأ على الخادم',
+    SYSTEM_INACTIVE: 'النظام الخارجي معطّل',
+    SYSTEM_RECORD: 'سجل نظامي لا يمكن تعديله أو حذفه',
+    TOO_MANY_FILES: 'بلغت الوثيقة الحد الأقصى للملفات',
+    TYPE_INACTIVE: 'نوع الوثيقة معطّل',
+    NUMBERING_EXHAUSTED: 'نفد نطاق الترقيم التلقائي',
     VERSION_CONFLICT: 'عُدِّل هذا السجل من مستخدم آخر. أعد التحميل ثم حاول مجدداً',
     DUPLICATE: 'القيمة موجودة مسبقاً (رمز أو اسم مكرر)',
     IN_USE: 'لا يمكن الحذف لأن السجل مستخدم. عطّله بدلاً من حذفه',
@@ -244,6 +266,7 @@ export const ar = {
       refresh_reuse_detected: 'إعادة استخدام جلسة',
     },
   },
+  hr: hrAr,
   errors: {
     forbiddenTitle: 'غير مصرّح',
     forbidden: 'لا تملك صلاحية الوصول إلى هذه الصفحة',

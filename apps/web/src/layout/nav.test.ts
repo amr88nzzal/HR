@@ -30,8 +30,13 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'identity.role.read',
         'system.setting.read',
         'system.audit.read',
+        'employees.employee.read',
+        'archive.document.read',
+        'archive.document_type.read',
+        'org.external_system.read',
+        'org.custom_field.read',
       ]).length,
-    ).toBe(12);
+    ).toBe(18);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');

@@ -19,7 +19,7 @@ export const employeeInput = z.object({
     .min(1)
     .max(40)
     .regex(/^[A-Za-z0-9_\-/.]+$/, 'رقم وظيفي بأحرف لاتينية وأرقام و - _ / .')
-    .optional(),
+    .nullish(),
   firstNameAr: txt(80),
   fatherNameAr: optTxt(80),
   grandfatherNameAr: optTxt(80),

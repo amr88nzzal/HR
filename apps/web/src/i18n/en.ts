@@ -1,4 +1,5 @@
 import type { Messages } from './ar';
+import { hrEn, hrFieldsEn, hrNavEn } from './hr.en';
 
 export const en: Messages = {
   app: { name: 'HR Management System', loading: 'Loading…' },
@@ -39,6 +40,7 @@ export const en: Messages = {
     },
   },
   nav: {
+    ...hrNavEn,
     dashboard: 'Home',
     org: 'Organization',
     branches: 'Branches',
@@ -59,6 +61,7 @@ export const en: Messages = {
     empty: 'No sections are available to your account yet',
   },
   fields: {
+    ...hrFieldsEn,
     code: 'Code',
     nameAr: 'Name (Arabic)',
     nameEn: 'Name (English)',
@@ -107,6 +110,24 @@ export const en: Messages = {
     all: 'All',
   },
   apiErrors: {
+    ALREADY_LINKED: 'The employee is already linked to an account',
+    AMBIGUOUS: 'More than one employee holds this value',
+    CUSTOM_FIELD_INVALID: 'Invalid additional field value',
+    DOCUMENT_FIELD_INVALID: 'Invalid document field value',
+    DOCUMENT_SUPERSEDED: 'The document was superseded and cannot be edited',
+    EMPTY_FILE: 'The file is empty',
+    ENCRYPTION_NOT_CONFIGURED: 'Encryption is not configured on the server',
+    FILE_TOO_LARGE: 'File is larger than 20MB',
+    FILE_TYPE_NOT_ALLOWED: 'File type not allowed (PDF, image, Word or Excel)',
+    INVALID_IMAGE: 'The image is invalid or corrupted',
+    REF_DUPLICATE: 'The value is used by another employee in the same period',
+    REF_INVALID: 'The value does not match this system format',
+    STORAGE_NOT_CONFIGURED: 'File storage is not configured on the server',
+    SYSTEM_INACTIVE: 'The external system is inactive',
+    SYSTEM_RECORD: 'System record, cannot be changed or deleted',
+    TOO_MANY_FILES: 'The document reached the maximum number of files',
+    TYPE_INACTIVE: 'The document type is inactive',
+    NUMBERING_EXHAUSTED: 'Automatic numbering range exhausted',
     VERSION_CONFLICT: 'This record was changed by another user. Reload and try again',
     DUPLICATE: 'The value already exists (duplicate code or name)',
     IN_USE: 'Cannot delete because the record is in use. Deactivate it instead',
@@ -249,6 +270,7 @@ export const en: Messages = {
       refresh_reuse_detected: 'Session reuse detected',
     },
   },
+  hr: hrEn,
   errors: {
     forbiddenTitle: 'Not authorized',
     forbidden: 'You do not have permission to view this page',
