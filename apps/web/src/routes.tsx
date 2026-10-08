@@ -19,6 +19,7 @@ import { ExternalSystemsPage } from './features/admin/ExternalSystemsPage';
 import { OrgChartPage } from './features/admin/OrgChartPage';
 import { DocumentsPage } from './features/archive/DocumentsPage';
 import { DocumentTypesPage } from './features/archive/DocumentTypesPage';
+import { EmployeeImportPage } from './features/employees/EmployeeImportPage';
 import { EmployeePage } from './features/employees/EmployeePage';
 import { EmployeesPage } from './features/employees/EmployeesPage';
 import { ResourcePage } from './features/ResourcePage';
@@ -86,6 +87,7 @@ const screens: Record<string, () => ReactElement> = {
   '/org/cost-centers': () => <ResourcePage resourceKey="cost-centers" />,
   '/org/currencies': () => <ResourcePage resourceKey="currencies" />,
   '/employees': () => <EmployeesPage />,
+  '/employees/import': () => <EmployeeImportPage />,
   '/org/chart': () => <OrgChartPage />,
   '/archive/documents': () => <DocumentsPage />,
   '/archive/document-types': () => <DocumentTypesPage />,

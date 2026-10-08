@@ -9,6 +9,7 @@ export const hrNavEn: typeof hrNavAr = {
   documentTypes: 'Document types',
   externalSystems: 'External systems',
   customFields: 'Custom fields',
+  employeeImport: 'Import employees',
 };
 
 export const hrFieldsEn: typeof hrFieldsAr = {
@@ -246,5 +247,36 @@ export const hrEn: typeof hrAr = {
     optionsHint: 'Example: S|Small',
     optionsInvalid: 'Each line must be value|label',
     lockedHint: 'Field type, key and sensitivity cannot change after creation',
+  },
+  import: {
+    intro:
+      'Download the template, fill it in, then upload it. The whole file is validated without saving; after reviewing the result, run the import with the same file.',
+    template: 'Download template',
+    file: 'Excel file (xlsx)',
+    validate: 'Validate file',
+    run: 'Run import',
+    skipErrors: 'Skip rows with errors and import only valid rows',
+    errorsOnly: 'Show rows with errors only',
+    downloadErrors: 'Download error report',
+    rules:
+      'Employees are matched by employee number: existing ones are updated (filled cells only), others are created. Employment (branch, department, hire date) is recorded only for employees without one. Format code columns as text so leading zeros are kept.',
+    total: 'Rows',
+    toCreate: 'Create',
+    toUpdate: 'Update',
+    failed: 'Errors',
+    unknownColumns: 'Unknown columns ignored: {{cols}}',
+    row: 'Row',
+    result: 'Result',
+    employeeNo: 'Employee no.',
+    name: 'Name',
+    notes: 'Notes',
+    create: 'Create',
+    update: 'Update',
+    error: 'Error',
+    validated: 'Validation finished: nothing has been saved yet',
+    committed: 'Import done: {{created}} new, {{updated}} updated, {{failed}} skipped',
+    notCommitted:
+      'Nothing was saved because of errors. Fix the file or enable skipping rows with errors',
+    fileChanged: 'The file changed: validate again before importing',
   },
 };

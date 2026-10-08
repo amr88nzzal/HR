@@ -12,6 +12,7 @@ import {
   IconShieldLock,
   IconCash,
   IconAdjustments,
+  IconFileImport,
   IconArchive,
   IconFileDescription,
   IconPlugConnected,
@@ -40,6 +41,12 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         path: '/employees',
         icon: IconUsers,
         permission: 'employees.employee.read',
+      },
+      {
+        key: 'employeeImport',
+        path: '/employees/import',
+        icon: IconFileImport,
+        permission: 'employees.employee.import',
       },
       {
         key: 'orgChart',

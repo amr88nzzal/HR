@@ -76,7 +76,7 @@ type NameParts = {
 const join = (...p: (string | null | undefined)[]) => p.filter(Boolean).join(' ');
 
 /** الأسماء الكاملة ونص البحث المطبَّع (يشمل الرقم الوظيفي). */
-const derive = (n: NameParts, employeeNo: string) => {
+export const derive = (n: NameParts, employeeNo: string) => {
   const fullNameAr = join(n.firstNameAr, n.fatherNameAr, n.grandfatherNameAr, n.familyNameAr);
   const en = join(n.firstNameEn, n.fatherNameEn, n.grandfatherNameEn, n.familyNameEn);
   return {
@@ -85,6 +85,39 @@ const derive = (n: NameParts, employeeNo: string) => {
     searchText: normalizeSearch(`${employeeNo} ${fullNameAr} ${en}`),
   };
 };
+
+/** يُدرج موظفاً جديداً (يُستخدم من الإنشاء المباشر والاستيراد). */
+export const insertEmployee = (
+  ctx: Ctx,
+  input: z.infer<typeof employeeInput>,
+  employeeNo: string,
+  customFields: Record<string, unknown>,
+) =>
+  ctx.trx
+    .insertInto('employees')
+    .values({
+      companyId: ctx.companyId,
+      employeeNo,
+      firstNameAr: input.firstNameAr,
+      fatherNameAr: input.fatherNameAr ?? null,
+      grandfatherNameAr: input.grandfatherNameAr ?? null,
+      familyNameAr: input.familyNameAr,
+      firstNameEn: input.firstNameEn ?? null,
+      fatherNameEn: input.fatherNameEn ?? null,
+      grandfatherNameEn: input.grandfatherNameEn ?? null,
+      familyNameEn: input.familyNameEn ?? null,
+      birthDate: input.birthDate ?? null,
+      gender: input.gender ?? null,
+      maritalStatus: input.maritalStatus ?? null,
+      nationality: input.nationality ?? null,
+      firstHireDate: input.firstHireDate ?? null,
+      photoFileId: null,
+      userId: null,
+      customFields: JSON.stringify(customFields),
+      ...derive(input, employeeNo),
+    })
+    .returning([...COLUMNS])
+    .executeTakeFirstOrThrow();
 
 /** تعيين الموظف الحالي بتاريخ اليوم بتوقيت الشركة */
 const currentEmployment = (extra: RawBuilder<boolean>): RawBuilder<boolean> =>
@@ -235,31 +268,7 @@ export const createEmployeesRouter = (
         }
         const employeeNo = input.employeeNo ?? (await nextEmployeeNo(ctx));
         const customFields = await prepareCustomFields(ctx, crypto, input.customFields, {});
-        const row = await ctx.trx
-          .insertInto('employees')
-          .values({
-            companyId: ctx.companyId,
-            employeeNo,
-            firstNameAr: input.firstNameAr,
-            fatherNameAr: input.fatherNameAr ?? null,
-            grandfatherNameAr: input.grandfatherNameAr ?? null,
-            familyNameAr: input.familyNameAr,
-            firstNameEn: input.firstNameEn ?? null,
-            fatherNameEn: input.fatherNameEn ?? null,
-            grandfatherNameEn: input.grandfatherNameEn ?? null,
-            familyNameEn: input.familyNameEn ?? null,
-            birthDate: input.birthDate ?? null,
-            gender: input.gender ?? null,
-            maritalStatus: input.maritalStatus ?? null,
-            nationality: input.nationality ?? null,
-            firstHireDate: input.firstHireDate ?? null,
-            photoFileId: null,
-            userId: null,
-            customFields: JSON.stringify(customFields),
-            ...derive(input, employeeNo),
-          })
-          .returning([...COLUMNS])
-          .executeTakeFirstOrThrow();
+        const row = await insertEmployee(ctx, input, employeeNo, customFields);
         return row;
       });
       res.status(201).json({ data: withMaskedCustomFields(data) });
