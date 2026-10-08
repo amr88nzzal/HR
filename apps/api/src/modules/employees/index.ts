@@ -14,6 +14,7 @@ import { createChildRouter, type ChildConfig } from './children.routes.js';
 import { createEmployeesRouter } from './employees.routes.js';
 import type { FileDeps } from '../../shared/stored-files.js';
 import { createPhotoRouter } from './photo.routes.js';
+import { createEmployeeImportRouter } from './import.routes.js';
 import { createEmploymentsRouter } from './employments.routes.js';
 import {
   createCustomFieldsRouter,
@@ -55,6 +56,7 @@ export const mountEmployeesRoutes = (
   crypto: FieldCrypto | undefined,
   files: FileDeps = { storage: undefined, crypto },
 ): void => {
+  api.use('/employee-import', createEmployeeImportRouter(db, authenticate));
   api.use('/employees', createEmployeesRouter(db, authenticate, crypto));
   api.use('/external-systems', createExternalSystemsRouter(db, authenticate));
   api.use('/external-refs', createExternalRefResolveRouter(db, authenticate));

@@ -210,7 +210,7 @@ type SystemRow = {
 };
 
 /** يتحقق من القيمة والفرع مقابل خصائص النظام ويعيد القيمة المطبَّعة. */
-const checkRef = async (
+export const checkRef = async (
   ctx: Ctx,
   system: SystemRow,
   rawValue: string,
@@ -237,7 +237,7 @@ const checkRef = async (
   return { value, branchId: null };
 };
 
-const loadSystem = async (ctx: Ctx, id: string): Promise<SystemRow> => {
+export const loadSystem = async (ctx: Ctx, id: string): Promise<SystemRow> => {
   const s = await ctx.trx
     .selectFrom('externalSystems')
     .select(['id', 'key', 'refScope', 'isUnique', 'validationRegex', 'isActive'])

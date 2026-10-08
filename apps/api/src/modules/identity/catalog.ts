@@ -31,6 +31,7 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   ...crud('org', 'work_location', 'مواقع العمل'),
   ...crud('org', 'cost_center', 'مراكز التكلفة'),
   ...crud('employees', 'employee', 'الموظفين'),
+  def('employees', 'employee', 'import', 'استيراد الموظفين من Excel (نطاق الشركة)'),
   def('employees', 'employee', 'set_number', 'تحديد الرقم الوظيفي يدوياً'),
   def('employees', 'employment', 'read', 'عرض التعيين وسجل التغييرات'),
   def('employees', 'employment', 'manage', 'تسجيل تغييرات التعيين (نقل، ترقية، إنهاء…)'),
