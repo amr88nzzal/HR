@@ -1,16 +1,28 @@
 import nodemailer from 'nodemailer';
+import type { MailSettings } from '../shared/config.js';
 
 export type MailMessage = { to: string; subject: string; text: string; html: string };
 
 /** وسيط إرسال البريد: يمكن استبداله (SMTP الآن، ومزوّد API لاحقاً) */
 export type MailTransport = { send: (msg: MailMessage) => Promise<void> };
 
-/** SMTP عام: SMTP_URL مثل smtp://user:pass@host:587 (أو smtps:// للمنفذ 465) */
-export const createSmtpTransport = (smtpUrl: string, from: string): MailTransport => {
-  const transporter = nodemailer.createTransport(smtpUrl);
+/**
+ * SMTP عام: إما رابط (smtp://user:pass@host:587) أو مضيف ومنفذ وحساب.
+ * المنفذ 465 = TLS مباشر؛ غيره (587) يرفع الاتصال إلى STARTTLS إن دعمه الخادم.
+ */
+export const createSmtpTransport = (settings: MailSettings): MailTransport => {
+  const transporter =
+    settings.kind === 'url'
+      ? nodemailer.createTransport(settings.url)
+      : nodemailer.createTransport({
+          host: settings.host,
+          port: settings.port,
+          secure: settings.port === 465,
+          ...(settings.user ? { auth: { user: settings.user, pass: settings.pass ?? '' } } : {}),
+        });
   return {
     send: async (msg) => {
-      await transporter.sendMail({ from, ...msg });
+      await transporter.sendMail({ from: settings.from, ...msg });
     },
   };
 };

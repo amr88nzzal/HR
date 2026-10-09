@@ -56,3 +56,17 @@ DATABASE_URL=... pnpm --filter @hrms/api migrate up     # أو down
 ```
 
 في Docker تعمل خدمة `migrate` تلقائياً قبل الـ API. اختبار التكامل (يتطلب Docker): `pnpm --filter @hrms/api test:integration`.
+
+### البريد الإلكتروني (اختياري)
+
+يرسل العامل (`worker`) إشعارات البريد. أضف إلى `.env` على السيرفر (لا تضعها في Git):
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASS=<كلمة مرور التطبيق>
+EMAIL_FROM=you@gmail.com
+```
+
+بدلاً منها يمكن `SMTP_URL=smtp://user:pass@host:587`. مع Gmail يلزم **كلمة مرور تطبيق** (App password) لا كلمة مرور الحساب. بدون هذه المتغيرات تُعلَّم رسائل البريد `skipped` ويستمر النظام. بعد التعديل: `docker compose -f infra/docker-compose.yml --env-file .env up -d worker`.

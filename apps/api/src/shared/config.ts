@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+/** القيمة الفارغة تُعامل كغير مضبوطة */
+const blank = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -24,12 +28,19 @@ const envSchema = z.object({
   ENCRYPTION_DIGEST_KEY: z.string().optional(),
   /** مجلد تخزين الملفات المرفوعة (يُحمَّل كـ volume ويُنسخ احتياطياً مع القاعدة) */
   STORAGE_DIR: z.string().min(1).default('./data/files'),
-  /** SMTP عام لإرسال البريد: smtp://user:pass@host:587؛ غيابه = تُعلَّم رسائل البريد skipped */
-  SMTP_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
-  MAIL_FROM: z.preprocess(
-    (v) => (v === '' ? undefined : v),
-    z.string().min(3).default('HRMS <no-reply@localhost>'),
-  ),
+  /**
+   * البريد (اختياري). طريقتان: SMTP_URL مثل smtp://user:pass@host:587،
+   * أو المتغيرات المنفصلة SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS (الأسهل مع كلمات المرور ذات الرموز).
+   * بغيابهما تُعلَّم رسائل البريد skipped. القيمة الفارغة (كما تصل من compose) = غير مضبوط.
+   */
+  SMTP_URL: blank(z.string().url().optional()),
+  SMTP_HOST: blank(z.string().min(1).optional()),
+  SMTP_PORT: blank(z.coerce.number().int().min(1).max(65535).optional()),
+  SMTP_USER: blank(z.string().min(1).optional()),
+  SMTP_PASS: blank(z.string().min(1).optional()),
+  /** عنوان المرسِل: MAIL_FROM أو EMAIL_FROM (الأول له الأسبقية) */
+  MAIL_FROM: blank(z.string().min(3).optional()),
+  EMAIL_FROM: blank(z.string().min(3).optional()),
   /** الشركة الافتراضية عند غياب company في طلب الدخول (نشر الشركة الواحدة) */
   DEFAULT_COMPANY_SLUG: z.string().min(1).default('main'),
 });
@@ -45,4 +56,33 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     );
   }
   return parsed.data;
+};
+
+export type MailSettings =
+  | { kind: 'url'; url: string; from: string }
+  | {
+      kind: 'host';
+      host: string;
+      port: number;
+      user: string | undefined;
+      pass: string | undefined;
+      from: string;
+    };
+
+const DEFAULT_FROM = 'HRMS <no-reply@localhost>';
+
+/** يحدد إعدادات البريد من البيئة؛ undefined إن لم يُضبط شيء. SMTP_URL له الأسبقية على المتغيرات المنفصلة. */
+export const mailSettings = (config: Config): MailSettings | undefined => {
+  const from = config.MAIL_FROM ?? config.EMAIL_FROM ?? config.SMTP_USER ?? DEFAULT_FROM;
+  if (config.SMTP_URL) return { kind: 'url', url: config.SMTP_URL, from };
+  if (config.SMTP_HOST)
+    return {
+      kind: 'host',
+      host: config.SMTP_HOST,
+      port: config.SMTP_PORT ?? 587,
+      user: config.SMTP_USER,
+      pass: config.SMTP_PASS,
+      from,
+    };
+  return undefined;
 };
