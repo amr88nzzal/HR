@@ -11,7 +11,7 @@ import { seedDefaultExternalSystems } from './modules/employees/external.routes.
 
 /**
  * أوامر الإدارة (تعمل بحساب المالك DATABASE_ADMIN_URL لأنها تتجاوز RLS):
- *   post-migrate     يضبط كلمة مرور hrms_app ويزامن كتالوج الصلاحيات (آمن لإعادة التشغيل)
+ *   post-migrate     يضبط كلمة مرور hrms_app ويزامن كتالوج الصلاحيات ويمنح admin الجديد منها (آمن لإعادة التشغيل)
  *   create-admin     ينشئ الشركة (إن لزم) وأدوارها الافتراضية ومستخدماً بدور admin
  *   reset-password   يعيد تعيين كلمة مرور مستخدم
  * كلمات المرور تُمرَّر عبر متغير البيئة ADMIN_PASSWORD لا عبر سطر الأوامر.
@@ -46,7 +46,12 @@ const main = async (): Promise<void> => {
         );
       });
       await db.transaction().execute((trx) => syncPermissionCatalog(trx));
-      console.log('post-migrate: تم ضبط hrms_app ومزامنة الصلاحيات');
+      // إعادة منح دور admin كل الصلاحيات الجديدة في كل شركة (بقية الأدوار لا تُمسّ)
+      const companies = await db.selectFrom('companies').select('id').execute();
+      for (const c of companies) {
+        await withTenant(db, { companyId: c.id, requestId: 'cli' }, (ctx) => seedDefaultRoles(ctx));
+      }
+      console.log('post-migrate: تم ضبط hrms_app ومزامنة الصلاحيات وأدوار admin');
     } else if (command === 'create-admin') {
       const slug = opts['company'] ?? 'main';
       const email = need(opts['email'], '--email').toLowerCase();
