@@ -25,6 +25,8 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('system', 'setting', 'read', 'عرض الإعدادات'),
   def('system', 'setting', 'update', 'تعديل الإعدادات'),
   def('system', 'audit', 'read', 'عرض سجل التدقيق'),
+  def('system', 'job', 'read', 'عرض مراقب المهام الخلفية'),
+  def('system', 'job', 'retry', 'إعادة تشغيل مهمة فاشلة'),
   ...crud('org', 'department', 'الأقسام'),
   ...crud('org', 'job_title', 'المسميات الوظيفية'),
   ...crud('org', 'job_grade', 'الدرجات الوظيفية'),
@@ -81,7 +83,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
     code: 'hr_officer',
     nameAr: 'موظف موارد بشرية',
     nameEn: 'HR Officer',
-    grants: (c) => isRead(c) && c !== 'system.audit.read',
+    grants: (c) => isRead(c) && c !== 'system.audit.read' && c !== 'system.job.read',
   },
   {
     code: 'manager',

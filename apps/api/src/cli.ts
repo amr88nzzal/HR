@@ -1,4 +1,5 @@
 import { sql } from 'kysely';
+import { installJobSchema } from './jobs/install.js';
 import { createDb } from './db/index.js';
 import { withTenant } from './db/tenant.js';
 import {
@@ -46,6 +47,7 @@ const main = async (): Promise<void> => {
         );
       });
       await db.transaction().execute((trx) => syncPermissionCatalog(trx));
+      await installJobSchema(url);
       // إعادة منح دور admin كل الصلاحيات الجديدة في كل شركة (بقية الأدوار لا تُمسّ)
       const companies = await db.selectFrom('companies').select('id').execute();
       for (const c of companies) {

@@ -72,6 +72,27 @@ services:
       retries: 3
     networks: [internal]
 
+  # عملية العمّال: تنفّذ طوابير pg-boss وتجدول المهام الدورية (لا منافذ)
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    command: ['node', 'dist/worker.js']
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # المهام تعمل عبر hrms_app (RLS)، وصيانة مخطط الطابور بحساب المالك
+      DATABASE_URL: postgresql://hrms_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_ADMIN_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      STORAGE_DIR: /data/files
+    volumes:
+      - filesdata:/data/files
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal]
+
   gateway:
     build:
       context: ..

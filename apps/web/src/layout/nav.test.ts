@@ -36,8 +36,9 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'org.external_system.read',
         'org.custom_field.read',
         'employees.employee.import',
+        'system.job.read',
       ]).length,
-    ).toBe(19);
+    ).toBe(20);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');

@@ -13,6 +13,7 @@ import { AppLayout } from './layout/AppLayout';
 import { isGroup, NAV } from './layout/nav';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { LoginPage } from './pages/LoginPage';
+import { JobsPage } from './features/admin/JobsPage';
 import { AuditPage } from './features/AuditPage';
 import { CustomFieldsPage } from './features/admin/CustomFieldsPage';
 import { ExternalSystemsPage } from './features/admin/ExternalSystemsPage';
@@ -97,6 +98,7 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/roles': () => <RolesPage />,
   '/admin/settings': () => <SettingsPage />,
   '/admin/audit': () => <AuditPage />,
+  '/admin/jobs': () => <JobsPage />,
 };
 
 const sectionRoutes = NAV.flatMap((n) => (isGroup(n) ? n.items : [])).map((leaf) =>
