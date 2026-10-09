@@ -47,7 +47,10 @@ export const NOTIFICATION_EVENTS: readonly NotificationEventDef[] = [
     variables: ['entity', 'approver'],
     defaults: {
       ar: { subject: 'تمت الموافقة على طلبك', body: 'وافق {{approver}} على طلبك: {{entity}}.' },
-      en: { subject: 'Your request was approved', body: '{{approver}} approved your request: {{entity}}.' },
+      en: {
+        subject: 'Your request was approved',
+        body: '{{approver}} approved your request: {{entity}}.',
+      },
     },
   },
   {
