@@ -86,6 +86,9 @@ services:
       DATABASE_URL: postgresql://hrms_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       DATABASE_ADMIN_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       STORAGE_DIR: /data/files
+      # SMTP عام لإرسال البريد (اختياري): smtp://user:pass@host:587 ؛ بدونه تُعلَّم الرسائل skipped
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM:-HRMS <no-reply@localhost>}
     volumes:
       - filesdata:/data/files
     depends_on:

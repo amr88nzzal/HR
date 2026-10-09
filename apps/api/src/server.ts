@@ -1,6 +1,6 @@
 import { PgBoss } from 'pg-boss';
 import { createApp } from './app.js';
-import { BOSS_SCHEMA, createJobQueue, defaultRegistry, type JobQueue } from './jobs/index.js';
+import { BOSS_SCHEMA, buildRegistry, createJobQueue, type JobQueue } from './jobs/index.js';
 import { createDb, pingDb } from './db/index.js';
 import { createFieldCrypto } from './shared/crypto.js';
 import { createLocalStorage } from './shared/storage.js';
@@ -45,7 +45,7 @@ if (db && config.DATABASE_URL) {
     });
     boss.on('error', (err) => logger.error({ err }, 'pg-boss error'));
     await boss.start();
-    jobs = createJobQueue(boss, defaultRegistry);
+    jobs = createJobQueue(boss, buildRegistry(undefined));
   } catch (err) {
     logger.warn({ err }, 'job queue unavailable (run post-migrate); continuing without it');
     boss = undefined;

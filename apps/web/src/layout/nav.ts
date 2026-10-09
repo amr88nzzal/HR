@@ -4,6 +4,7 @@ import {
   IconHome,
   IconHistory,
   IconListCheck,
+  IconMailCog,
   IconId,
   IconMapPin,
   IconSettings,
@@ -146,6 +147,12 @@ export const NAV: (NavLeaf | NavGroup)[] = [
       },
       { key: 'audit', path: '/admin/audit', icon: IconHistory, permission: 'system.audit.read' },
       { key: 'jobs', path: '/admin/jobs', icon: IconListCheck, permission: 'system.job.read' },
+      {
+        key: 'notificationTemplates',
+        path: '/admin/notification-templates',
+        icon: IconMailCog,
+        permission: 'system.notification_template.read',
+      },
     ],
   },
 ];

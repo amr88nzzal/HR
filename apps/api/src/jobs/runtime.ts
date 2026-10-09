@@ -116,6 +116,26 @@ const processJob = async (deps: WorkerDeps, job: Job): Promise<void> => {
       error: messageOf(err),
       finishedAt: final ? new Date() : null,
     });
+    if (final && def.onFailure) {
+      try {
+        const onFailure = def.onFailure;
+        await withTenant(
+          deps.db,
+          { companyId: p.companyId, userId: p.userId, requestId: p.requestId },
+          (ctx) =>
+            onFailure(ctx, def.parse(p.data), messageOf(err), {
+              runId: p.runId,
+              attempt,
+              maxAttempts,
+            }),
+        );
+      } catch (hookErr) {
+        deps.logger.error(
+          { job: p.job, runId: p.runId, err: messageOf(hookErr) },
+          'onFailure hook failed',
+        );
+      }
+    }
     deps.logger.warn(
       { job: p.job, runId: p.runId, attempt, maxAttempts, err: messageOf(err) },
       final ? 'job failed permanently' : 'job failed, will retry',

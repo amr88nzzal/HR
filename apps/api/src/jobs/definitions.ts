@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { sql } from 'kysely';
-import { defineJob, makeRegistry, type JobDefinition, type PeriodicJob } from './types.js';
+import { defineJob, type JobDefinition, type PeriodicJob } from './types.js';
 
 /** تنظيف دوري: سجلات المهام المنتهية القديمة، والرموز المنتهية */
 const cleanup = defineJob({
@@ -37,7 +37,6 @@ const cleanup = defineJob({
 
 /** المهام المعرَّفة للنظام؛ المراحل اللاحقة تضيف مهامها هنا (الإشعارات، الأرشيف...). */
 export const SYSTEM_JOBS: JobDefinition[] = [cleanup];
-export const defaultRegistry = makeRegistry(SYSTEM_JOBS);
 
 /** المهام الدورية (cron بتوقيت UTC). مرجعها الكود، ويزامنها العامل عند الإقلاع. */
 export const PERIODIC_JOBS: PeriodicJob[] = [{ job: 'system.cleanup', cron: '30 2 * * *' }];

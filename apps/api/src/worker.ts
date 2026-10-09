@@ -1,7 +1,9 @@
 import { PgBoss } from 'pg-boss';
 import { createDb } from './db/index.js';
 import { BOSS_SCHEMA } from './jobs/install.js';
-import { defaultRegistry, PERIODIC_JOBS } from './jobs/definitions.js';
+import { PERIODIC_JOBS } from './jobs/definitions.js';
+import { buildRegistry } from './jobs/registry.js';
+import { createSmtpTransport } from './notifications/mail.js';
 import { startWorkers } from './jobs/runtime.js';
 import { loadConfig } from './shared/config.js';
 import { createLogger } from './shared/logging.js';
@@ -14,6 +16,8 @@ if (!config.DATABASE_URL || !config.DATABASE_ADMIN_URL) {
   throw new Error('DATABASE_URL و DATABASE_ADMIN_URL مطلوبان لعملية العمّال');
 }
 
+const mail = config.SMTP_URL ? createSmtpTransport(config.SMTP_URL, config.MAIL_FROM) : undefined;
+if (!mail) logger.warn('SMTP_URL غير مضبوط: لن يُرسل البريد (تُعلَّم الرسائل skipped)');
 const db = createDb(config.DATABASE_URL);
 const adminDb = createDb(config.DATABASE_ADMIN_URL);
 // pg-boss يحتاج صلاحيات صيانة مخططه (أقسام الإحصاءات ...) فيتصل بحساب المالك؛ مهام الأعمال تعمل عبر db الخاضع لـ RLS
@@ -32,7 +36,7 @@ await startWorkers({
   boss,
   db,
   adminDb,
-  registry: defaultRegistry,
+  registry: buildRegistry(mail),
   periodic: PERIODIC_JOBS,
   logger,
 });

@@ -24,6 +24,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { setLang, type Lang } from '../i18n';
+import { NotificationBell } from '../features/notifications/NotificationBell';
 import { isGroup, visibleNav, type NavLeaf } from './nav';
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
@@ -63,6 +64,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
             <Title order={4}>{t('app.name')}</Title>
           </Group>
           <Group gap="xs" wrap="nowrap">
+            <NotificationBell />
             <ActionIcon
               variant="subtle"
               onClick={() => void setLang(nextLang)}
