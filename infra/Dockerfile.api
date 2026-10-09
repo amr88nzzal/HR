@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # مصدر الصورة الأساسية قابل للتبديل (يستعمله CI لتفادي حدّ سحب Docker Hub)
 ARG NODE_IMAGE=node:22-alpine
 FROM ${NODE_IMAGE} AS build

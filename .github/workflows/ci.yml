@@ -38,6 +38,8 @@ jobs:
       - run: pnpm --filter @hrms/api test:integration
         env:
           TEST_PG_IMAGE: ${{ env.MIRROR }}/postgres:18
+          # حاوية التنظيف Ryuk تُسحب من Docker Hub (حدّ السحب)؛ لا حاجة لها على مشغّل مؤقت يُمحى بعد الانتهاء
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
   docker:
     runs-on: ubuntu-latest
     needs: verify
