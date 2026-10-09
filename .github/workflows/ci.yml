@@ -33,6 +33,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # سحب الصورة مرة واحدة قبل الاختبارات: حزم الاختبار المتوازية تتسابق على سحبها وتفشل إحداها أحياناً
+      - run: docker pull ${{ env.MIRROR }}/postgres:18
       - run: pnpm --filter @hrms/api test:integration
         env:
           TEST_PG_IMAGE: ${{ env.MIRROR }}/postgres:18
