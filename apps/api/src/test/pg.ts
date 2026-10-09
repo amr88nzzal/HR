@@ -63,7 +63,9 @@ export const startTestPg = async (): Promise<TestPg> => {
       await r.end();
     };
   } else {
-    const container = await new PostgreSqlContainer('postgres:18').start();
+    const container = await new PostgreSqlContainer(
+      process.env['TEST_PG_IMAGE'] ?? 'postgres:18',
+    ).start();
     adminUrl = container.getConnectionUri();
     stop = async () => {
       await container.stop();

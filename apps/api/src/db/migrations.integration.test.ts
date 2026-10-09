@@ -10,7 +10,9 @@ describe('migrations على PostgreSQL 18', () => {
   let db: Db;
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:18').start();
+    container = await new PostgreSqlContainer(
+      process.env['TEST_PG_IMAGE'] ?? 'postgres:18',
+    ).start();
     const url = container.getConnectionUri();
     execFileSync('pnpm', ['migrate', 'up'], {
       env: { ...process.env, DATABASE_URL: url },

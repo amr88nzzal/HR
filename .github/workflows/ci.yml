@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
   pull_request:
+env:
+  # مرآة AWS العامة للصور الرسمية: تتجنب حدّ السحب (429) لمشغّلات GitHub على Docker Hub
+  MIRROR: public.ecr.aws/docker/library
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -31,13 +34,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @hrms/api test:integration
+        env:
+          TEST_PG_IMAGE: ${{ env.MIRROR }}/postgres:18
   docker:
     runs-on: ubuntu-latest
     needs: verify
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - run: docker build -f infra/Dockerfile.api -t hrms-api .
+      - run: docker build -f infra/Dockerfile.api --build-arg NODE_IMAGE=${{ env.MIRROR }}/node:22-alpine -t hrms-api .
       # التأكد أن الوحدة الأصلية (argon2) تعمل في صورة alpine الإنتاجية
       - run: docker run --rm hrms-api node -e "import('@node-rs/argon2').then(m => m.hash('x')).then(() => console.log('argon2 ok'))"
-      - run: docker build -f infra/Dockerfile.gateway -t hrms-gateway .
+      - run: docker build -f infra/Dockerfile.gateway --build-arg NODE_IMAGE=${{ env.MIRROR }}/node:22-alpine --build-arg NGINX_IMAGE=${{ env.MIRROR }}/nginx:alpine -t hrms-gateway .
