@@ -382,6 +382,27 @@ export type CustomFieldDefinitionsTable = Versioned & {
   isActive: Generated<boolean>;
 };
 
+export type JobRunsTable = {
+  id: Generated<string>;
+  companyId: string;
+  jobName: string;
+  queue: 'critical' | 'default' | 'bulk' | 'render';
+  bossJobId: string | null;
+  status: Generated<'queued' | 'running' | 'retrying' | 'succeeded' | 'failed' | 'cancelled'>;
+  attempt: Generated<number>;
+  maxAttempts: Generated<number>;
+  payload: Generated<unknown>;
+  result: unknown | null;
+  error: string | null;
+  retryOf: string | null;
+  requestedBy: string | null;
+  scheduledFor: TsNullable;
+  startedAt: TsNullable;
+  finishedAt: TsNullable;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
 export type StoredFilesTable = {
   id: Generated<string>;
   companyId: string;
@@ -525,6 +546,7 @@ export type Database = {
   employeeExternalRefs: EmployeeExternalRefsTable;
   customFieldDefinitions: CustomFieldDefinitionsTable;
   storedFiles: StoredFilesTable;
+  jobRuns: JobRunsTable;
   documentTypes: DocumentTypesTable;
   documentTypeFields: DocumentTypeFieldsTable;
   documents: DocumentsTable;

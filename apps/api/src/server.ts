@@ -1,4 +1,6 @@
+import { PgBoss } from 'pg-boss';
 import { createApp } from './app.js';
+import { BOSS_SCHEMA, createJobQueue, defaultRegistry, type JobQueue } from './jobs/index.js';
 import { createDb, pingDb } from './db/index.js';
 import { createFieldCrypto } from './shared/crypto.js';
 import { createLocalStorage } from './shared/storage.js';
@@ -28,6 +30,28 @@ const crypto =
       })
     : undefined;
 
+// الـ API يدرج المهام فقط (ضمن معاملات الأعمال)؛ التنفيذ والجدولة والصيانة في عملية worker
+let boss: PgBoss | undefined;
+let jobs: JobQueue | undefined;
+if (db && config.DATABASE_URL) {
+  try {
+    boss = new PgBoss({
+      connectionString: config.DATABASE_URL,
+      schema: BOSS_SCHEMA,
+      migrate: false,
+      createSchema: false,
+      supervise: false,
+      schedule: false,
+    });
+    boss.on('error', (err) => logger.error({ err }, 'pg-boss error'));
+    await boss.start();
+    jobs = createJobQueue(boss, defaultRegistry);
+  } catch (err) {
+    logger.warn({ err }, 'job queue unavailable (run post-migrate); continuing without it');
+    boss = undefined;
+  }
+}
+
 const app = createApp({
   logger,
   checkDb: db ? () => pingDb(db) : undefined,
@@ -38,6 +62,7 @@ const app = createApp({
           cookieSecure: config.COOKIE_SECURE,
           crypto,
           storage: createLocalStorage(config.STORAGE_DIR),
+          jobs,
           settings: {
             jwtSecret: config.JWT_SECRET,
             accessTtlSeconds: config.ACCESS_TOKEN_TTL_SECONDS,
@@ -55,6 +80,7 @@ const server = app.listen(config.PORT, () => {
 const shutdown = (signal: string) => {
   logger.info({ signal }, 'shutting down');
   server.close(async () => {
+    await boss?.stop({ graceful: true, timeout: 10_000 });
     await db?.destroy();
     process.exit(0);
   });

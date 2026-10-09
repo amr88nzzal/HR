@@ -3,6 +3,7 @@ import {
   IconBuildingBank,
   IconHome,
   IconHistory,
+  IconListCheck,
   IconId,
   IconMapPin,
   IconSettings,
@@ -144,6 +145,7 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         permission: 'org.custom_field.read',
       },
       { key: 'audit', path: '/admin/audit', icon: IconHistory, permission: 'system.audit.read' },
+      { key: 'jobs', path: '/admin/jobs', icon: IconListCheck, permission: 'system.job.read' },
     ],
   },
 ];

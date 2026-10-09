@@ -11,6 +11,7 @@ import {
 import { mountEmployeesRoutes } from './modules/employees/index.js';
 import type { FieldCrypto } from './shared/crypto.js';
 import type { StorageProvider } from './shared/storage.js';
+import { createJobsRouter, type JobQueue } from './jobs/index.js';
 import { mountArchiveRoutes } from './modules/archive/index.js';
 import { mountOrgRoutes } from './modules/org/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
@@ -29,6 +30,8 @@ export type AppDeps = {
     crypto?: FieldCrypto;
     /** تخزين الملفات (الأرشيف وصور الموظفين)؛ غيابه يعطّل الرفع فقط */
     storage?: StorageProvider;
+    /** قائمة المهام الخلفية (الإدراج ضمن المعاملات)؛ غيابها يعطّل إعادة التشغيل فقط */
+    jobs?: JobQueue;
   };
 };
 
@@ -71,6 +74,7 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     const files = { storage: auth.storage, crypto: auth.crypto };
     mountEmployeesRoutes(api, auth.db, authenticate, auth.crypto, files);
     mountArchiveRoutes(api, auth.db, authenticate, files, auth.crypto);
+    api.use('/jobs', createJobsRouter(auth.db, authenticate, auth.jobs));
     app.use('/api/v1', api);
   }
 
