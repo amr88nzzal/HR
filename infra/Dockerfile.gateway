@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 ARG NODE_IMAGE=node:22-alpine
 ARG NGINX_IMAGE=nginx:alpine
 FROM ${NODE_IMAGE} AS build
