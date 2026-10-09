@@ -11,6 +11,8 @@ export type JobDefinition<T = unknown> = {
   parse: (data: unknown) => T;
   /** يعمل داخل معاملة الشركة (RLS)؛ الإخفاق = رمي استثناء فتُعاد المحاولة */
   handle: (ctx: Ctx, data: T, info: JobInfo) => Promise<unknown>;
+  /** يُستدعى مرة واحدة بعد استنفاد المحاولات، في معاملة مستقلة (لتسجيل الفشل على الكيان) */
+  onFailure?: (ctx: Ctx, data: T, error: string, info: JobInfo) => Promise<void>;
 };
 
 export type JobRegistry = ReadonlyMap<string, JobDefinition>;

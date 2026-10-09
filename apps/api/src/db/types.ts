@@ -403,6 +403,62 @@ export type JobRunsTable = {
   updatedAt: Generated<Date>;
 };
 
+export type NotificationsTable = {
+  id: Generated<string>;
+  companyId: string;
+  userId: string;
+  eventKey: string;
+  category: string;
+  title: string;
+  body: string;
+  link: string | null;
+  data: Generated<unknown>;
+  readAt: TsNullable;
+  isVisible: Generated<boolean>;
+  createdAt: Generated<Date>;
+};
+
+export type NotificationTemplatesTable = {
+  id: Generated<string>;
+  companyId: string;
+  eventKey: string;
+  channel: 'in_app' | 'email';
+  locale: 'ar' | 'en';
+  subject: string | null;
+  body: string;
+  isActive: Generated<boolean>;
+  version: Generated<number>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
+export type NotificationDeliveriesTable = {
+  id: Generated<string>;
+  companyId: string;
+  notificationId: string;
+  channel: 'email';
+  toAddress: string;
+  subject: string;
+  body: string;
+  bodyHtml: string;
+  status: Generated<'pending' | 'sent' | 'failed' | 'skipped'>;
+  attempts: Generated<number>;
+  error: string | null;
+  sentAt: TsNullable;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
+export type NotificationPreferencesTable = {
+  id: Generated<string>;
+  companyId: string;
+  userId: string;
+  category: string;
+  channel: 'in_app' | 'email';
+  enabled: boolean;
+  updatedAt: Generated<Date>;
+};
+
 export type StoredFilesTable = {
   id: Generated<string>;
   companyId: string;
@@ -547,6 +603,10 @@ export type Database = {
   customFieldDefinitions: CustomFieldDefinitionsTable;
   storedFiles: StoredFilesTable;
   jobRuns: JobRunsTable;
+  notifications: NotificationsTable;
+  notificationTemplates: NotificationTemplatesTable;
+  notificationDeliveries: NotificationDeliveriesTable;
+  notificationPreferences: NotificationPreferencesTable;
   documentTypes: DocumentTypesTable;
   documentTypeFields: DocumentTypeFieldsTable;
   documents: DocumentsTable;

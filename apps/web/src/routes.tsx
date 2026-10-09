@@ -14,6 +14,8 @@ import { isGroup, NAV } from './layout/nav';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { JobsPage } from './features/admin/JobsPage';
+import { NotificationTemplatesPage } from './features/admin/NotificationTemplatesPage';
+import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { AuditPage } from './features/AuditPage';
 import { CustomFieldsPage } from './features/admin/CustomFieldsPage';
 import { ExternalSystemsPage } from './features/admin/ExternalSystemsPage';
@@ -99,6 +101,7 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/settings': () => <SettingsPage />,
   '/admin/audit': () => <AuditPage />,
   '/admin/jobs': () => <JobsPage />,
+  '/admin/notification-templates': () => <NotificationTemplatesPage />,
 };
 
 const sectionRoutes = NAV.flatMap((n) => (isGroup(n) ? n.items : [])).map((leaf) =>
@@ -125,9 +128,22 @@ const employeeRoute = createRoute({
   },
 });
 
+/** إشعاراتي: صفحة لكل مستخدم بلا صلاحية (تُفتح من الجرس) */
+const notificationsRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: '/notifications',
+  component: NotificationsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  authRoute.addChildren([indexRoute, passwordRoute, ...sectionRoutes, employeeRoute]),
+  authRoute.addChildren([
+    indexRoute,
+    passwordRoute,
+    ...sectionRoutes,
+    employeeRoute,
+    notificationsRoute,
+  ]),
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent' });

@@ -24,6 +24,12 @@ const envSchema = z.object({
   ENCRYPTION_DIGEST_KEY: z.string().optional(),
   /** مجلد تخزين الملفات المرفوعة (يُحمَّل كـ volume ويُنسخ احتياطياً مع القاعدة) */
   STORAGE_DIR: z.string().min(1).default('./data/files'),
+  /** SMTP عام لإرسال البريد: smtp://user:pass@host:587؛ غيابه = تُعلَّم رسائل البريد skipped */
+  SMTP_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  MAIL_FROM: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().min(3).default('HRMS <no-reply@localhost>'),
+  ),
   /** الشركة الافتراضية عند غياب company في طلب الدخول (نشر الشركة الواحدة) */
   DEFAULT_COMPANY_SLUG: z.string().min(1).default('main'),
 });

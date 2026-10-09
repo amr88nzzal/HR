@@ -1,32 +1,36 @@
-import { execFileSync } from 'node:child_process';
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createDb, pingDb, type Db } from './index.js';
 import { sql } from 'kysely';
+import { startTestPg, type TestPg } from '../test/pg.js';
+import { createDb, pingDb, type Db } from './index.js';
 
-// يتطلب Docker (يعمل في CI). يختبر على PostgreSQL 18 الحقيقي.
-describe('migrations على PostgreSQL 18', () => {
-  let container: StartedPostgreSqlContainer;
+// يهيّئ القاعدة (تهجير كامل) عبر startTestPg: خادم خارجي (TEST_PG_ADMIN_URL) أو حاوية postgres:18.
+// في CI يُثبَّت PostgreSQL 18 على المشغّل ويُشترط ذلك صراحةً بـ TEST_REQUIRE_PG18.
+describe('migrations', () => {
+  let pgx: TestPg;
   let db: Db;
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:18').start();
-    const url = container.getConnectionUri();
-    execFileSync('pnpm', ['migrate', 'up'], {
-      env: { ...process.env, DATABASE_URL: url },
-      stdio: 'inherit',
-    });
-    db = createDb(url);
-  });
+    pgx = await startTestPg();
+    db = createDb(pgx.adminUrl);
+  }, 120_000);
 
   afterAll(async () => {
     await db?.destroy();
-    await container?.stop();
+    await pgx?.stop();
   });
 
   it('الاتصال يعمل', async () => {
     await expect(pingDb(db)).resolves.toBeUndefined();
   });
+
+  it.runIf(process.env['TEST_REQUIRE_PG18'] === 'true')(
+    'الخادم PostgreSQL 18 أو أحدث',
+    async () => {
+      const { rows } = await sql<{ v: number }>`
+      select current_setting('server_version_num')::int as v`.execute(db);
+      expect(rows[0]?.v).toBeGreaterThanOrEqual(180000);
+    },
+  );
 
   it('uuidv7() متاحة ويُنتج معرّفاً من الإصدار 7', async () => {
     const { rows } = await sql<{ id: string }>`select uuidv7()::text as id`.execute(db);

@@ -12,6 +12,11 @@ import { mountEmployeesRoutes } from './modules/employees/index.js';
 import type { FieldCrypto } from './shared/crypto.js';
 import type { StorageProvider } from './shared/storage.js';
 import { createJobsRouter, type JobQueue } from './jobs/index.js';
+import {
+  createNotificationsRouter,
+  createNotificationTemplatesRouter,
+  createNotifier,
+} from './notifications/index.js';
 import { mountArchiveRoutes } from './modules/archive/index.js';
 import { mountOrgRoutes } from './modules/org/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
@@ -75,6 +80,11 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     mountEmployeesRoutes(api, auth.db, authenticate, auth.crypto, files);
     mountArchiveRoutes(api, auth.db, authenticate, files, auth.crypto);
     api.use('/jobs', createJobsRouter(auth.db, authenticate, auth.jobs));
+    api.use(
+      '/notifications',
+      createNotificationsRouter(auth.db, authenticate, createNotifier(auth.jobs)),
+    );
+    api.use('/notification-templates', createNotificationTemplatesRouter(auth.db, authenticate));
     app.use('/api/v1', api);
   }
 
