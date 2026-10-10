@@ -681,7 +681,58 @@ export type ApproverDelegationsTable = {
   createdAt: Generated<Date>;
 };
 
+export type LeaveTypesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  isPaid: Generated<boolean>;
+  allowHalfDay: Generated<boolean>;
+  requiresAttachment: Generated<boolean>;
+  color: string | null;
+  isActive: Generated<boolean>;
+};
+
+export type LeavePoliciesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  leaveTypeId: string;
+  annualEntitlement: string;
+  accrualMethod: Generated<string>;
+  carryOverMax: Generated<string>;
+  carryOverValidMonths: number | null;
+  maxNegative: Generated<string>;
+  minServiceMonths: Generated<number>;
+  isActive: Generated<boolean>;
+};
+
+export type LeavePolicyAssignmentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  policyId: string;
+  scope: string;
+  scopeRef: string | null;
+  validFrom: Generated<string>;
+  createdAt: Generated<Date>;
+};
+
+export type HolidaysTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  holidayDate: DateReq;
+  nameAr: string;
+  nameEn: string | null;
+};
+
 export type Database = {
+  leaveTypes: LeaveTypesTable;
+  leavePolicies: LeavePoliciesTable;
+  leavePolicyAssignments: LeavePolicyAssignmentsTable;
+  holidays: HolidaysTable;
   approvalFlows: ApprovalFlowsTable;
   approvalSteps: ApprovalStepsTable;
   approvalRequests: ApprovalRequestsTable;

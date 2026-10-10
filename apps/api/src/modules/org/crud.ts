@@ -27,6 +27,8 @@ export type CrudConfig = {
   tree?: boolean;
   /** تقييد الرؤية بنطاق الفرع: العمود الذي يحمل معرّف الفرع في هذا الجدول */
   branchScopeColumn?: string;
+  /** الجدول بلا عمود code (فلا يُبحث به) */
+  codeless?: boolean;
 };
 
 export const ensureRefsExist = async (ctx: Ctx, table: string, ids: string[]): Promise<void> => {
@@ -98,7 +100,11 @@ export const createCrudService = (cfg: CrudConfig) => {
         if (query.q) {
           const like = `%${query.q.replace(/[%_\\]/g, '\\$&')}%`;
           r = r.where((eb) =>
-            eb.or([...cfg.searchColumns, 'code'].map((col) => eb(col, 'ilike', like))),
+            eb.or(
+              [...cfg.searchColumns, ...(cfg.codeless ? [] : ['code'])].map((col) =>
+                eb(col, 'ilike', like),
+              ),
+            ),
           );
         }
         if (scope !== 'all') {

@@ -80,3 +80,5 @@ export const mountOrgRoutes = (api: Router, db: Db, authenticate: RequestHandler
   api.use('/settings', createSettingsRouter(db, authenticate));
   api.use('/audit-logs', createAuditRouter(db, authenticate));
 };
+
+export { createCrudRouter, ensureRefsExist, type CrudConfig } from './crud.js';
