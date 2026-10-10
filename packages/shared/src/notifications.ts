@@ -99,6 +99,15 @@ export const NOTIFICATION_EVENTS: readonly NotificationEventDef[] = [
     },
   },
   {
+    key: 'digest.daily',
+    category: 'system',
+    variables: ['user', 'summary'],
+    defaults: {
+      ar: { subject: 'ملخصك اليومي', body: 'مرحباً {{user}}،\n{{summary}}' },
+      en: { subject: 'Your daily digest', body: 'Hello {{user}},\n{{summary}}' },
+    },
+  },
+  {
     key: 'system.test',
     category: 'system',
     variables: ['user'],

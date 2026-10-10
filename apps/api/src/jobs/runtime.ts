@@ -78,6 +78,7 @@ const processJob = async (deps: WorkerDeps, job: Job): Promise<void> => {
   const attempt = job.retryCount + 1;
   const maxAttempts = job.retryLimit + 1;
   const def = deps.registry.get(p.job);
+  const queue = createJobQueue(deps.boss, deps.registry);
   if (!def) {
     // لا فائدة من إعادة المحاولة: تُسجَّل فاشلة نهائياً وتُكمل في الطابور
     await setRun(deps, p, {
@@ -101,7 +102,7 @@ const processJob = async (deps: WorkerDeps, job: Job): Promise<void> => {
     const result = await withTenant(
       deps.db,
       { companyId: p.companyId, userId: p.userId, requestId: p.requestId },
-      (ctx) => def.handle(ctx, parsed, { runId: p.runId, attempt, maxAttempts }),
+      (ctx) => def.handle(ctx, parsed, { runId: p.runId, attempt, maxAttempts, queue }),
     );
     await setRun(deps, p, {
       status: 'succeeded',
@@ -127,6 +128,7 @@ const processJob = async (deps: WorkerDeps, job: Job): Promise<void> => {
               runId: p.runId,
               attempt,
               maxAttempts,
+              queue,
             }),
         );
       } catch (hookErr) {

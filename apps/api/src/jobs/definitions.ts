@@ -39,4 +39,8 @@ const cleanup = defineJob({
 export const SYSTEM_JOBS: JobDefinition[] = [cleanup];
 
 /** المهام الدورية (cron بتوقيت UTC). مرجعها الكود، ويزامنها العامل عند الإقلاع. */
-export const PERIODIC_JOBS: PeriodicJob[] = [{ job: 'system.cleanup', cron: '30 2 * * *' }];
+export const PERIODIC_JOBS: PeriodicJob[] = [
+  { job: 'system.cleanup', cron: '30 2 * * *' },
+  // كل ساعة؛ المهمة نفسها تتحقق من ساعة الشركة المحلية فترسل مرة يومياً
+  { job: 'digest.daily', cron: '0 * * * *' },
+];
