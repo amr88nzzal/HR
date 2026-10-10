@@ -9,12 +9,14 @@ import {
   syncPermissionCatalog,
 } from './modules/identity/index.js';
 import { seedDefaultExternalSystems } from './modules/employees/external.routes.js';
+import { seedDemo } from './seed/demo.js';
 
 /**
  * أوامر الإدارة (تعمل بحساب المالك DATABASE_ADMIN_URL لأنها تتجاوز RLS):
  *   post-migrate     يضبط كلمة مرور hrms_app ويزامن كتالوج الصلاحيات ويمنح admin الجديد منها (آمن لإعادة التشغيل)
  *   create-admin     ينشئ الشركة (إن لزم) وأدوارها الافتراضية ومستخدماً بدور admin
  *   reset-password   يعيد تعيين كلمة مرور مستخدم
+ *   seed-demo        يبذر بيانات تجريبية (هيكل + 30 موظفاً + 3 مستخدمين) في شركة موجودة؛ آمن لإعادة التشغيل
  * كلمات المرور تُمرَّر عبر متغير البيئة ADMIN_PASSWORD لا عبر سطر الأوامر.
  */
 const args = (argv: string[]): Record<string, string> => {
@@ -134,8 +136,30 @@ const main = async (): Promise<void> => {
         .executeTakeFirst();
       if (!res.numUpdatedRows) throw new Error('المستخدم غير موجود');
       console.log(`reset-password: تم تحديث ${email}`);
+    } else if (command === 'seed-demo') {
+      const slug = opts['company'] ?? 'main';
+      const password = need(process.env['DEMO_PASSWORD'], 'DEMO_PASSWORD');
+      const problem = checkPasswordPolicy(password, { email: 'demo.hr@demo.hrms.local' });
+      if (problem) throw new Error(problem);
+      const company = await db
+        .selectFrom('companies')
+        .select('id')
+        .where('slug', '=', slug)
+        .executeTakeFirst();
+      if (!company) throw new Error(`الشركة ${slug} غير موجودة؛ أنشئها أولاً بـ create-admin`);
+      const result = await withTenant(db, { companyId: company.id, requestId: 'cli' }, (ctx) =>
+        seedDemo(ctx, password),
+      );
+      if (result.skipped) console.log('seed-demo: البيانات التجريبية موجودة مسبقاً، لم يتغير شيء');
+      else {
+        console.log(`seed-demo: أُنشئ ${result.employees} موظفاً وهيكل تنظيمي كامل`);
+        for (const u of result.users) console.log(`  ${u.role.padEnd(10)} ${u.email}`);
+        console.log('  كلمة المرور: قيمة DEMO_PASSWORD (للتجربة فقط، احذف البيانات قبل الإنتاج)');
+      }
     } else {
-      throw new Error('الأمر غير معروف. المتاح: post-migrate | create-admin | reset-password');
+      throw new Error(
+        'الأمر غير معروف. المتاح: post-migrate | create-admin | reset-password | seed-demo',
+      );
     }
   } finally {
     await db.destroy();
