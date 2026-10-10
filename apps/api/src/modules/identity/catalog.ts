@@ -53,6 +53,11 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('employees', 'bank_account', 'read', 'عرض الحسابات البنكية (مقنّعة)'),
   def('employees', 'bank_account', 'manage', 'إدارة الحسابات البنكية'),
   def('employees', 'bank_account', 'reveal', 'كشف رقم الحساب البنكي كاملاً (مدقَّق)'),
+  def('approvals', 'flow', 'read', 'عرض سلاسل الموافقة'),
+  def('approvals', 'flow', 'manage', 'إدارة سلاسل الموافقة'),
+  def('approvals', 'request', 'read_all', 'عرض كل طلبات الموافقة'),
+  def('approvals', 'request', 'submit', 'تقديم طلب موافقة عام'),
+  def('approvals', 'delegation', 'manage', 'إدارة تفويض الموافقات لآخرين'),
   def('identity', 'user', 'read', 'عرض المستخدمين'),
   def('identity', 'user', 'create', 'إضافة مستخدم'),
   def('identity', 'user', 'update', 'تعديل مستخدم'),
@@ -97,6 +102,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
     nameEn: 'Line Manager',
     grants: (c) =>
       (isRead(c) && c.startsWith('org.')) ||
+      c === 'approvals.request.submit' ||
       c === 'employees.employee.read' ||
       c === 'employees.employment.read',
   },
@@ -106,6 +112,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
     nameEn: 'Employee',
     grants: (c) =>
       c === 'system.company.read' ||
+      c === 'approvals.request.submit' ||
       c === 'employees.employee.read' ||
       c === 'employees.employment.read',
   },

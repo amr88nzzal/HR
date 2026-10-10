@@ -30,3 +30,4 @@ export * from './archive.js';
 export * from './import.js';
 export * from './jobs.js';
 export * from './notifications.js';
+export * from './approvals.js';

@@ -17,6 +17,12 @@ import {
   createNotificationTemplatesRouter,
   createNotifier,
 } from './notifications/index.js';
+import {
+  createApprovalEngine,
+  createApprovalFlowsRouter,
+  createApprovalsRouter,
+  createDelegationsRouter,
+} from './approvals/index.js';
 import { mountArchiveRoutes } from './modules/archive/index.js';
 import { mountOrgRoutes } from './modules/org/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
@@ -85,6 +91,10 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
       createNotificationsRouter(auth.db, authenticate, createNotifier(auth.jobs)),
     );
     api.use('/notification-templates', createNotificationTemplatesRouter(auth.db, authenticate));
+    const engine = createApprovalEngine(createNotifier(auth.jobs));
+    api.use('/approval-flows', createApprovalFlowsRouter(auth.db, authenticate));
+    api.use('/approval-delegations', createDelegationsRouter(auth.db, authenticate));
+    api.use('/approvals', createApprovalsRouter(auth.db, authenticate, engine));
     app.use('/api/v1', api);
   }
 
