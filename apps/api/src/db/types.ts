@@ -593,7 +593,101 @@ export type EmploymentChangesTable = {
   createdAt: Generated<Date>;
 };
 
+export type ApprovalFlowsTable = {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  requestType: string;
+  nameAr: string;
+  nameEn: string | null;
+  isActive: Generated<boolean>;
+  version: Generated<number>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
+export type ApprovalStepsTable = {
+  id: Generated<string>;
+  companyId: string;
+  flowId: string;
+  position: number;
+  nameAr: string;
+  nameEn: string | null;
+  approverType: 'direct_manager' | 'manager_of_manager' | 'role' | 'user';
+  approverRef: string | null;
+  mode: Generated<'any' | 'all'>;
+  condition: ColumnType<unknown, string | null | undefined, string | null>;
+};
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'returned' | 'withdrawn';
+
+export type ApprovalRequestsTable = {
+  id: Generated<string>;
+  companyId: string;
+  flowId: string;
+  requestType: string;
+  entityType: string | null;
+  entityId: string | null;
+  title: string;
+  requesterUserId: string;
+  payload: ColumnType<Record<string, unknown>, string | undefined, string>;
+  status: Generated<ApprovalStatus>;
+  currentStepId: string | null;
+  currentPosition: number | null;
+  finalNote: string | null;
+  submittedAt: Generated<Date>;
+  decidedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  version: Generated<number>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
+export type ApprovalRequestAssigneesTable = {
+  id: Generated<string>;
+  companyId: string;
+  requestId: string;
+  stepId: string | null;
+  position: number;
+  userId: string;
+  delegatedFromUserId: string | null;
+  status: Generated<'pending' | 'acted' | 'cancelled'>;
+  actedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  createdAt: Generated<Date>;
+};
+
+export type ApprovalActionsTable = {
+  id: Generated<string>;
+  companyId: string;
+  requestId: string;
+  stepId: string | null;
+  position: number | null;
+  actorUserId: string;
+  onBehalfOfUserId: string | null;
+  action: 'submit' | 'resubmit' | 'approve' | 'reject' | 'return' | 'withdraw';
+  note: string | null;
+  createdAt: Generated<Date>;
+};
+
+export type ApproverDelegationsTable = {
+  id: Generated<string>;
+  companyId: string;
+  delegatorUserId: string;
+  delegateUserId: string;
+  validFrom: string;
+  validTo: string;
+  requestType: string | null;
+  note: string | null;
+  isActive: Generated<boolean>;
+  createdAt: Generated<Date>;
+};
+
 export type Database = {
+  approvalFlows: ApprovalFlowsTable;
+  approvalSteps: ApprovalStepsTable;
+  approvalRequests: ApprovalRequestsTable;
+  approvalRequestAssignees: ApprovalRequestAssigneesTable;
+  approvalActions: ApprovalActionsTable;
+  approverDelegations: ApproverDelegationsTable;
   changeReasons: ChangeReasonsTable;
   contracts: ContractsTable;
   employments: EmploymentsTable;
