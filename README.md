@@ -42,6 +42,20 @@ docker compose -f infra/docker-compose.yml --env-file .env run --rm \
 ```
 
 أوامر أخرى: `post-migrate` (تلقائي عند كل نشر)، `reset-password --email ...`.
+
+### بيانات تجريبية (للتجربة والعرض فقط)
+
+بعد `create-admin` يمكن بذر شركة ببيانات تجريبية: فرعان وخمسة أقسام ودرجات ومسميات ومراكز تكلفة و30 موظفاً (أرقامهم `DEMO-001`…) بسلاسل مديرين وتعيينات وعقود وجهات اتصال وأكواد محاسبة/بصمة، مع ثلاثة مستخدمين (`demo.hr@demo.hrms.local` مدير موارد بشرية، `demo.manager@…` مدير مباشر، `demo.employee@…` موظف) وكلمة مرورهم من `DEMO_PASSWORD`. الأمر آمن لإعادة التشغيل (يتوقف إن وجد بيانات `DEMO-`).
+
+```bash
+git pull
+docker compose -f infra/docker-compose.yml --env-file .env up -d --build
+docker compose -f infra/docker-compose.yml --env-file .env run --rm \
+  -e DEMO_PASSWORD='كلمة-مرور-تجريبية-طويلة' migrate \
+  node dist/cli.js seed-demo --company main
+```
+
+لا تشغّله على قاعدة إنتاج حقيقية؛ لإزالتها احذف الـ volume وأعد التهيئة (`down -v`) أو احذف سجلات `DEMO-` يدوياً.
 التطبيق يتصل بدور `hrms_app` (غير مالك) فتُطبَّق سياسات RLS؛ المالك للترحيل والـ CLI فقط.
 
 > **تنبيه:** صورة PostgreSQL تقرأ `POSTGRES_USER` و`POSTGRES_PASSWORD` عند إنشاء الـ volume أول مرة فقط. إن غيّرتهما لاحقاً فنفّذ `docker compose ... down -v` (يمسح بيانات القاعدة!) أو غيّرهما داخل PostgreSQL نفسه.
