@@ -1,7 +1,14 @@
 import type { JobQueueName } from '@hrms/shared';
 import type { Ctx } from '../db/tenant.js';
+import type { JobQueue } from './queue.js';
 
-export type JobInfo = { runId: string; attempt: number; maxAttempts: number };
+export type JobInfo = {
+  runId: string;
+  attempt: number;
+  maxAttempts: number;
+  /** لإدراج مهام أخرى من داخل المهمة (مثل تسليم البريد) ضمن معاملتها */
+  queue: JobQueue;
+};
 
 /** تعريف مهمة: يُسجَّل في سجل واحد يستعمله العامل والإدراج. */
 export type JobDefinition<T = unknown> = {
