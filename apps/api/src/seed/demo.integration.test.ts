@@ -3,7 +3,11 @@ import { createDb, type Db } from '../db/index.js';
 import { withTenant } from '../db/tenant.js';
 import { startTestPg, type TestPg } from '../test/pg.js';
 import { seedDefaultRoles, syncPermissionCatalog } from '../modules/identity/index.js';
+import { randomBytes } from 'node:crypto';
+import { sql } from 'kysely';
+import { createFieldCrypto } from '../shared/crypto.js';
 import { seedDemo } from './demo.js';
+import { seedDemoExtras } from './demo-extras.js';
 
 describe('البيانات التجريبية', () => {
   let pgx: TestPg;
@@ -70,5 +74,42 @@ describe('البيانات التجريبية', () => {
 
     const again = await withTenant(admin, { companyId }, (ctx) => seedDemo(ctx, 'Demo-pass-12345'));
     expect(again.skipped).toBe(true);
+  });
+
+  it('الطبقات الموسَّعة تغطي كل الوحدات وتُضاف مرة واحدة فقط', async () => {
+    const k = () => randomBytes(32).toString('base64');
+    const crypto = createFieldCrypto({ keysSpec: `k1:${k()}`, currentKeyId: 'k1', digestKey: k() });
+    const first = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
+    expect(first.map((p) => `${p.part}:${p.status}`)).toEqual([
+      'details:done',
+      'lifecycle:done',
+      'archive:done',
+      'approvals:done',
+    ]);
+    const n = async (table: string, where = sql`true`) =>
+      Number(
+        (
+          await sql<{ n: string }>`select count(*)::text as n from ${sql.table(table)}
+            where company_id = ${companyId} and ${where}`.execute(admin)
+        ).rows[0]?.n,
+      );
+    expect(await n('employee_addresses')).toBe(30);
+    expect(await n('employee_bank_accounts')).toBe(30);
+    expect(await n('employee_dependents')).toBeGreaterThan(10);
+    expect(await n('employee_education')).toBe(30);
+    expect(await n('employment_changes', sql`change_type <> 'hire'`)).toBe(8);
+    expect(await n('employees', sql`status = 'terminated'`)).toBe(1);
+    expect(await n('employees', sql`status = 'suspended'`)).toBe(1);
+    expect(await n('documents')).toBe(14 + 1 + 2);
+    expect(await n('document_reminders', sql`status = 'pending'`)).toBe(17);
+    expect(await n('approval_requests')).toBe(7);
+    for (const status of ['pending', 'approved', 'rejected', 'returned', 'withdrawn'])
+      expect(await n('approval_requests', sql`status = ${status}`)).toBeGreaterThan(0);
+    expect(await n('approver_delegations')).toBe(1);
+    expect(await n('notifications')).toBeGreaterThan(5);
+
+    const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
+    expect(again.every((p) => p.status === 'skipped')).toBe(true);
+    expect(await n('employee_addresses')).toBe(30);
   });
 });

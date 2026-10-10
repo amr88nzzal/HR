@@ -35,6 +35,10 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       DATABASE_ADMIN_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set in .env}
+      # مفاتيح التشفير: يحتاجها أمر seed-demo لإضافة الحسابات البنكية والحقول الحساسة
+      ENCRYPTION_KEYS: ${ENCRYPTION_KEYS:-}
+      ENCRYPTION_KEY_ID: ${ENCRYPTION_KEY_ID:-}
+      ENCRYPTION_DIGEST_KEY: ${ENCRYPTION_DIGEST_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

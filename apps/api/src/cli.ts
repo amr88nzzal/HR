@@ -10,13 +10,15 @@ import {
 } from './modules/identity/index.js';
 import { seedDefaultExternalSystems } from './modules/employees/external.routes.js';
 import { seedDemo } from './seed/demo.js';
+import { seedDemoExtras } from './seed/demo-extras.js';
+import { createFieldCrypto } from './shared/crypto.js';
 
 /**
  * أوامر الإدارة (تعمل بحساب المالك DATABASE_ADMIN_URL لأنها تتجاوز RLS):
  *   post-migrate     يضبط كلمة مرور hrms_app ويزامن كتالوج الصلاحيات ويمنح admin الجديد منها (آمن لإعادة التشغيل)
  *   create-admin     ينشئ الشركة (إن لزم) وأدوارها الافتراضية ومستخدماً بدور admin
  *   reset-password   يعيد تعيين كلمة مرور مستخدم
- *   seed-demo        يبذر بيانات تجريبية (هيكل + 30 موظفاً + 3 مستخدمين) في شركة موجودة؛ آمن لإعادة التشغيل
+ *   seed-demo        يبذر بيانات تجريبية شاملة (هيكل، 30 موظفاً، تفاصيل، أحداث وظيفية، أرشيف، موافقات) ويضيف الطبقات الناقصة؛ آمن لإعادة التشغيل
  * كلمات المرور تُمرَّر عبر متغير البيئة ADMIN_PASSWORD لا عبر سطر الأوامر.
  */
 const args = (argv: string[]): Record<string, string> => {
@@ -150,12 +152,28 @@ const main = async (): Promise<void> => {
       const result = await withTenant(db, { companyId: company.id, requestId: 'cli' }, (ctx) =>
         seedDemo(ctx, password),
       );
-      if (result.skipped) console.log('seed-demo: البيانات التجريبية موجودة مسبقاً، لم يتغير شيء');
+      if (result.skipped)
+        console.log('seed-demo: الأساس (الهيكل والموظفون والمستخدمون) موجود مسبقاً');
       else {
         console.log(`seed-demo: أُنشئ ${result.employees} موظفاً وهيكل تنظيمي كامل`);
         for (const u of result.users) console.log(`  ${u.role.padEnd(10)} ${u.email}`);
-        console.log('  كلمة المرور: قيمة DEMO_PASSWORD (للتجربة فقط، احذف البيانات قبل الإنتاج)');
       }
+      // تشفير الحقول (حسابات بنكية وحقول حساسة) يلزم مفاتيح الخادم نفسها
+      const keys = process.env['ENCRYPTION_KEYS'];
+      const keyId = process.env['ENCRYPTION_KEY_ID'];
+      const digest = process.env['ENCRYPTION_DIGEST_KEY'];
+      const crypto =
+        keys && keyId && digest
+          ? createFieldCrypto({ keysSpec: keys, currentKeyId: keyId, digestKey: digest })
+          : undefined;
+      if (!crypto)
+        console.log('  تنبيه: لا مفاتيح ENCRYPTION_*؛ ستُتخطى الحسابات البنكية والحقل الحساس');
+      const extras = await seedDemoExtras(db, company.id, { crypto, password });
+      for (const e of extras)
+        console.log(
+          `  [${e.status === 'done' ? 'تم' : 'تخطي'}] ${e.part}${e.note ? ` — ${e.note}` : ''}`,
+        );
+      console.log('  كلمة المرور: قيمة DEMO_PASSWORD (للتجربة فقط، احذف البيانات قبل الإنتاج)');
     } else {
       throw new Error(
         'الأمر غير معروف. المتاح: post-migrate | create-admin | reset-password | seed-demo',

@@ -205,8 +205,8 @@ export const seedDemo = async (ctx: Ctx, password: string): Promise<DemoResult> 
     const female = i % 3 === 2;
     const n = Math.floor(i / 2);
     const family = FAMILIES[i % FAMILIES.length] as readonly [string, string];
-    const father = MALE[(i + 3) % MALE.length] as string;
-    const fatherEn = MALE_EN[(i + 3) % MALE_EN.length] as string;
+    const father = MALE[(n + 3) % MALE.length] as string;
+    const fatherEn = MALE_EN[(n + 3) % MALE_EN.length] as string;
     const first = female
       ? (FEMALE[n % FEMALE.length] as string)
       : (MALE[n % MALE.length] as string);
