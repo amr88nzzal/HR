@@ -58,6 +58,9 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('approvals', 'request', 'read_all', 'عرض كل طلبات الموافقة'),
   def('approvals', 'request', 'submit', 'تقديم طلب موافقة عام'),
   def('approvals', 'delegation', 'manage', 'إدارة تفويض الموافقات لآخرين'),
+  ...crud('leave', 'type', 'أنواع الإجازات'),
+  ...crud('leave', 'policy', 'سياسات الإجازات وتعيينها'),
+  ...crud('leave', 'holiday', 'العطل الرسمية'),
   def('identity', 'user', 'read', 'عرض المستخدمين'),
   def('identity', 'user', 'create', 'إضافة مستخدم'),
   def('identity', 'user', 'update', 'تعديل مستخدم'),
@@ -102,6 +105,8 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
     nameEn: 'Line Manager',
     grants: (c) =>
       (isRead(c) && c.startsWith('org.')) ||
+      c === 'leave.type.read' ||
+      c === 'leave.holiday.read' ||
       c === 'approvals.request.submit' ||
       c === 'employees.employee.read' ||
       c === 'employees.employment.read',
@@ -112,6 +117,8 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
     nameEn: 'Employee',
     grants: (c) =>
       c === 'system.company.read' ||
+      c === 'leave.type.read' ||
+      c === 'leave.holiday.read' ||
       c === 'approvals.request.submit' ||
       c === 'employees.employee.read' ||
       c === 'employees.employment.read',

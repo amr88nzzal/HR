@@ -25,6 +25,7 @@ import {
 } from './approvals/index.js';
 import { mountArchiveRoutes } from './modules/archive/index.js';
 import { mountOrgRoutes } from './modules/org/index.js';
+import { mountLeaveRoutes } from './modules/leave/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
 import { requestIdMiddleware } from './shared/logging.js';
 
@@ -82,6 +83,7 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     const authenticate = createAuthenticate(auth.db, auth.settings.jwtSecret);
     api.use(createIdentityAdminRouter(auth.db, authenticate));
     mountOrgRoutes(api, auth.db, authenticate);
+    mountLeaveRoutes(api, auth.db, authenticate);
     const files = { storage: auth.storage, crypto: auth.crypto };
     mountEmployeesRoutes(api, auth.db, authenticate, auth.crypto, files);
     mountArchiveRoutes(api, auth.db, authenticate, files, auth.crypto);

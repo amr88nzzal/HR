@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { weeklyOffSchema } from './leave.js';
 
 const code = z
   .string()
@@ -96,6 +97,8 @@ export type ListQuery = z.infer<typeof listQuery>;
 // ---- الإعدادات ----
 /** مفاتيح الإعدادات المسموحة وقيمها الافتراضية وتحقق قيمها. */
 export const SETTING_DEFS = {
+  /** أيام الراحة الأسبوعية (0=الأحد … 6=السبت)؛ الافتراضي الجمعة والسبت */
+  weeklyOff: { schema: weeklyOffSchema, default: [5, 6] },
   locale: { schema: z.enum(['ar', 'en']), default: 'ar' },
   timezone: { schema: z.string().min(1).max(60), default: 'Asia/Riyadh' },
   calendar: { schema: z.enum(['gregorian', 'hijri']), default: 'gregorian' },
