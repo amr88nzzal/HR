@@ -339,4 +339,29 @@ describe('محرك الموافقات', () => {
     expect(r.body.error.code).toBe('NO_APPROVER');
     expect((await get('hr', '/approvals/mine')).body.meta.total).toBe(before);
   });
+
+  it('المعتمد البديل يُستعمل عند غياب المدير، ويُرفض دور غير موجود', async () => {
+    const flow = (await get('admin', `/approval-flows/${ids['flow']}`)).body.data;
+    const adminRole = (await get('admin', '/roles')).body.data.find(
+      (r: { code: string }) => r.code === 'admin',
+    ).id as string;
+    const body = (fallbackRoleId: string) => ({
+      requestType: 'general',
+      nameAr: 'معدَّلة',
+      version: flow.version,
+      steps: [{ nameAr: 'المدير', approverType: 'direct_manager', fallbackRoleId }],
+    });
+    const bad = await put(
+      'admin',
+      `/approval-flows/${ids['flow']}`,
+      body('00000000-0000-4000-8000-000000000000'),
+    );
+    expect(bad.status).toBe(400);
+    expect((await put('admin', `/approval-flows/${ids['flow']}`, body(adminRole))).status).toBe(
+      200,
+    );
+    const r = await submit('hr', 1);
+    expect(r.status).toBe(201);
+    expect((await inbox('admin')).map((x) => x.id)).toContain(r.body.data.id);
+  });
 });

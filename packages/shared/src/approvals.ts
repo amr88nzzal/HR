@@ -80,6 +80,8 @@ export const approvalStepInput = z
     approverType: approverTypeEnum,
     /** معرّف الدور أو المستخدم (للنوعين role وuser فقط) */
     approverRef: uuid.nullish(),
+    /** دور بديل إن تعذّر تحديد المعتمد الأصلي */
+    fallbackRoleId: uuid.nullish(),
     mode: stepModeEnum.default('any'),
     condition: conditionSchema.nullish(),
   })

@@ -148,6 +148,8 @@ export const en: Messages = {
     approverType: 'Approver',
     approver: 'Role/User',
     mode: 'Approval',
+    fallbackRole: 'Fallback approver',
+    fallbackRoleHint: 'Role used when no direct manager exists (e.g. HR)',
     condition: 'Run step only if',
     noCondition: 'Always',
     conditionHint:

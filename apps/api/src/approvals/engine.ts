@@ -44,11 +44,41 @@ type StepRow = {
   nameEn: string | null;
   approverType: 'direct_manager' | 'manager_of_manager' | 'role' | 'user';
   approverRef: string | null;
+  fallbackRoleId: string | null;
   mode: 'any' | 'all';
   condition: unknown;
 };
 
+const activeUsersOf = async (ctx: Ctx, ids: string[]): Promise<string[]> => {
+  if (!ids.length) return [];
+  const active = await ctx.trx
+    .selectFrom('users')
+    .select('id')
+    .where('companyId', '=', ctx.companyId)
+    .where('id', 'in', ids)
+    .where('status', '=', 'active')
+    .execute();
+  return active.map((u) => u.id);
+};
+
+const usersOfRole = async (ctx: Ctx, roleId: string, requesterUserId: string) => {
+  const rows = await ctx.trx
+    .selectFrom('userRoleAssignments')
+    .select('userId')
+    .where('companyId', '=', ctx.companyId)
+    .where('roleId', '=', roleId)
+    .execute();
+  const ids = [...new Set(rows.map((r) => r.userId))].filter((id) => id !== requesterUserId);
+  return activeUsersOf(ctx, ids);
+};
+
 const resolveApprovers = async (ctx: Ctx, step: StepRow, requesterUserId: string) => {
+  const primary = await resolvePrimary(ctx, step, requesterUserId);
+  if (primary.length || !step.fallbackRoleId) return primary;
+  return usersOfRole(ctx, step.fallbackRoleId, requesterUserId);
+};
+
+const resolvePrimary = async (ctx: Ctx, step: StepRow, requesterUserId: string) => {
   let ids: string[] = [];
   if (step.approverType === 'direct_manager') {
     const m = await managerUserOf(ctx, requesterUserId);
@@ -69,15 +99,7 @@ const resolveApprovers = async (ctx: Ctx, step: StepRow, requesterUserId: string
     ids = [...new Set(rows.map((r) => r.userId))];
   }
   ids = ids.filter((id) => id !== requesterUserId); // لا يوافق مقدّم الطلب على طلبه
-  if (!ids.length) return [];
-  const active = await ctx.trx
-    .selectFrom('users')
-    .select('id')
-    .where('companyId', '=', ctx.companyId)
-    .where('id', 'in', ids)
-    .where('status', '=', 'active')
-    .execute();
-  return active.map((u) => u.id);
+  return activeUsersOf(ctx, ids);
 };
 
 const displayName = async (ctx: Ctx, userId: string): Promise<string> =>

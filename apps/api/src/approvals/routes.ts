@@ -96,6 +96,7 @@ export const createApprovalFlowsRouter = (db: Db, authenticate: RequestHandler):
         'nameEn',
         'approverType',
         'approverRef',
+        'fallbackRoleId',
         'mode',
         'condition',
       ])
@@ -107,9 +108,22 @@ export const createApprovalFlowsRouter = (db: Db, authenticate: RequestHandler):
 
   const validateSteps = async (
     ctx: Ctx,
-    steps: { approverType: string; approverRef?: string | null }[],
+    steps: {
+      approverType: string;
+      approverRef?: string | null;
+      fallbackRoleId?: string | null;
+    }[],
   ) => {
     for (const s of steps) {
+      if (s.fallbackRoleId) {
+        const r = await ctx.trx
+          .selectFrom('roles')
+          .select('id')
+          .where('companyId', '=', ctx.companyId)
+          .where('id', '=', s.fallbackRoleId)
+          .executeTakeFirst();
+        if (!r) throw bad('INVALID_REFERENCE', 'الدور البديل غير موجود');
+      }
       if (s.approverType === 'role') {
         const r = await ctx.trx
           .selectFrom('roles')
@@ -147,6 +161,7 @@ export const createApprovalFlowsRouter = (db: Db, authenticate: RequestHandler):
           nameEn: s.nameEn ?? null,
           approverType: s.approverType,
           approverRef: s.approverRef ?? null,
+          fallbackRoleId: s.fallbackRoleId ?? null,
           mode: s.mode,
           condition: s.condition ? JSON.stringify(s.condition) : null,
         })),
