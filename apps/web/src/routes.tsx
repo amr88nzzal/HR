@@ -15,6 +15,10 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { JobsPage } from './features/admin/JobsPage';
 import { NotificationTemplatesPage } from './features/admin/NotificationTemplatesPage';
+import { ApprovalFlowsPage } from './features/admin/ApprovalFlowsPage';
+import { ApprovalsPage } from './features/approvals/ApprovalsPage';
+import { ApprovalDetailPage } from './features/approvals/ApprovalDetailPage';
+import { DelegationsPage } from './features/approvals/DelegationsPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { AuditPage } from './features/AuditPage';
 import { CustomFieldsPage } from './features/admin/CustomFieldsPage';
@@ -102,6 +106,9 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/audit': () => <AuditPage />,
   '/admin/jobs': () => <JobsPage />,
   '/admin/notification-templates': () => <NotificationTemplatesPage />,
+  '/approvals': () => <ApprovalsPage />,
+  '/approval-delegations': () => <DelegationsPage />,
+  '/admin/approval-flows': () => <ApprovalFlowsPage />,
 };
 
 const sectionRoutes = NAV.flatMap((n) => (isGroup(n) ? n.items : [])).map((leaf) =>
@@ -135,6 +142,13 @@ const notificationsRoute = createRoute({
   component: NotificationsPage,
 });
 
+/** تفاصيل طلب موافقة: متاحة لكل مستخدم مسجل (الخادم يقرر الرؤية) */
+const approvalDetailRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: '/approvals/$approvalId',
+  component: ApprovalDetailPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   authRoute.addChildren([
@@ -143,6 +157,7 @@ const routeTree = rootRoute.addChildren([
     ...sectionRoutes,
     employeeRoute,
     notificationsRoute,
+    approvalDetailRoute,
   ]),
 ]);
 

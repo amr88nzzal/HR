@@ -6,12 +6,14 @@ const keys = (perms: string[]) =>
 
 describe('القائمة تُبنى من الصلاحيات', () => {
   it('بلا صلاحيات تظهر الرئيسية فقط وتختفي المجموعات الفارغة', () => {
-    expect(keys([])).toEqual(['dashboard']);
-    expect(visibleNav([]).some(isGroup)).toBe(false);
+    // الموافقات والتفويض متاحان لكل مستخدم (بلا صلاحية)، وسلاسل الموافقة بصلاحية
+    expect(keys([])).toEqual(['dashboard', 'approvalsInbox', 'approvalDelegations']);
   });
   it('تظهر العناصر المطابقة فقط', () => {
     expect(keys(['system.branch.read', 'identity.user.read'])).toEqual([
       'dashboard',
+      'approvalsInbox',
+      'approvalDelegations',
       'branches',
       'users',
     ]);
@@ -38,8 +40,9 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'employees.employee.import',
         'system.job.read',
         'system.notification_template.read',
+        'approvals.flow.read',
       ]).length,
-    ).toBe(21);
+    ).toBe(24);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');
