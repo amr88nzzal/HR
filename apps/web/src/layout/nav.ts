@@ -19,6 +19,9 @@ import {
   IconFileDescription,
   IconPlugConnected,
   IconTopologyStar3,
+  IconChecklist,
+  IconUserShare,
+  IconRoute,
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
 
@@ -55,6 +58,19 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         path: '/org/chart',
         icon: IconTopologyStar3,
         permission: 'org.department.read',
+      },
+    ],
+  },
+  {
+    key: 'approvalsGroup',
+    items: [
+      { key: 'approvalsInbox', path: '/approvals', icon: IconChecklist },
+      { key: 'approvalDelegations', path: '/approval-delegations', icon: IconUserShare },
+      {
+        key: 'approvalFlows',
+        path: '/admin/approval-flows',
+        icon: IconRoute,
+        permission: 'approvals.flow.read',
       },
     ],
   },

@@ -198,6 +198,11 @@ describe('محرك الموافقات', () => {
     expect(created.body.data.steps).toHaveLength(2);
     expect(created.body.data.isActive).toBe(true);
     ids['flow'] = created.body.data.id;
+    const options = (await get('admin', '/approval-flows/options')).body.data;
+    expect(options.roles.length).toBeGreaterThan(0);
+    expect(options.users.some((u: { id: string }) => u.id === ids['boss'])).toBe(true);
+    expect((await get('emp', '/approval-flows/options')).status).toBe(403);
+    expect((await get('emp', '/approval-delegations/users')).body.data.length).toBeGreaterThan(2);
     const types = await get('admin', '/approval-flows/request-types');
     expect(types.body.data.some((t: { key: string }) => t.key === 'general')).toBe(true);
   });

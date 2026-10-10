@@ -198,6 +198,30 @@ export const createApprovalFlowsRouter = (db: Db, authenticate: RequestHandler):
     }
   });
 
+  /** خيارات محرر السلسلة: الأدوار والمستخدمون الفعّالون (دون اشتراط صلاحيات إدارة الأدوار/المستخدمين) */
+  router.get('/options', requirePermission(`${FLOW}.manage`), async (req, res, next) => {
+    try {
+      const data = await run(req, async (ctx) => ({
+        roles: await ctx.trx
+          .selectFrom('roles')
+          .select(['id', 'code', 'nameAr', 'nameEn'])
+          .where('companyId', '=', ctx.companyId)
+          .orderBy('code')
+          .execute(),
+        users: await ctx.trx
+          .selectFrom('users')
+          .select(['id', 'displayName', 'email'])
+          .where('companyId', '=', ctx.companyId)
+          .where('status', '=', 'active')
+          .orderBy('displayName')
+          .execute(),
+      }));
+      res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.get('/:id', requirePermission(`${FLOW}.read`), async (req, res, next) => {
     try {
       const data = await run(req, (ctx) => loadFlow(ctx, idOf(req.params['id'])));
@@ -604,6 +628,25 @@ export const createDelegationsRouter = (db: Db, authenticate: RequestHandler): R
           );
         return b.orderBy('d.validFrom', 'desc').orderBy('d.id', 'desc').execute();
       });
+      res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /** المستخدمون الفعّالون المتاحون كنواب (الاسم فقط) */
+  router.get('/users', async (req, res, next) => {
+    try {
+      const data = await run(req, async (ctx, auth) =>
+        ctx.trx
+          .selectFrom('users')
+          .select(['id', 'displayName'])
+          .where('companyId', '=', ctx.companyId)
+          .where('status', '=', 'active')
+          .where('id', '<>', auth.userId)
+          .orderBy('displayName')
+          .execute(),
+      );
       res.json({ data });
     } catch (err) {
       next(err);
