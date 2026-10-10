@@ -545,6 +545,7 @@ const seedApprovals = async (ctx: Ctx, password: string): Promise<string | undef
         nameAr: 'المدير المباشر',
         nameEn: 'Direct manager',
         approverType: 'direct_manager',
+        fallbackRoleId: hrRole.id,
       },
       {
         companyId,

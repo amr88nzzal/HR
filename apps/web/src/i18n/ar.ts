@@ -147,6 +147,8 @@ export const ar = {
     approverType: 'المعتمد',
     approver: 'الدور/المستخدم',
     mode: 'الاعتماد',
+    fallbackRole: 'معتمد بديل',
+    fallbackRoleHint: 'دور يُستعمل إن لم يوجد مدير مباشر (مثلاً الموارد البشرية)',
     condition: 'شرط تنفيذ الخطوة',
     noCondition: 'دائماً',
     conditionHint: 'تُنفَّذ الخطوة فقط إن تحقق الشرط على بيانات الطلب (مثل amount ≥ 1000)',

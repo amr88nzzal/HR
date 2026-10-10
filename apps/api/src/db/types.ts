@@ -615,6 +615,7 @@ export type ApprovalStepsTable = {
   nameEn: string | null;
   approverType: 'direct_manager' | 'manager_of_manager' | 'role' | 'user';
   approverRef: string | null;
+  fallbackRoleId: string | null;
   mode: Generated<'any' | 'all'>;
   condition: ColumnType<unknown, string | null | undefined, string | null>;
 };

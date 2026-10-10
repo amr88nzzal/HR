@@ -34,6 +34,7 @@ type StepDraft = {
   nameEn: string;
   approverType: ApproverType;
   approverRef: string | null;
+  fallbackRoleId: string | null;
   mode: 'any' | 'all';
   /** شرط بسيط قابل للتحرير، أو raw لشرط مركّب يُحفظ كما هو */
   cond: { field: string; op: Op; value: string } | null;
@@ -55,6 +56,7 @@ type FlowFull = FlowRow & {
     nameEn: string | null;
     approverType: ApproverType;
     approverRef: string | null;
+    fallbackRoleId: string | null;
     mode: 'any' | 'all';
     condition: Condition | null;
   }[];
@@ -71,6 +73,7 @@ const blankStep = (): StepDraft => ({
   nameEn: '',
   approverType: 'direct_manager',
   approverRef: null,
+  fallbackRoleId: null,
   mode: 'any',
   cond: null,
   raw: null,
@@ -92,6 +95,7 @@ const fromFlow = (s: FlowFull['steps'][number]): StepDraft => {
     nameEn: s.nameEn ?? '',
     approverType: s.approverType,
     approverRef: s.approverRef,
+    fallbackRoleId: s.fallbackRoleId,
     mode: s.mode,
     cond: simple ? { field: c.field, op: c.op as Op, value: String(c.value) } : null,
     raw: c && !simple ? c : null,
@@ -168,6 +172,7 @@ const Editor = ({ flowId, onClose }: { flowId: string | 'new'; onClose: () => vo
         nameEn: s.nameEn || null,
         approverType: s.approverType,
         approverRef: s.approverType === 'role' || s.approverType === 'user' ? s.approverRef : null,
+        fallbackRoleId: s.fallbackRoleId,
         mode: s.mode,
         condition: s.cond
           ? { field: s.cond.field, op: s.cond.op, value: parseValue(s.cond.value) }
@@ -333,6 +338,20 @@ const Editor = ({ flowId, onClose }: { flowId: string | 'new'; onClose: () => vo
                     }))}
                   />
                 </Group>
+                {(s.approverType === 'direct_manager' ||
+                  s.approverType === 'manager_of_manager') && (
+                  <Select
+                    label={t('approvalFlows.fallbackRole')}
+                    description={t('approvalFlows.fallbackRoleHint')}
+                    value={s.fallbackRoleId}
+                    clearable
+                    onChange={(v) => setStep(s.key, { fallbackRoleId: v })}
+                    data={(options.data?.roles ?? []).map((r) => ({
+                      value: r.id,
+                      label: r.nameAr,
+                    }))}
+                  />
+                )}
                 <Group align="flex-end" gap="xs">
                   <Text size="sm" fw={500}>
                     {t('approvalFlows.condition')}:
