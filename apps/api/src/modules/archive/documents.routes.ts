@@ -41,7 +41,7 @@ const UPDATE = 'archive.document.update';
 const DELETE = 'archive.document.delete';
 const REVEAL = 'archive.document.reveal';
 
-const loadFields = async (ctx: Ctx, typeId: string): Promise<FieldDef[]> =>
+export const loadFields = async (ctx: Ctx, typeId: string): Promise<FieldDef[]> =>
   (await ctx.trx
     .selectFrom('documentTypeFields')
     .select([
@@ -74,7 +74,7 @@ const audit = (ctx: Ctx, entityId: string, action: string, changes: unknown, ip?
     .execute();
 
 /** يزامن تذكيرات الوثيقة مع قيم حقول «تاريخ تذكيري» (تاريخ جديد يعيد التذكير إلى قيد الانتظار). */
-const syncReminders = async (ctx: Ctx, documentId: string, wanted: Map<string, string>) => {
+export const syncReminders = async (ctx: Ctx, documentId: string, wanted: Map<string, string>) => {
   const existing = await ctx.trx
     .selectFrom('documentReminders')
     .select(['id', 'fieldKey'])
