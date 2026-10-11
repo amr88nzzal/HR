@@ -13,6 +13,9 @@ import type { FieldCrypto } from './shared/crypto.js';
 import type { StorageProvider } from './shared/storage.js';
 import { createJobsRouter, type JobQueue } from './jobs/index.js';
 import {
+  createChannelsRouter,
+  createMailProvider,
+  type MailProvider,
   createNotificationsRouter,
   createNotificationTemplatesRouter,
   createNotifier,
@@ -44,6 +47,8 @@ export type AppDeps = {
     storage?: StorageProvider;
     /** قائمة المهام الخلفية (الإدراج ضمن المعاملات)؛ غيابها يعطّل إعادة التشغيل فقط */
     jobs?: JobQueue;
+    /** مزوّد البريد الفعّال (إعداد الشركة ثم البيئة)؛ غيابه = إعداد القاعدة فقط */
+    mail?: { provider: MailProvider; envConfigured: boolean };
   };
 };
 
@@ -93,6 +98,16 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
       createNotificationsRouter(auth.db, authenticate, createNotifier(auth.jobs)),
     );
     api.use('/notification-templates', createNotificationTemplatesRouter(auth.db, authenticate));
+    api.use(
+      '/integrations',
+      createChannelsRouter(auth.db, authenticate, {
+        crypto: auth.crypto,
+        mail:
+          auth.mail?.provider ??
+          createMailProvider({ crypto: auth.crypto, envSmtpUrl: undefined, envFrom: '' }),
+        envSmtpConfigured: auth.mail?.envConfigured ?? false,
+      }),
+    );
     const engine = createApprovalEngine(createNotifier(auth.jobs));
     api.use('/approval-flows', createApprovalFlowsRouter(auth.db, authenticate));
     api.use('/approval-delegations', createDelegationsRouter(auth.db, authenticate));

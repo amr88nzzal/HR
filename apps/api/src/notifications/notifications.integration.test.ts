@@ -156,7 +156,7 @@ describe('الإشعارات', () => {
       boss: workerBoss,
       db: app,
       adminDb: admin,
-      registry: buildRegistry(mail),
+      registry: buildRegistry(async () => mail),
       periodic: [],
       logger: pino({ level: 'silent' }),
       pollSeconds: 0.5,

@@ -3,6 +3,7 @@ import { createApp } from './app.js';
 import { BOSS_SCHEMA, buildRegistry, createJobQueue, type JobQueue } from './jobs/index.js';
 import { createDb, pingDb } from './db/index.js';
 import { createFieldCrypto } from './shared/crypto.js';
+import { createMailProvider } from './notifications/index.js';
 import { createLocalStorage } from './shared/storage.js';
 import { loadConfig } from './shared/config.js';
 import { createLogger } from './shared/logging.js';
@@ -63,6 +64,14 @@ const app = createApp({
           crypto,
           storage: createLocalStorage(config.STORAGE_DIR),
           jobs,
+          mail: {
+            provider: createMailProvider({
+              crypto,
+              envSmtpUrl: config.SMTP_URL,
+              envFrom: config.MAIL_FROM,
+            }),
+            envConfigured: !!config.SMTP_URL,
+          },
           settings: {
             jwtSecret: config.JWT_SECRET,
             accessTtlSeconds: config.ACCESS_TOKEN_TTL_SECONDS,

@@ -32,3 +32,4 @@ export * from './jobs.js';
 export * from './notifications.js';
 export * from './approvals.js';
 export * from './leave.js';
+export * from './integrations.js';

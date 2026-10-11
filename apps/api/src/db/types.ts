@@ -729,7 +729,20 @@ export type HolidaysTable = Versioned & {
   nameEn: string | null;
 };
 
+export type IntegrationSettingsTable = {
+  id: Generated<string>;
+  companyId: string;
+  provider: 'email' | 'telegram';
+  enabled: Generated<boolean>;
+  config: ColumnType<Record<string, unknown>, string | undefined, string>;
+  secretEnc: string | null;
+  version: Generated<number>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
 export type Database = {
+  integrationSettings: IntegrationSettingsTable;
   leaveTypes: LeaveTypesTable;
   leavePolicies: LeavePoliciesTable;
   leavePolicyAssignments: LeavePolicyAssignmentsTable;

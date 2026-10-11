@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { defineJob } from '../jobs/types.js';
-import type { MailTransport } from './mail.js';
+import type { MailProvider } from './channels.js';
 
 /**
- * مهام الإشعارات. mail = undefined تعني أن SMTP غير مهيأ: يُعلَّم التسليم «skipped» بلا إعادة محاولة.
+ * مهام الإشعارات. mailProvider = undefined أو بلا إعداد فعّال تعني أن SMTP غير مهيأ: يُعلَّم التسليم «skipped» بلا إعادة محاولة.
  */
-export const notificationJobs = (mail: MailTransport | undefined) => [
+export const notificationJobs = (mailProvider: MailProvider | undefined) => [
   defineJob({
     name: 'notifications.send_email',
     queue: 'critical',
@@ -20,6 +20,7 @@ export const notificationJobs = (mail: MailTransport | undefined) => [
         .executeTakeFirst();
       if (!delivery) return { skipped: 'not_found' };
       if (delivery.status === 'sent') return { skipped: 'already_sent' };
+      const mail = mailProvider ? await mailProvider(ctx) : undefined;
       if (!mail) {
         await ctx.trx
           .updateTable('notificationDeliveries')

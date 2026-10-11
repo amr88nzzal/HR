@@ -40,9 +40,10 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'employees.employee.import',
         'system.job.read',
         'system.notification_template.read',
+        'system.integration.read',
         'approvals.flow.read',
       ]).length,
-    ).toBe(24);
+    ).toBe(25);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');
