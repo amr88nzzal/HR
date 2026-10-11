@@ -68,3 +68,44 @@ export const weeklyOffSchema = z
   .array(z.number().int().min(0).max(6))
   .max(6, 'لا يمكن أن تكون كل أيام الأسبوع راحة')
   .refine((a) => new Set(a).size === a.length, 'أيام مكررة');
+
+export const leaveRequestInput = z
+  .object({
+    /** غيابه = موظف الحساب نفسه؛ تحديده لموظف آخر يتطلب صلاحية الإدارة */
+    employeeId: uuid.optional(),
+    leaveTypeId: uuid,
+    startDate: isoDate,
+    endDate: isoDate,
+    firstDayHalf: z.boolean().default(false),
+    lastDayHalf: z.boolean().default(false),
+    reason: z.string().trim().max(500).nullish(),
+  })
+  .refine((v) => v.endDate >= v.startDate, {
+    message: 'تاريخ النهاية قبل البداية',
+    path: ['endDate'],
+  });
+export type LeaveRequestInput = z.infer<typeof leaveRequestInput>;
+
+export const LEAVE_REQUEST_STATUSES = [
+  'pending',
+  'approved',
+  'rejected',
+  'withdrawn',
+  'cancelled',
+] as const;
+export type LeaveRequestStatus = (typeof LEAVE_REQUEST_STATUSES)[number];
+
+export const leaveOverrideInput = z.object({
+  /** عدد الأيام المخصومة الجديد (0 = إعفاء كامل) */
+  days: z.number().min(0).max(999.99),
+  reason: z.string().trim().min(1).max(300),
+});
+
+export const leaveRequestListQuery = z.object({
+  status: z.enum(LEAVE_REQUEST_STATUSES).optional(),
+  employeeId: uuid.optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(200).default(25),
+});

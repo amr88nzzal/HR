@@ -161,3 +161,62 @@ export const allocateFifo = (
   }
   return { allocations, shortfallCents: left };
 };
+
+// ---------- أيام الطلب ----------
+export type DayKind = 'work' | 'weekend' | 'holiday';
+export type LeaveDay = { date: string; cents: number; kind: DayKind };
+
+export type DayInput = {
+  start: string;
+  end: string;
+  /** أيام الراحة الأسبوعية: 0=الأحد … 6=السبت */
+  weeklyOff: readonly number[];
+  holidays: ReadonlySet<string>;
+  firstDayHalf?: boolean;
+  lastDayHalf?: boolean;
+};
+
+const MAX_RANGE_DAYS = 366;
+
+/**
+ * تفصيل فترة الإجازة إلى أيام: الراحة الأسبوعية والعطل الرسمية لا تُحتسب (0)،
+ * وأيام العمل 1.00 مع نصف يوم اختياري في أول/آخر يوم (إن كان يوم عمل).
+ */
+export const computeLeaveDays = (
+  input: DayInput,
+): { days: LeaveDay[]; totalCents: number; workDays: number } => {
+  if (input.end < input.start) throw new RangeError('END_BEFORE_START');
+  const days: LeaveDay[] = [];
+  let cursor = parse(input.start);
+  const end = parse(input.end);
+  while (cursor <= end) {
+    if (days.length >= MAX_RANGE_DAYS) throw new RangeError('RANGE_TOO_LONG');
+    const date = fmt(cursor);
+    const kind: DayKind = input.weeklyOff.includes(cursor.getUTCDay())
+      ? 'weekend'
+      : input.holidays.has(date)
+        ? 'holiday'
+        : 'work';
+    const half =
+      (input.firstDayHalf && date === input.start) || (input.lastDayHalf && date === input.end);
+    days.push({ date, kind, cents: kind === 'work' ? (half ? 50 : 100) : 0 });
+    cursor = new Date(cursor.getTime() + 86_400_000);
+  }
+  const totalCents = days.reduce((s, d) => s + d.cents, 0);
+  return { days, totalCents, workDays: days.filter((d) => d.kind === 'work').length };
+};
+
+/** يقسّم الخصم بحسب السنة التقويمية (إجازة تعبر رأس السنة): تاريخ كل جزء = أول يوم محتسب فيه. */
+export const splitByYear = (
+  days: readonly LeaveDay[],
+): { year: number; date: string; cents: number }[] => {
+  const out = new Map<number, { year: number; date: string; cents: number }>();
+  for (const d of days) {
+    if (d.cents <= 0) continue;
+    const year = Number(d.date.slice(0, 4));
+    const seg = out.get(year);
+    if (seg) seg.cents += d.cents;
+    else out.set(year, { year, date: d.date, cents: d.cents });
+  }
+  return [...out.values()].sort((a, b) => a.year - b.year);
+};
