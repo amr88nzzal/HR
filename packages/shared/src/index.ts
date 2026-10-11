@@ -23,6 +23,7 @@ export type Health = z.infer<typeof healthSchema>;
 export * from './org.js';
 export * from './identity.js';
 export * from './employees.js';
+export * from './attendance.js';
 export * from './text.js';
 export * from './employments.js';
 export * from './external.js';

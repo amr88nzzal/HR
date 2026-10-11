@@ -729,6 +729,56 @@ export type HolidaysTable = Versioned & {
   nameEn: string | null;
 };
 
+export type ShiftsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  color: string | null;
+  lateGraceMinutes: Generated<number>;
+  earlyLeaveGraceMinutes: Generated<number>;
+  isActive: Generated<boolean>;
+};
+
+export type ShiftSegmentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  shiftId: string;
+  position: number;
+  startTime: string;
+  endTime: string;
+  endsNextDay: Generated<boolean>;
+};
+
+export type WorkSchedulesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  isActive: Generated<boolean>;
+};
+
+export type WorkScheduleDaysTable = {
+  id: Generated<string>;
+  companyId: string;
+  scheduleId: string;
+  weekday: number;
+  shiftId: string | null;
+};
+
+export type ScheduleAssignmentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  scheduleId: string;
+  scope: string;
+  scopeRef: string | null;
+  validFrom: DateReq;
+  validTo: string | null;
+  createdAt: Generated<Date>;
+};
+
 export type IntegrationSettingsTable = {
   id: Generated<string>;
   companyId: string;
@@ -827,6 +877,11 @@ export type Database = {
   leavePolicies: LeavePoliciesTable;
   leavePolicyAssignments: LeavePolicyAssignmentsTable;
   holidays: HolidaysTable;
+  shifts: ShiftsTable;
+  shiftSegments: ShiftSegmentsTable;
+  workSchedules: WorkSchedulesTable;
+  workScheduleDays: WorkScheduleDaysTable;
+  scheduleAssignments: ScheduleAssignmentsTable;
   approvalFlows: ApprovalFlowsTable;
   approvalSteps: ApprovalStepsTable;
   approvalRequests: ApprovalRequestsTable;

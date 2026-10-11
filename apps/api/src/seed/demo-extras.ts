@@ -17,7 +17,7 @@ import { createNotifier } from '../notifications/index.js';
 import type { FieldCrypto } from '../shared/crypto.js';
 import { DEMO_EMAIL_DOMAIN, DEMO_PREFIX } from './demo.js';
 
-export type ExtrasPart = 'details' | 'lifecycle' | 'archive' | 'approvals' | 'leave';
+export type ExtrasPart = 'details' | 'lifecycle' | 'archive' | 'approvals' | 'leave' | 'attendance';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
 const pad = (n: number, w = 3) => String(n).padStart(w, '0');
@@ -822,6 +822,120 @@ const seedLeave = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+// ───────────────────────── 6) الحضور (المرحلة 5) ─────────────────────────
+const seedAttendance = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('shifts')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('code', '=', 'DEMO-DAY')
+    .executeTakeFirst();
+  if (marker) return 'skip';
+
+  const mkShift = async (
+    code: string,
+    nameAr: string,
+    color: string,
+    segments: [string, string, boolean][],
+    grace = 10,
+  ) => {
+    const row = await trx
+      .insertInto('shifts')
+      .values({
+        companyId,
+        code,
+        nameAr,
+        color,
+        lateGraceMinutes: grace,
+        earlyLeaveGraceMinutes: 5,
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await trx
+      .insertInto('shiftSegments')
+      .values(
+        segments.map(([startTime, endTime, endsNextDay], i) => ({
+          companyId,
+          shiftId: row.id,
+          position: i + 1,
+          startTime,
+          endTime,
+          endsNextDay,
+        })),
+      )
+      .execute();
+    return row.id;
+  };
+  const day = await mkShift('DEMO-DAY', 'صباحية (08:00–16:00)', '#228be6', [
+    ['08:00', '16:00', false],
+  ]);
+  const split = await mkShift('DEMO-SPLIT', 'مقسومة (08–12 و16–20)', '#fd7e14', [
+    ['08:00', '12:00', false],
+    ['16:00', '20:00', false],
+  ]);
+  const night = await mkShift(
+    'DEMO-NIGHT',
+    'ليلية (22:00–06:00)',
+    '#7048e8',
+    [['22:00', '06:00', true]],
+    15,
+  );
+
+  // الأحد..الخميس عمل، الجمعة والسبت راحة (يوافق الإعداد الافتراضي)
+  const mkSchedule = async (code: string, nameAr: string, shiftId: string) => {
+    const row = await trx
+      .insertInto('workSchedules')
+      .values({ companyId, code, nameAr })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await trx
+      .insertInto('workScheduleDays')
+      .values(
+        [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+          companyId,
+          scheduleId: row.id,
+          weekday,
+          shiftId: weekday <= 4 ? shiftId : null,
+        })),
+      )
+      .execute();
+    return row.id;
+  };
+  const std = await mkSchedule('DEMO-STD', 'الدوام القياسي', day);
+  const sales = await mkSchedule('DEMO-SALES', 'دوام المبيعات المقسوم', split);
+  const guard = await mkSchedule('DEMO-NIGHT', 'الدوام الليلي', night);
+
+  const assign = (
+    scheduleId: string,
+    scope: 'company' | 'department' | 'employee',
+    scopeRef: string | null,
+    validFrom: string,
+    validTo: string | null = null,
+  ) =>
+    trx
+      .insertInto('scheduleAssignments')
+      .values({ companyId, scheduleId, scope, scopeRef, validFrom, validTo })
+      .execute();
+  await assign(std, 'company', null, '2020-01-01');
+  const salesDept = await trx
+    .selectFrom('departments')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('code', '=', 'DEMO-SAL')
+    .executeTakeFirst();
+  if (salesDept) await assign(sales, 'department', salesDept.id, '2020-01-01');
+  // موظف بجدول ليلي مؤقت لشهرين (تجاوز الأخص)
+  const night1 = await trx
+    .selectFrom('employees')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('employeeNo', '=', `${DEMO_PREFIX}010`)
+    .executeTakeFirst();
+  if (night1) await assign(guard, 'employee', night1.id, isoDay(-30), isoDay(30));
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -838,6 +952,7 @@ export const seedDemoExtras = async (
     ['archive', (ctx) => seedArchive(ctx, opts.crypto)],
     ['approvals', (ctx) => seedApprovals(ctx, opts.password)],
     ['leave', (ctx) => seedLeave(ctx)],
+    ['attendance', (ctx) => seedAttendance(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);

@@ -86,6 +86,7 @@ describe('البيانات التجريبية', () => {
       'archive:done',
       'approvals:done',
       'leave:done',
+      'attendance:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -118,6 +119,16 @@ describe('البيانات التجريبية', () => {
     expect(await n('leave_ledger', sql`entry_type = 'carry_over'`)).toBeGreaterThan(0);
     expect(await n('leave_ledger', sql`entry_type = 'adjustment'`)).toBe(2);
     expect(await n('leave_request_days', sql`kind = 'holiday'`)).toBeGreaterThan(0);
+
+    // الحضور: ورديات (عادية ومقسومة وليلية) وجداول وتعيينات بالأخص
+    expect(await n('shifts')).toBe(3);
+    expect(await n('shift_segments')).toBe(4);
+    expect(await n('shift_segments', sql`ends_next_day`)).toBe(1);
+    expect(await n('work_schedules')).toBe(3);
+    expect(await n('work_schedule_days')).toBe(21);
+    expect(await n('schedule_assignments', sql`scope = 'company'`)).toBe(1);
+    expect(await n('schedule_assignments', sql`scope = 'department'`)).toBe(1);
+    expect(await n('schedule_assignments', sql`scope = 'employee'`)).toBe(1);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);
