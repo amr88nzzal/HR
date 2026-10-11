@@ -69,15 +69,21 @@ export const ar = {
     telegram: {
       title: 'تلغرام',
       off: 'غير مفعّل',
-      hint: 'أنشئ بوتاً من @BotFather وألصق توكنه هنا. يسجّل النظام webhook لدى تلغرام ويصل كل مستخدم حسابه من صفحة «الإشعارات». يلزم أن يكون عنوان الموقع https عاماً.',
+      hint: 'أنشئ بوتاً من @BotFather وألصق توكنه هنا، ثم اربط كل مستخدم بـ chat id (من هنا أو من صفحة «الإشعارات»).',
       token: 'توكن البوت',
       tokenKept: 'محفوظ ومشفّر؛ اتركه فارغاً للإبقاء عليه',
       publicUrl: 'عنوان الموقع العام',
-      publicUrlHint: 'مثل https://hr.example.com (يستقبل عليه تلغرام التحديثات)',
+      publicUrlHint:
+        'اختياري. إن تركته فارغاً فاربط الحسابات بـ chat id. وإن أدخلته (مثل https://hr.example.com) يظهر زر «ربط تلغرام» التلقائي للمستخدمين.',
       testMine: 'رسالة تجريبية لحسابي',
       linked: 'الحسابات المربوطة',
       noLinks: 'لا توجد حسابات مربوطة بعد',
       unlink: 'فك الربط',
+      manualTitle: 'ربط بـ chat id',
+      manualUser: 'المستخدم',
+      manualLink: 'ربط',
+      manualHint:
+        'يرسل النظام رسالة تأكيد إلى chat id، فيلزم أن يكون صاحبه قد أرسل /start للبوت أولاً. للمجموعات استعمل chat id سالباً.',
     },
     email: {
       title: 'البريد الإلكتروني (SMTP)',
@@ -435,6 +441,8 @@ export const ar = {
       unlink: 'فك الربط',
       openLink: 'افتح الرابط في تلغرام ثم اضغط «Start»:',
       refresh: 'تحديث الحالة',
+      chatIdLabel: 'أو أدخل chat id',
+      chatIdLink: 'ربط',
     },
     categories: { approvals: 'الموافقات', archive: 'الأرشيف', system: 'النظام' },
   },

@@ -164,7 +164,7 @@ describe('قنوات الإشعار: تلغرام', () => {
   it('قبل الإعداد: غير متاح للمستخدم، والربط 409، والصلاحية مقيَّدة', async () => {
     expect((await get('admin', '/integrations/telegram')).body.data).toBeNull();
     const me = (await get('emp', '/integrations/telegram/me')).body.data;
-    expect(me).toEqual({ available: false, linked: false, tgUsername: null });
+    expect(me).toEqual({ available: false, autoLink: false, linked: false, tgUsername: null });
     expect((await post('emp', '/integrations/telegram/me/link-code')).status).toBe(409);
     expect((await put('emp', '/integrations/telegram', cfg())).status).toBe(403);
   });
@@ -220,7 +220,7 @@ describe('قنوات الإشعار: تلغرام', () => {
 
     expect((await webhook(startMsg(`/start ${code}`))).status).toBe(200);
     const me = (await get('emp', '/integrations/telegram/me')).body.data;
-    expect(me).toEqual({ available: true, linked: true, tgUsername: 'amro' });
+    expect(me).toEqual({ available: true, autoLink: true, linked: true, tgUsername: 'amro' });
     expect(sentTexts().at(-1)).toContain('تم ربط حسابك');
     // الرمز لمرة واحدة
     await webhook(startMsg(`/start ${code}`, 888));
@@ -312,5 +312,40 @@ describe('قنوات الإشعار: تلغرام', () => {
     expect(tg.calls.some((c) => c.method === 'deleteWebhook')).toBe(true);
     expect((await get('emp', '/integrations/telegram/me')).body.data.available).toBe(false);
     expect((await webhook(startMsg('/start AAAAAAAA'))).status).toBe(403);
+  });
+
+  it('بلا عنوان عام: لا webhook ولا ربط تلقائي، والربط بـ chat id يدوياً مع تحقق', async () => {
+    const hooksBefore = tg.calls.filter((c) => c.method === 'setWebhook').length;
+    const on = await put('admin', '/integrations/telegram', { enabled: true });
+    expect(on.status).toBe(200);
+    expect(on.body.data.publicUrl).toBeNull();
+    expect(tg.calls.filter((c) => c.method === 'setWebhook')).toHaveLength(hooksBefore);
+
+    const me0 = (await get('emp', '/integrations/telegram/me')).body.data;
+    expect(me0).toMatchObject({ available: true, autoLink: false, linked: false });
+    expect((await post('emp', '/integrations/telegram/me/link-code')).status).toBe(409);
+
+    const put2 = (who: string, path: string, body: object) => put(who, path, body);
+    expect((await put2('emp', '/integrations/telegram/me', { chatId: 'abc' })).status).toBe(400);
+    const before = sentTexts().length;
+    expect((await put2('emp', '/integrations/telegram/me', { chatId: '555001' })).status).toBe(204);
+    expect(sentTexts()).toHaveLength(before + 1);
+    expect(tg.calls.at(-1)?.params['chat_id']).toBe('555001');
+    expect((await get('emp', '/integrations/telegram/me')).body.data.linked).toBe(true);
+
+    // المدير يربط مستخدماً آخر؛ ونفس chat id ينتقل ولا يتكرر
+    expect(
+      (
+        await put2('admin', `/integrations/telegram/links/${userIds['admin']}`, {
+          chatId: '555001',
+        })
+      ).status,
+    ).toBe(204);
+    const links = await admin.selectFrom('telegramLinks').select(['userId', 'chatId']).execute();
+    expect(links).toEqual([{ userId: userIds['admin'], chatId: '555001' }]);
+    expect(
+      (await put2('emp', `/integrations/telegram/links/${userIds['admin']}`, { chatId: '1234' }))
+        .status,
+    ).toBe(403);
   });
 });

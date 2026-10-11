@@ -45,14 +45,18 @@ export const telegramSettingsInput = z.object({
     .trim()
     .regex(/^\d{5,}:[A-Za-z0-9_-]{20,}$/, 'توكن بوت غير صالح')
     .optional(),
-  /** عنوان الموقع العام (https) الذي يستقبل منه تلغرام التحديثات */
+  /**
+   * عنوان الموقع العام (https) لتفعيل الربط التلقائي عبر webhook؛ فارغ = بلا webhook
+   * (يُدخَل chat id يدوياً لكل مستخدم).
+   */
   publicUrl: z
     .string()
     .trim()
-    .url()
     .max(200)
-    .refine((v) => v.startsWith('https://'), 'يلزم عنوان https')
-    .transform((v) => v.replace(/\/+$/, '')),
+    .transform((v) => v.replace(/\/+$/, ''))
+    .refine((v) => v === '' || /^https:\/\/[^\s/]+(\/\S*)?$/.test(v), 'يلزم عنوان https')
+    .transform((v) => (v === '' ? null : v))
+    .nullish(),
 });
 export type TelegramSettingsInput = z.infer<typeof telegramSettingsInput>;
 
@@ -60,7 +64,8 @@ export type TelegramSettingsDto = {
   enabled: boolean;
   hasToken: boolean;
   botUsername: string | null;
-  publicUrl: string;
+  /** null = بلا webhook (ربط يدوي بـ chat id) */
+  publicUrl: string | null;
 };
 
 export type TelegramLinkDto = {
@@ -74,6 +79,15 @@ export type TelegramLinkDto = {
 export type TelegramMeDto = {
   /** القناة مفعّلة على مستوى الشركة */
   available: boolean;
+  /** الربط التلقائي برابط Start متاح (webhook مضبوط) */
+  autoLink: boolean;
   linked: boolean;
   tgUsername: string | null;
 };
+
+export const telegramChatIdInput = z.object({
+  chatId: z
+    .string()
+    .trim()
+    .regex(/^-?\d{4,20}$/, 'chat id أرقام فقط'),
+});
