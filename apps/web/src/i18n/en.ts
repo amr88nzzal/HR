@@ -70,15 +70,21 @@ export const en: Messages = {
     telegram: {
       title: 'Telegram',
       off: 'Disabled',
-      hint: 'Create a bot with @BotFather and paste its token here. The system registers a webhook with Telegram and each user links their account from the Notifications page. The site URL must be public https.',
+      hint: 'Create a bot with @BotFather and paste its token here, then link each user by chat id (here or from the Notifications page).',
       token: 'Bot token',
       tokenKept: 'Saved and encrypted; leave empty to keep it',
       publicUrl: 'Public site URL',
-      publicUrlHint: 'e.g. https://hr.example.com (where Telegram delivers updates)',
+      publicUrlHint:
+        'Optional. Leave empty to link accounts by chat id. If set (e.g. https://hr.example.com) users get the automatic Link Telegram button.',
       testMine: 'Test message to my account',
       linked: 'Linked accounts',
       noLinks: 'No linked accounts yet',
       unlink: 'Unlink',
+      manualTitle: 'Link by chat id',
+      manualUser: 'User',
+      manualLink: 'Link',
+      manualHint:
+        'The system sends a confirmation message to the chat id, so its owner must have sent /start to the bot first. For groups use a negative chat id.',
     },
     email: {
       title: 'Email (SMTP)',
@@ -441,6 +447,8 @@ export const en: Messages = {
       unlink: 'Unlink',
       openLink: 'Open the link in Telegram and press Start:',
       refresh: 'Refresh status',
+      chatIdLabel: 'Or enter your chat id',
+      chatIdLink: 'Link',
     },
     categories: { approvals: 'Approvals', archive: 'Archive', system: 'System' },
   },

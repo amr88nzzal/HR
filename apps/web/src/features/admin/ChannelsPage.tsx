@@ -7,6 +7,7 @@ import {
   Group,
   NumberInput,
   PasswordInput,
+  Select,
   Stack,
   Switch,
   Table,
@@ -211,7 +212,7 @@ const TelegramCard = () => {
   const form = draft ?? {
     enabled: q.data?.enabled ?? true,
     botToken: '',
-    publicUrl: q.data?.publicUrl ?? window.location.origin,
+    publicUrl: q.data?.publicUrl ?? '',
   };
   const set = (patch: Partial<typeof form>) => setDraft({ ...form, ...patch });
 
@@ -241,7 +242,26 @@ const TelegramCard = () => {
   });
 
   const valid =
-    (q.data?.hasToken || !!form.botToken.trim()) && form.publicUrl.startsWith('https://');
+    (q.data?.hasToken || !!form.botToken.trim()) &&
+    (form.publicUrl.trim() === '' || form.publicUrl.trim().startsWith('https://'));
+  const [manualUser, setManualUser] = useState<string | null>(null);
+  const [manualChat, setManualChat] = useState('');
+  const users = useQuery({
+    queryKey: ['/users', 'options'],
+    enabled: canManage,
+    queryFn: async () =>
+      (await api.get<{ id: string; displayName: string }[]>('/users', { pageSize: 200 })).data,
+  });
+  const manual = useMutation({
+    mutationFn: async () =>
+      api.put(`/integrations/telegram/links/${manualUser}`, { chatId: manualChat.trim() }),
+    onSuccess: async () => {
+      notifications.show({ color: 'green', message: t('channels.saved') });
+      setManualChat('');
+      await qc.invalidateQueries({ queryKey: ['/integrations/telegram/links'] });
+    },
+    onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
+  });
 
   return (
     <Card withBorder>
@@ -291,6 +311,39 @@ const TelegramCard = () => {
               {t('channels.telegram.testMine')}
             </Button>
           </Group>
+        )}
+        {canManage && (
+          <Alert variant="light" title={t('channels.telegram.manualTitle')}>
+            <Group align="flex-end">
+              <Select
+                style={{ flex: 1 }}
+                searchable
+                label={t('channels.telegram.manualUser')}
+                value={manualUser}
+                onChange={setManualUser}
+                data={(users.data ?? []).map((u) => ({ value: u.id, label: u.displayName }))}
+              />
+              <TextInput
+                label="chat id"
+                dir="ltr"
+                value={manualChat}
+                onChange={(e) => setManualChat(e.currentTarget.value)}
+              />
+              <Button
+                variant="light"
+                loading={manual.isPending}
+                disabled={
+                  !manualUser || !/^-?\d{4,20}$/.test(manualChat.trim()) || !q.data?.enabled
+                }
+                onClick={() => manual.mutate()}
+              >
+                {t('channels.telegram.manualLink')}
+              </Button>
+            </Group>
+            <Text size="xs" c="dimmed" mt="xs">
+              {t('channels.telegram.manualHint')}
+            </Text>
+          </Alert>
         )}
         <Text fw={600} size="sm">
           {t('channels.telegram.linked')}

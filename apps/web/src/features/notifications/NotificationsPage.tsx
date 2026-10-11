@@ -8,6 +8,7 @@ import {
   Table,
   Tabs,
   Text,
+  TextInput,
   Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -25,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
 import { useList } from '../../api/hooks';
 import { DataTable, type Column } from '../../components/DataTable';
+import { errorMessage } from '../../lib/errors';
 import { useFormat } from '../../lib/useFormat';
 
 const PAGE_SIZE = 20;
@@ -37,6 +39,16 @@ const TelegramLink = () => {
     queryFn: async () => (await api.get<TelegramMeDto>('/integrations/telegram/me')).data,
   });
   const [link, setLink] = useState<string>();
+  const [chatId, setChatId] = useState('');
+  const manual = useMutation({
+    mutationFn: async () =>
+      void (await api.put('/integrations/telegram/me', { chatId: chatId.trim() })),
+    onSuccess: () => {
+      setChatId('');
+      return qc.invalidateQueries({ queryKey: ['/integrations/telegram/me'] });
+    },
+    onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
+  });
   const create = useMutation({
     mutationFn: async () =>
       (await api.post<{ deepLink: string }>('/integrations/telegram/me/link-code', {})).data,
@@ -65,11 +77,33 @@ const TelegramLink = () => {
             {t('notifications.telegram.unlink')}
           </Button>
         ) : (
-          <Button size="xs" loading={create.isPending} onClick={() => create.mutate()}>
-            {t('notifications.telegram.link')}
-          </Button>
+          me.data.autoLink && (
+            <Button size="xs" loading={create.isPending} onClick={() => create.mutate()}>
+              {t('notifications.telegram.link')}
+            </Button>
+          )
         )}
       </Group>
+      {!me.data.linked && (
+        <Group align="flex-end" gap="xs">
+          <TextInput
+            size="xs"
+            label={t('notifications.telegram.chatIdLabel')}
+            dir="ltr"
+            value={chatId}
+            onChange={(e) => setChatId(e.currentTarget.value)}
+          />
+          <Button
+            size="xs"
+            variant="light"
+            loading={manual.isPending}
+            disabled={!/^-?\d{4,20}$/.test(chatId.trim())}
+            onClick={() => manual.mutate()}
+          >
+            {t('notifications.telegram.chatIdLink')}
+          </Button>
+        </Group>
+      )}
       {link && !me.data.linked && (
         <Text size="sm">
           {t('notifications.telegram.openLink')}{' '}

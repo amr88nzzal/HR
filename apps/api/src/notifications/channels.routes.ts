@@ -2,6 +2,7 @@ import { Router, type Request, type RequestHandler } from 'express';
 import {
   emailSettingsInput,
   emailTestInput,
+  telegramChatIdInput,
   telegramSettingsInput,
   type TelegramLinkDto,
   type TelegramMeDto,
@@ -18,6 +19,7 @@ import {
   readTelegramSettings,
   saveEmailSettings,
   saveTelegramSettings,
+  setLinkByChatId,
   verifyWebhookSecret,
   type MailProvider,
   type TelegramProvider,
@@ -140,6 +142,39 @@ export const createChannelsRouter = (
     },
   );
 
+  const manualLink = (req: Request, userId: string) =>
+    run(req, async (ctx) => {
+      const { chatId } = telegramChatIdInput.parse(req.body);
+      const sender = await opts.telegram(ctx);
+      if (!sender) throw new AppError('TELEGRAM_NOT_CONFIGURED', 409, 'قناة تلغرام غير مفعّلة');
+      await setLinkByChatId(ctx, sender, userId, chatId);
+    });
+
+  router.put(
+    '/telegram/links/:userId',
+    requirePermission('system.integration.manage'),
+    async (req, res, next) => {
+      try {
+        const userId = String(req.params['userId'] ?? '');
+        if (!/^[0-9a-f-]{36}$/i.test(userId))
+          throw new AppError('NOT_FOUND', 404, 'السجل غير موجود');
+        await manualLink(req, userId);
+        res.status(204).end();
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.put('/telegram/me', async (req, res, next) => {
+    try {
+      await manualLink(req, req.auth?.userId as string);
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.delete(
     '/telegram/links/:userId',
     requirePermission('system.integration.manage'),
@@ -199,7 +234,8 @@ export const createChannelsRouter = (
           .where('userId', '=', userId)
           .executeTakeFirst();
         return {
-          available: !!cfg?.enabled && !!cfg.botUsername,
+          available: !!cfg?.enabled && !!cfg.hasToken,
+          autoLink: !!cfg?.enabled && !!cfg.botUsername && !!cfg.publicUrl,
           linked: !!link,
           tgUsername: link?.tgUsername ?? null,
         };
