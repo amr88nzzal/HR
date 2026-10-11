@@ -22,6 +22,11 @@ import {
   IconChecklist,
   IconUserShare,
   IconRoute,
+  IconBeach,
+  IconCalendarEvent,
+  IconScale,
+  IconLink,
+  IconCalendarStar,
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
 
@@ -58,6 +63,47 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         path: '/org/chart',
         icon: IconTopologyStar3,
         permission: 'org.department.read',
+      },
+    ],
+  },
+  {
+    key: 'leaveGroup',
+    items: [
+      {
+        key: 'myLeave',
+        path: '/leave',
+        icon: IconBeach,
+        permission: 'leave.request.submit',
+      },
+      {
+        key: 'leaveBalances',
+        path: '/leave/balances',
+        icon: IconScale,
+        permission: 'leave.balance.read',
+      },
+      {
+        key: 'leaveTypes',
+        path: '/leave/types',
+        icon: IconCalendarEvent,
+        permission: 'leave.type.read',
+      },
+      {
+        key: 'leavePolicies',
+        path: '/leave/policies',
+        icon: IconListCheck,
+        permission: 'leave.policy.read',
+      },
+      {
+        key: 'leaveAssignments',
+        path: '/leave/assignments',
+        icon: IconLink,
+        permission: 'leave.policy.read',
+      },
+      {
+        key: 'holidays',
+        path: '/leave/holidays',
+        icon: IconCalendarStar,
+        permission: 'leave.holiday.read',
       },
     ],
   },

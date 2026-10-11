@@ -1,4 +1,14 @@
-import { Card, Select, SimpleGrid, Stack, Tabs, Text, TextInput, Title } from '@mantine/core';
+import {
+  Card,
+  MultiSelect,
+  Select,
+  SimpleGrid,
+  Stack,
+  Tabs,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -7,7 +17,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { errorMessage } from '../lib/errors';
 
-type Values = Record<string, string | number>;
+type Values = Record<string, string | number | number[]>;
 type Def = {
   key: string;
   type: 'select' | 'text';
@@ -85,6 +95,22 @@ const SettingsForm = ({
     }
   };
 
+  const saveWeeklyOff = async (value: number[]) => {
+    setLocal((s) => ({ ...s, weeklyOff: value }));
+    try {
+      await api.request('/settings/company/weeklyOff', { method: 'PUT', body: { value } });
+      notifications.show({ color: 'teal', message: t('table.saved'), autoClose: 1500 });
+      onSaved();
+    } catch (err) {
+      setLocal((s) => {
+        const { weeklyOff: _drop, ...rest } = s;
+        void _drop;
+        return rest;
+      });
+      notifications.show({ color: 'red', message: errorMessage(err, t) });
+    }
+  };
+
   const label = (def: Def, o: string | number) =>
     def.key === 'weekStart'
       ? ((t('settingsPage.weekdays', { returnObjects: true }) as string[])[Number(o)] ?? String(o))
@@ -130,6 +156,18 @@ const SettingsForm = ({
           ),
         )}
       </SimpleGrid>
+      {scope === 'company' && (
+        <MultiSelect
+          label={t('settingsPage.keys.weeklyOff')}
+          disabled={!canEdit}
+          data={(t('settingsPage.weekdays', { returnObjects: true }) as string[]).map((n, i) => ({
+            value: String(i),
+            label: n,
+          }))}
+          value={((current['weeklyOff'] as number[] | undefined) ?? [5, 6]).map(String)}
+          onChange={(v) => void saveWeeklyOff(v.map(Number))}
+        />
+      )}
       <Card withBorder>
         <Text size="sm" c="dimmed">
           {t('settingsPage.preview')}

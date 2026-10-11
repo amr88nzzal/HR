@@ -20,6 +20,9 @@ import { ApprovalFlowsPage } from './features/admin/ApprovalFlowsPage';
 import { ApprovalsPage } from './features/approvals/ApprovalsPage';
 import { ApprovalDetailPage } from './features/approvals/ApprovalDetailPage';
 import { DelegationsPage } from './features/approvals/DelegationsPage';
+import { MyLeavePage } from './features/leave/MyLeavePage';
+import { BalancesAdminPage } from './features/leave/BalancesAdminPage';
+import { AssignmentsPage } from './features/leave/AssignmentsPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { AuditPage } from './features/AuditPage';
 import { CustomFieldsPage } from './features/admin/CustomFieldsPage';
@@ -108,6 +111,12 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/jobs': () => <JobsPage />,
   '/admin/channels': () => <ChannelsPage />,
   '/admin/notification-templates': () => <NotificationTemplatesPage />,
+  '/leave': () => <MyLeavePage />,
+  '/leave/balances': () => <BalancesAdminPage />,
+  '/leave/types': () => <ResourcePage resourceKey="leave-types" />,
+  '/leave/policies': () => <ResourcePage resourceKey="leave-policies" />,
+  '/leave/assignments': () => <AssignmentsPage />,
+  '/leave/holidays': () => <ResourcePage resourceKey="holidays" />,
   '/approvals': () => <ApprovalsPage />,
   '/approval-delegations': () => <DelegationsPage />,
   '/admin/approval-flows': () => <ApprovalFlowsPage />,

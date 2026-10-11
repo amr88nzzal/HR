@@ -42,8 +42,13 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'system.notification_template.read',
         'system.integration.read',
         'approvals.flow.read',
+        'leave.request.submit',
+        'leave.balance.read',
+        'leave.type.read',
+        'leave.policy.read',
+        'leave.holiday.read',
       ]).length,
-    ).toBe(25);
+    ).toBe(31);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');

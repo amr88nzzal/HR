@@ -202,20 +202,22 @@ export const ResourcePage = ({ resourceKey }: { resourceKey: string }) => {
           }}
           w={260}
         />
-        <Select
-          value={active}
-          onChange={(v) => {
-            setActive(v);
-            setPage(1);
-          }}
-          placeholder={t('table.all')}
-          clearable
-          data={[
-            { value: 'true', label: t('table.active') },
-            { value: 'false', label: t('table.inactive') },
-          ]}
-          w={160}
-        />
+        {!def.hideActive && (
+          <Select
+            value={active}
+            onChange={(v) => {
+              setActive(v);
+              setPage(1);
+            }}
+            placeholder={t('table.all')}
+            clearable
+            data={[
+              { value: 'true', label: t('table.active') },
+              { value: 'false', label: t('table.inactive') },
+            ]}
+            w={160}
+          />
+        )}
       </Group>
       <DataTable
         columns={columns}
