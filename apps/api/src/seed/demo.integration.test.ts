@@ -85,6 +85,7 @@ describe('البيانات التجريبية', () => {
       'lifecycle:done',
       'archive:done',
       'approvals:done',
+      'leave:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -102,11 +103,21 @@ describe('البيانات التجريبية', () => {
     expect(await n('employees', sql`status = 'suspended'`)).toBe(1);
     expect(await n('documents')).toBe(14 + 1 + 2);
     expect(await n('document_reminders', sql`status = 'pending'`)).toBe(17);
-    expect(await n('approval_requests')).toBe(7);
+    expect(await n('approval_requests', sql`request_type = 'general'`)).toBe(7);
     for (const status of ['pending', 'approved', 'rejected', 'returned', 'withdrawn'])
       expect(await n('approval_requests', sql`status = ${status}`)).toBeGreaterThan(0);
     expect(await n('approver_delegations')).toBe(1);
     expect(await n('notifications')).toBeGreaterThan(5);
+
+    // الإجازات: أنواع وسياسات وعطل ودفتر وطلبات بكل الحالات
+    expect(await n('leave_types')).toBe(3);
+    expect(await n('leave_policies')).toBe(3);
+    expect(await n('holidays')).toBe(5);
+    for (const status of ['pending', 'approved', 'rejected', 'withdrawn', 'cancelled'])
+      expect(await n('leave_requests', sql`status = ${status}`)).toBeGreaterThan(0);
+    expect(await n('leave_ledger', sql`entry_type = 'carry_over'`)).toBeGreaterThan(0);
+    expect(await n('leave_ledger', sql`entry_type = 'adjustment'`)).toBe(2);
+    expect(await n('leave_request_days', sql`kind = 'holiday'`)).toBeGreaterThan(0);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);

@@ -7,11 +7,17 @@ import { maskIban } from '../modules/employees/bank.routes.js';
 import { prepareCustomFields } from '../modules/employees/custom-fields.js';
 import { applyChange } from '../modules/employees/employments.routes.js';
 import { hashPassword } from '../modules/identity/index.js';
+import {
+  adjust,
+  cancelRequest,
+  runLeaveMaintenance,
+  submitRequest,
+} from '../modules/leave/index.js';
 import { createNotifier } from '../notifications/index.js';
 import type { FieldCrypto } from '../shared/crypto.js';
 import { DEMO_EMAIL_DOMAIN, DEMO_PREFIX } from './demo.js';
 
-export type ExtrasPart = 'details' | 'lifecycle' | 'archive' | 'approvals';
+export type ExtrasPart = 'details' | 'lifecycle' | 'archive' | 'approvals' | 'leave';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
 const pad = (n: number, w = 3) => String(n).padStart(w, '0');
@@ -604,6 +610,218 @@ const seedApprovals = async (ctx: Ctx, password: string): Promise<string | undef
   return undefined;
 };
 
+// ───────────────────────── 5) الإجازات (المرحلة 4) ─────────────────────────
+/** أول أحد في/بعد اليوم + offset (الراحة الأسبوعية الافتراضية الجمعة والسبت فتبدأ الفترات بالأحد). */
+const sundayOnOrAfter = (offset: number): string => {
+  const d = new Date(Date.now() + offset * 86_400_000);
+  d.setUTCDate(d.getUTCDate() + ((7 - d.getUTCDay()) % 7));
+  return d.toISOString().slice(0, 10);
+};
+const addDays = (iso: string, n: number): string =>
+  new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+const seedLeave = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('leaveTypes')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('code', '=', 'DEMO-ANNUAL')
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const userEmp = async (email: string) =>
+    trx
+      .selectFrom('users as u')
+      .innerJoin('employees as e', 'e.userId', 'u.id')
+      .select(['u.id as userId', 'e.id as employeeId'])
+      .where('u.companyId', '=', companyId)
+      .where('u.email', '=', email)
+      .executeTakeFirst();
+  const emp = await userEmp(`demo.employee@${DEMO_EMAIL_DOMAIN}`);
+  const mgr = await userEmp(`demo.manager@${DEMO_EMAIL_DOMAIN}`);
+  const hr = await userEmp(`demo.hr@${DEMO_EMAIL_DOMAIN}`);
+  if (!emp || !mgr || !hr) return 'skip:مستخدمو التجربة الأساسيون غير موجودين';
+
+  // الأنواع والسياسات
+  const mkType = async (v: {
+    code: string;
+    nameAr: string;
+    nameEn: string;
+    isPaid?: boolean;
+    requiresAttachment?: boolean;
+    color: string;
+  }) =>
+    (
+      await trx
+        .insertInto('leaveTypes')
+        .values({ companyId, ...v })
+        .returning('id')
+        .executeTakeFirstOrThrow()
+    ).id;
+  const annual = await mkType({
+    code: 'DEMO-ANNUAL',
+    nameAr: 'إجازة سنوية',
+    nameEn: 'Annual leave',
+    color: '#228be6',
+  });
+  const sick = await mkType({
+    code: 'DEMO-SICK',
+    nameAr: 'إجازة مرضية',
+    nameEn: 'Sick leave',
+    requiresAttachment: true,
+    color: '#fa5252',
+  });
+  const unpaid = await mkType({
+    code: 'DEMO-UNPAID',
+    nameAr: 'إجازة بلا راتب',
+    nameEn: 'Unpaid leave',
+    isPaid: false,
+    color: '#868e96',
+  });
+  const mkPolicy = async (v: {
+    code: string;
+    nameAr: string;
+    nameEn: string;
+    leaveTypeId: string;
+    annualEntitlement: string;
+    accrualMethod?: 'monthly' | 'upfront';
+    carryOverMax?: string;
+    carryOverValidMonths?: number;
+  }) =>
+    (
+      await trx
+        .insertInto('leavePolicies')
+        .values({ companyId, ...v })
+        .returning('id')
+        .executeTakeFirstOrThrow()
+    ).id;
+  const stdPolicy = await mkPolicy({
+    code: 'DEMO-STD',
+    nameAr: 'السنوية القياسية (21 يوماً)',
+    nameEn: 'Standard annual (21 days)',
+    leaveTypeId: annual,
+    annualEntitlement: '21.00',
+    carryOverMax: '5.00',
+    carryOverValidMonths: 3,
+  });
+  const seniorPolicy = await mkPolicy({
+    code: 'DEMO-SENIOR',
+    nameAr: 'السنوية للإدارة (30 يوماً)',
+    nameEn: 'Management annual (30 days)',
+    leaveTypeId: annual,
+    annualEntitlement: '30.00',
+    carryOverMax: '10.00',
+    carryOverValidMonths: 6,
+  });
+  const sickPolicy = await mkPolicy({
+    code: 'DEMO-SICKP',
+    nameAr: 'المرضية (14 يوماً مقدَّمة)',
+    nameEn: 'Sick (14 days upfront)',
+    leaveTypeId: sick,
+    annualEntitlement: '14.00',
+    accrualMethod: 'upfront',
+  });
+  const assign = (policyId: string, scope: 'company' | 'employee', scopeRef: string | null) =>
+    trx
+      .insertInto('leavePolicyAssignments')
+      .values({ companyId, policyId, scope, scopeRef, validFrom: '2020-01-01' })
+      .execute();
+  await assign(stdPolicy, 'company', null);
+  await assign(sickPolicy, 'company', null);
+  await assign(seniorPolicy, 'employee', mgr.employeeId); // الأخص يغلب: المدير بسياسة 30 يوماً
+
+  // العطل الرسمية (سنة جارية) + عطلة تجريبية قريبة تمرّ بها إجازة
+  const year = new Date().getUTCFullYear();
+  const nearMonday = addDays(sundayOnOrAfter(56), 1);
+  const holidays: [string, string, string][] = [
+    [`${year}-01-01`, 'رأس السنة الميلادية', "New Year's Day"],
+    [`${year}-05-01`, 'عيد العمال', 'Labour Day'],
+    [`${year}-05-25`, 'عيد الاستقلال', 'Independence Day'],
+    [`${year}-12-25`, 'عيد الميلاد المجيد', 'Christmas Day'],
+    [nearMonday, 'عطلة تجريبية', 'Demo holiday'],
+  ];
+  for (const [d, ar, en] of holidays)
+    await trx
+      .insertInto('holidays')
+      .values({ companyId, holidayDate: d, nameAr: ar, nameEn: en })
+      .onConflict((oc) => oc.columns(['companyId', 'holidayDate']).doNothing())
+      .execute();
+
+  // الاستحقاق: السنة الماضية كاملة ثم الحالية (فيظهر الترحيل بالسقف وانتهاء المرحَّل)
+  await runLeaveMaintenance(ctx, `${year - 1}-12-31`);
+  await runLeaveMaintenance(ctx);
+
+  // طلبات بكل الحالات (تمرّ بالموافقات الفعلية)
+  const engine = createApprovalEngine(createNotifier(undefined));
+  const ask = async (
+    who: { userId: string; employeeId: string },
+    typeId: string,
+    start: string,
+    len: number,
+    extra: { firstDayHalf?: boolean; reason?: string } = {},
+  ) => {
+    const id = await submitRequest(ctx, engine, who.userId, who.employeeId, {
+      leaveTypeId: typeId,
+      startDate: start,
+      endDate: addDays(start, len - 1),
+      firstDayHalf: extra.firstDayHalf ?? false,
+      lastDayHalf: false,
+      reason: extra.reason ?? null,
+    });
+    const r = await trx
+      .selectFrom('leaveRequests')
+      .select('approvalRequestId')
+      .where('id', '=', id)
+      .executeTakeFirstOrThrow();
+    return { id, approvalId: r.approvalRequestId as string };
+  };
+  const decide = async (approvalId: string, action: 'approve' | 'reject', note?: string) => {
+    const a = await trx
+      .selectFrom('approvalRequestAssignees')
+      .select('userId')
+      .where('requestId', '=', approvalId)
+      .where('status', '=', 'pending')
+      .executeTakeFirstOrThrow();
+    await engine.act(ctx, approvalId, a.userId, { action, note: note ?? null });
+  };
+
+  const past = await ask(emp, annual, sundayOnOrAfter(-21), 3, { reason: 'سفر عائلي' });
+  await decide(past.approvalId, 'approve'); // معتمدة (منتهية)
+  await ask(emp, annual, sundayOnOrAfter(14), 3, { reason: 'إجازة قصيرة' }); // معلّقة
+  const rej = await ask(emp, annual, sundayOnOrAfter(28), 2);
+  await decide(rej.approvalId, 'reject', 'ضغط عمل في هذه الفترة'); // مرفوضة (الرصيد معاد)
+  const wd = await ask(emp, annual, sundayOnOrAfter(35), 2);
+  await engine.withdraw(ctx, wd.approvalId, emp.userId, 'تغيّرت الخطة'); // مسحوبة
+  const cn = await ask(emp, annual, sundayOnOrAfter(42), 2);
+  await decide(cn.approvalId, 'approve');
+  await cancelRequest(ctx, engine, cn.id, { userId: emp.userId, canManage: false }); // معتمدة ثم ملغاة
+  const half = await ask(emp, annual, sundayOnOrAfter(21), 2, { firstDayHalf: true });
+  await decide(half.approvalId, 'approve'); // نصف يوم في أولها
+  const hol = await ask(emp, annual, addDays(nearMonday, -1), 3, { reason: 'تمرّ بعطلة رسمية' });
+  await decide(hol.approvalId, 'approve'); // عطلة الاثنين لا تُحتسب
+  const sk = await ask(emp, sick, sundayOnOrAfter(-45), 2, { reason: 'وعكة صحية' });
+  await decide(sk.approvalId, 'approve'); // مرضية
+  await ask(emp, unpaid, sundayOnOrAfter(70), 5); // بلا راتب: لا تمسّ الرصيد
+  await ask(mgr, annual, sundayOnOrAfter(30), 4); // طلب المدير (يوجَّه لمن فوقه أو بديله)
+
+  // تعديلات يدوية من الموارد البشرية
+  await adjust(ctx, {
+    employeeId: emp.employeeId,
+    leaveTypeId: annual,
+    days: 2,
+    reason: 'مكافأة أداء (تجريبي)',
+    userId: hr.userId,
+  });
+  await adjust(ctx, {
+    employeeId: emp.employeeId,
+    leaveTypeId: annual,
+    days: -0.5,
+    reason: 'تصحيح خطأ إدخال (تجريبي)',
+    userId: hr.userId,
+  });
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -619,6 +837,7 @@ export const seedDemoExtras = async (
     ['lifecycle', (ctx) => seedLifecycle(ctx)],
     ['archive', (ctx) => seedArchive(ctx, opts.crypto)],
     ['approvals', (ctx) => seedApprovals(ctx, opts.password)],
+    ['leave', (ctx) => seedLeave(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);
