@@ -63,6 +63,8 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   ...crud('leave', 'type', 'أنواع الإجازات'),
   ...crud('leave', 'policy', 'سياسات الإجازات وتعيينها'),
   ...crud('leave', 'holiday', 'العطل الرسمية'),
+  def('leave', 'balance', 'read', 'عرض أرصدة الإجازات وسجلّها'),
+  def('leave', 'balance', 'adjust', 'تعديل أرصدة الإجازات يدوياً'),
   def('identity', 'user', 'read', 'عرض المستخدمين'),
   def('identity', 'user', 'create', 'إضافة مستخدم'),
   def('identity', 'user', 'update', 'تعديل مستخدم'),

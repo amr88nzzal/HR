@@ -43,4 +43,6 @@ export const PERIODIC_JOBS: PeriodicJob[] = [
   { job: 'system.cleanup', cron: '30 2 * * *' },
   // كل ساعة؛ المهمة نفسها تتحقق من ساعة الشركة المحلية فترسل مرة يومياً
   { job: 'digest.daily', cron: '0 * * * *' },
+  // استحقاق الإجازات والترحيل والانتهاء؛ يومياً بعد منتصف الليل UTC ويعوّض الفائت
+  { job: 'leave.daily', cron: '20 1 * * *' },
 ];
