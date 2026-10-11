@@ -4,6 +4,9 @@ import {
   costCenterInput,
   currencyInput,
   departmentInput,
+  holidayInput,
+  leavePolicyInput,
+  leaveTypeInput,
   jobGradeInput,
   jobTitleInput,
   workLocationInput,
@@ -25,6 +28,8 @@ export type ResourceDef = {
   defaults: Record<string, unknown>;
   /** حقل ← مسار مورد تُحمَّل منه الخيارات (المعرّف ← الاسم المحلي) */
   remote?: Record<string, string>;
+  /** المورد بلا عمود isActive فيُخفى مرشح الحالة */
+  hideActive?: boolean;
   /** حقل يشير إلى المورد نفسه (أب) فيستثنى السجل الحالي من خياراته */
   selfRef?: string;
   columns: (
@@ -212,6 +217,101 @@ export const RESOURCES: Record<string, ResourceDef> = {
       active(t('table.active')),
     ],
   },
+  'leave-types': {
+    navKey: 'leaveTypes',
+    path: '/leave-types',
+    perm: 'leave.type',
+    schema: leaveTypeInput,
+    fields: [
+      ...base(),
+      { name: 'isPaid', kind: 'switch' },
+      { name: 'allowHalfDay', kind: 'switch' },
+      { name: 'requiresAttachment', kind: 'switch' },
+      { name: 'color', kind: 'text', ltr: true, description: '#RRGGBB' },
+      { name: 'isActive', kind: 'switch' },
+    ],
+    defaults: { isPaid: true, allowHalfDay: true, requiresAttachment: false, isActive: true },
+    columns: (t, lang) => [
+      codeCol(t),
+      nameCol(t, lang),
+      {
+        key: 'isPaid',
+        header: t('fields.isPaid'),
+        render: (r) => (r['isPaid'] === true ? '✓' : ''),
+        exportValue: (r) => r['isPaid'] === true,
+      },
+      {
+        key: 'allowHalfDay',
+        header: t('fields.allowHalfDay'),
+        render: (r) => (r['allowHalfDay'] === true ? '✓' : ''),
+        exportValue: (r) => r['allowHalfDay'] === true,
+      },
+      active(t('table.active')),
+    ],
+  },
+  'leave-policies': {
+    navKey: 'leavePolicies',
+    path: '/leave-policies',
+    perm: 'leave.policy',
+    schema: leavePolicyInput,
+    fields: [
+      ...base(),
+      { name: 'leaveTypeId', kind: 'select', required: true },
+      {
+        name: 'annualEntitlement',
+        kind: 'number',
+        required: true,
+        min: 0,
+        max: 999.99,
+        decimal: true,
+      },
+      { name: 'accrualMethod', kind: 'select', required: true },
+      { name: 'carryOverMax', kind: 'number', min: 0, max: 999.99, decimal: true },
+      { name: 'carryOverValidMonths', kind: 'number', min: 1, max: 24 },
+      { name: 'maxNegative', kind: 'number', min: 0, max: 999.99, decimal: true },
+      { name: 'minServiceMonths', kind: 'number', min: 0, max: 120 },
+      { name: 'isActive', kind: 'switch' },
+    ],
+    defaults: {
+      accrualMethod: 'monthly',
+      annualEntitlement: 21,
+      carryOverMax: 0,
+      maxNegative: 0,
+      minServiceMonths: 0,
+      isActive: true,
+    },
+    remote: { leaveTypeId: '/leave-types' },
+    columns: (t, lang, lookup) => [
+      codeCol(t),
+      nameCol(t, lang),
+      {
+        key: 'type',
+        header: t('fields.leaveTypeId'),
+        render: (r) => lookup('/leave-types', r['leaveTypeId']),
+        exportValue: (r) => lookup('/leave-types', r['leaveTypeId']),
+      },
+      text('annualEntitlement', t('fields.annualEntitlement')),
+      text('carryOverMax', t('fields.carryOverMax')),
+      active(t('table.active')),
+    ],
+  },
+  holidays: {
+    navKey: 'holidays',
+    path: '/holidays',
+    perm: 'leave.holiday',
+    schema: holidayInput,
+    hideActive: true,
+    fields: [
+      { name: 'holidayDate', kind: 'date', required: true },
+      { name: 'nameAr', kind: 'text', required: true },
+      { name: 'nameEn', kind: 'text' },
+    ],
+    defaults: {},
+    columns: (t, lang) => [
+      text('holidayDate', t('fields.holidayDate'), { ltr: true }),
+      nameCol(t, lang),
+    ],
+  },
   currencies: {
     navKey: 'currencies',
     path: '/currencies',
@@ -255,6 +355,7 @@ export const staticOptions = (
   t: TFunction,
 ): Record<string, { value: string; label: string }[]> => ({
   symbolPosition: ['before', 'after'].map((v) => ({ value: v, label: t(`fields.${v}`) })),
+  accrualMethod: ['monthly', 'upfront'].map((v) => ({ value: v, label: t(`fields.${v}`) })),
   roundingMode: ['half_up', 'half_even', 'down', 'up'].map((v) => ({
     value: v,
     label: t(`fields.${v}`),
