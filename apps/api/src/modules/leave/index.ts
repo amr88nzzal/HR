@@ -8,6 +8,7 @@ import { createBalancesRouter } from './balances.routes.js';
 export { resolvePolicy } from './assignments.js';
 export { adjust, balancesOf, debit, restore, runLeaveMaintenance } from './ledger.js';
 export { leaveJobs } from './jobs.js';
+export { createLeaveRequestsRouter } from './requests.routes.js';
 
 const CRUDS: Record<string, CrudConfig> = {
   'leave-types': {

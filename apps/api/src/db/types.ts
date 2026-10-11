@@ -786,7 +786,38 @@ export type LeaveBalancesTable = {
   updatedAt: Generated<Date>;
 };
 
+export type LeaveRequestsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  leaveTypeId: string;
+  startDate: DateReq;
+  endDate: DateReq;
+  firstDayHalf: Generated<boolean>;
+  lastDayHalf: Generated<boolean>;
+  reason: string | null;
+  days: string | number;
+  overrideDays: string | number | null;
+  overrideReason: string | null;
+  overrideBy: string | null;
+  status: Generated<'pending' | 'approved' | 'rejected' | 'withdrawn' | 'cancelled'>;
+  approvalRequestId: string | null;
+  cancelledAt: TsNullable;
+  cancelledBy: string | null;
+  createdBy: string;
+};
+
+export type LeaveRequestDaysTable = {
+  companyId: string;
+  requestId: string;
+  dayDate: DateReq;
+  units: string | number;
+  kind: 'work' | 'weekend' | 'holiday';
+};
+
 export type Database = {
+  leaveRequests: LeaveRequestsTable;
+  leaveRequestDays: LeaveRequestDaysTable;
   leaveLedger: LeaveLedgerTable;
   leaveBalances: LeaveBalancesTable;
   telegramLinks: TelegramLinksTable;

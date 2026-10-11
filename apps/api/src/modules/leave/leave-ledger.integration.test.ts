@@ -150,6 +150,25 @@ describe('دفتر الإجازات: استحقاق وترحيل وانتهاء 
     await post('admin', '/leave-policy-assignments', { policyId, scope: 'company' });
     emp = await newEmployee('2025-03-01');
     await admin.updateTable('employees').set({ userId: empUser }).where('id', '=', emp).execute();
+    // الدفتر يشير إلى طلب حقيقي (مفتاح أجنبي): نهيّئ طلبين ثابتين للاختبارات
+    for (const id of [
+      '11111111-1111-4111-8111-111111111111',
+      '22222222-2222-4222-8222-222222222222',
+    ])
+      await admin
+        .insertInto('leaveRequests')
+        .values({
+          id,
+          companyId: acme,
+          employeeId: emp,
+          leaveTypeId: typeId,
+          startDate: '2025-12-31',
+          endDate: '2025-12-31',
+          days: '1.00',
+          status: 'approved',
+          createdBy: empUser,
+        })
+        .execute();
   });
 
   afterAll(async () => {

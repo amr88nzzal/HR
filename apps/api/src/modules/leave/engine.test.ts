@@ -3,8 +3,10 @@ import {
   addMonths,
   allocateFifo,
   carryOver,
+  computeLeaveDays,
   dueAccruals,
   fromCents,
+  splitByYear,
   toCents,
   type AccrualPolicy,
 } from './engine.js';
@@ -140,5 +142,110 @@ describe('الاستهلاك FIFO', () => {
       '2027-02-01',
     );
     expect(r.allocations).toEqual([{ lotId: 'a', cents: 50 }]);
+  });
+});
+
+describe('أيام الطلب (golden)', () => {
+  const FRI_SAT = [5, 6];
+  const none = new Set<string>();
+  // 2026-10-11 أحد. الأسبوع: أحد..خميس عمل، جمعة وسبت راحة
+  it('إجازة أحد→خميس = 5 أيام عمل', () => {
+    const r = computeLeaveDays({
+      start: '2026-10-11',
+      end: '2026-10-15',
+      weeklyOff: FRI_SAT,
+      holidays: none,
+    });
+    expect(r.totalCents).toBe(500);
+    expect(r.workDays).toBe(5);
+  });
+
+  it('تخطّي الراحة الأسبوعية: خميس→أحد = يومان (الخميس والأحد)', () => {
+    const r = computeLeaveDays({
+      start: '2026-10-15',
+      end: '2026-10-18',
+      weeklyOff: FRI_SAT,
+      holidays: none,
+    });
+    expect(r.days.map((d) => [d.date, d.kind])).toEqual([
+      ['2026-10-15', 'work'],
+      ['2026-10-16', 'weekend'],
+      ['2026-10-17', 'weekend'],
+      ['2026-10-18', 'work'],
+    ]);
+    expect(r.totalCents).toBe(200);
+  });
+
+  it('إجازة تتخطى عطلة رسمية: لا تُخصم (أحد→خميس وعطلة الثلاثاء)', () => {
+    const r = computeLeaveDays({
+      start: '2026-10-11',
+      end: '2026-10-15',
+      weeklyOff: FRI_SAT,
+      holidays: new Set(['2026-10-13']),
+    });
+    expect(r.totalCents).toBe(400);
+    expect(r.days.find((d) => d.date === '2026-10-13')).toMatchObject({
+      kind: 'holiday',
+      cents: 0,
+    });
+  });
+
+  it('عطلة تصادف راحة أسبوعية تُصنَّف راحة وليست عطلة', () => {
+    const r = computeLeaveDays({
+      start: '2026-10-16',
+      end: '2026-10-16',
+      weeklyOff: FRI_SAT,
+      holidays: new Set(['2026-10-16']),
+    });
+    expect(r.days[0]?.kind).toBe('weekend');
+    expect(r.totalCents).toBe(0);
+  });
+
+  it('نصف يوم في الأول/الآخر، ويوم واحد نصفه 0.50', () => {
+    const r = computeLeaveDays({
+      start: '2026-10-11',
+      end: '2026-10-13',
+      weeklyOff: FRI_SAT,
+      holidays: none,
+      firstDayHalf: true,
+      lastDayHalf: true,
+    });
+    expect(r.days.map((d) => d.cents)).toEqual([50, 100, 50]);
+    const one = computeLeaveDays({
+      start: '2026-10-11',
+      end: '2026-10-11',
+      weeklyOff: FRI_SAT,
+      holidays: none,
+      firstDayHalf: true,
+    });
+    expect(one.totalCents).toBe(50);
+  });
+
+  it('أسبوع الراحة قابل للضبط (سبت وأحد) والنهاية قبل البداية ترمي', () => {
+    const r = computeLeaveDays({
+      start: '2026-10-11',
+      end: '2026-10-12',
+      weeklyOff: [6, 0],
+      holidays: none,
+    });
+    expect(r.totalCents).toBe(100);
+    expect(() =>
+      computeLeaveDays({ start: '2026-10-12', end: '2026-10-11', weeklyOff: [], holidays: none }),
+    ).toThrow('END_BEFORE_START');
+  });
+
+  it('تقسيم السنة: إجازة تعبر رأس السنة تُخصم بجزأين بتاريخ أول يوم محتسب لكل سنة', () => {
+    // 2026-12-29 (ثلاثاء) → 2027-01-04 (إثنين): ثلاثاء..خميس 29-31 (3 أيام) | الجمعة 1 يناير والسبت راحة | أحد 3، إثنين 4
+    const r = computeLeaveDays({
+      start: '2026-12-29',
+      end: '2027-01-04',
+      weeklyOff: FRI_SAT,
+      holidays: none,
+    });
+    expect(r.totalCents).toBe(500);
+    expect(splitByYear(r.days)).toEqual([
+      { year: 2026, date: '2026-12-29', cents: 300 },
+      { year: 2027, date: '2027-01-03', cents: 200 },
+    ]);
   });
 });
