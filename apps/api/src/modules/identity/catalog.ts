@@ -68,6 +68,8 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('leave', 'request', 'submit', 'تقديم طلب إجازة لنفسه'),
   def('leave', 'request', 'read_all', 'عرض كل طلبات الإجازة'),
   def('leave', 'request', 'manage', 'إدارة الطلبات: تقديم نيابة، إلغاء، تجاوز الأيام'),
+  ...crud('attendance', 'shift', 'ورديات الدوام'),
+  ...crud('attendance', 'schedule', 'جداول الدوام وتعيينها'),
   def('identity', 'user', 'read', 'عرض المستخدمين'),
   def('identity', 'user', 'create', 'إضافة مستخدم'),
   def('identity', 'user', 'update', 'تعديل مستخدم'),
@@ -115,6 +117,8 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
       (isRead(c) && c.startsWith('org.')) ||
       c === 'leave.type.read' ||
       c === 'leave.holiday.read' ||
+      c === 'attendance.shift.read' ||
+      c === 'attendance.schedule.read' ||
       c === 'leave.request.submit' ||
       c === 'approvals.request.submit' ||
       c === 'employees.employee.read' ||
