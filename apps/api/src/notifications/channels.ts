@@ -147,7 +147,7 @@ export const saveEmailSettings = async (
 // ───────────── تلغرام ─────────────
 export type TelegramConfig = {
   botUsername: string | null;
-  publicUrl: string;
+  publicUrl: string | null;
   webhookSecret: string;
 };
 
@@ -193,7 +193,7 @@ export const saveTelegramSettings = async (
       botUsername = me.username ?? null;
     }
     const webhookSecret = existing?.config.webhookSecret ?? randomBytes(24).toString('hex');
-    if (input.enabled) {
+    if (input.enabled && input.publicUrl) {
       await api.call(token, 'setWebhook', {
         url: telegramWebhookUrl(input.publicUrl, ctx.companyId),
         secret_token: webhookSecret,
@@ -202,7 +202,11 @@ export const saveTelegramSettings = async (
     } else {
       await api.call(token, 'deleteWebhook');
     }
-    const config: TelegramConfig = { botUsername, publicUrl: input.publicUrl, webhookSecret };
+    const config: TelegramConfig = {
+      botUsername,
+      publicUrl: input.publicUrl ?? null,
+      webhookSecret,
+    };
     const secretEnc = input.botToken
       ? crypto.encrypt(input.botToken, AAD)
       : (existing?.secretEnc ?? null);
@@ -229,7 +233,7 @@ export const saveTelegramSettings = async (
       enabled: input.enabled,
       hasToken: true,
       botUsername,
-      publicUrl: input.publicUrl,
+      publicUrl: input.publicUrl ?? null,
     };
   } catch (err) {
     if (err instanceof AppError) throw err;
@@ -269,8 +273,12 @@ const newCode = () =>
 
 export const createLinkCode = async (ctx: Ctx, userId: string) => {
   const tg = await loadTelegram(ctx);
-  if (!tg?.enabled || !tg.config.botUsername)
-    throw new AppError('TELEGRAM_NOT_CONFIGURED', 409, 'قناة تلغرام غير مفعّلة');
+  if (!tg?.enabled || !tg.config.botUsername || !tg.config.publicUrl)
+    throw new AppError(
+      'TELEGRAM_NOT_CONFIGURED',
+      409,
+      'الربط التلقائي غير مفعّل (أدخل chat id يدوياً)',
+    );
   await ctx.trx.deleteFrom('telegramLinkCodes').where('userId', '=', userId).execute();
   const code = newCode();
   const expiresAt = new Date(Date.now() + 15 * 60_000);
@@ -339,4 +347,39 @@ export const verifyWebhookSecret = async (ctx: Ctx, header: string | undefined) 
   const a = Buffer.from(header);
   const b = Buffer.from(tg.config.webhookSecret);
   return a.length === b.length && timingSafeEqual(a, b);
+};
+
+/** ربط يدوي: يتحقق بإرسال رسالة إلى chat id (تفشل إن لم يبدأ صاحبه المحادثة مع البوت). */
+export const setLinkByChatId = async (
+  ctx: Ctx,
+  sender: TelegramSender,
+  userId: string,
+  chatId: string,
+): Promise<void> => {
+  const user = await ctx.trx
+    .selectFrom('users')
+    .select('id')
+    .where('companyId', '=', ctx.companyId)
+    .where('id', '=', userId)
+    .executeTakeFirst();
+  if (!user) throw new AppError('NOT_FOUND', 404, 'المستخدم غير موجود');
+  try {
+    await sender.send(chatId, 'تم ربط حسابك بنظام شؤون الموظفين ✅ ستصلك الإشعارات هنا.');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new AppError(
+      'TELEGRAM_API_FAILED',
+      502,
+      `تعذّر الإرسال إلى chat id (هل بدأ صاحبه المحادثة مع البوت؟): ${msg.slice(0, 200)}`,
+    );
+  }
+  await ctx.trx
+    .deleteFrom('telegramLinks')
+    .where('companyId', '=', ctx.companyId)
+    .where((eb) => eb.or([eb('userId', '=', userId), eb('chatId', '=', chatId)]))
+    .execute();
+  await ctx.trx
+    .insertInto('telegramLinks')
+    .values({ companyId: ctx.companyId, userId, chatId, tgUsername: null })
+    .execute();
 };
