@@ -349,4 +349,56 @@ describe('طلبات الإجازة: من الموظف إلى المدير وأ�
       .executeTakeFirstOrThrow();
     expect(Number(n.n)).toBe(0);
   });
+
+  describe('التقويم الجماعي وتقرير الأرصدة', () => {
+    const range = 'from=2026-08-01&to=2026-09-15';
+
+    it('الإدارة ترى الجميع ومعها العطل والراحة الأسبوعية', async () => {
+      const r = await get('admin', `/leave-requests/calendar?${range}`);
+      expect(r.status).toBe(200);
+      expect(r.body.data.weeklyOff).toEqual([5, 6]);
+      const june = await get('admin', '/leave-requests/calendar?from=2026-06-01&to=2026-06-30');
+      expect(june.body.data.holidays.map((h: { holidayDate: string }) => h.holidayDate)).toContain(
+        '2026-06-17',
+      );
+      expect(r.body.data.requests.length).toBeGreaterThan(0);
+      for (const x of r.body.data.requests) expect(['pending', 'approved']).toContain(x.status);
+    });
+
+    it('المدير يرى مرؤوسه المباشر، والموظف يرى نفسه فقط', async () => {
+      const m = await get('mgr', `/leave-requests/calendar?${range}`);
+      expect(m.status).toBe(200);
+      expect(m.body.data.requests.some((x: { employeeId: string }) => x.employeeId === emp)).toBe(
+        true,
+      );
+      const e = await get('emp', `/leave-requests/calendar?${range}`);
+      expect(e.status).toBe(200);
+      expect(e.body.data.requests.every((x: { employeeId: string }) => x.employeeId === emp)).toBe(
+        true,
+      );
+    });
+
+    it('مرشح القسم، والتحقق من الفترة', async () => {
+      const none = await get(
+        'admin',
+        `/leave-requests/calendar?${range}&departmentId=00000000-0000-4000-8000-000000000000`,
+      );
+      expect(none.body.data.requests).toHaveLength(0);
+      const bad = await get('admin', '/leave-requests/calendar?from=2026-01-01&to=2026-12-31');
+      expect(bad.status).toBe(400);
+    });
+
+    it('تقرير الأرصدة: صف لكل موظف ونوع مدفوع، ومحمي بالصلاحية', async () => {
+      const r = await get('admin', '/leave-balances/report');
+      expect(r.status).toBe(200);
+      expect(r.body.meta.total).toBe(2);
+      const row = r.body.data.find((x: { employeeId: string }) => x.employeeId === emp);
+      expect(row).toMatchObject({ leaveTypeId: annual });
+      expect(Number(row.balance)).toBe(await balance());
+      expect(Number(row.pending)).toBeGreaterThan(0);
+      const filtered = await get('admin', `/leave-balances/report?leaveTypeId=${unpaid}`);
+      expect(filtered.body.meta.total).toBe(0); // غير المدفوع خارج التقرير
+      expect((await get('emp', '/leave-balances/report')).status).toBe(403);
+    });
+  });
 });

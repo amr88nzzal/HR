@@ -7,6 +7,7 @@ import { AppError } from '../../shared/errors.js';
 import { requirePermission } from '../identity/index.js';
 import { ensureRefsExist } from '../org/index.js';
 import { adjust, balancesOf } from './ledger.js';
+import { balanceReport } from './reports.js';
 
 const uuid = z.string().uuid();
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -30,6 +31,15 @@ const ledgerQuery = z.object({
   leaveTypeId: uuid.optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+const reportQuery = z.object({
+  leaveTypeId: uuid.optional(),
+  departmentId: uuid.optional(),
+  branchId: uuid.optional(),
+  q: z.string().trim().max(100).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(500).default(50),
 });
 
 const employeeOfUser = async (ctx: Ctx, userId: string): Promise<string> => {
@@ -133,6 +143,16 @@ export const createBalancesRouter = (db: Db, authenticate: RequestHandler): Rout
         return balancesOf(ctx, employeeId);
       });
       res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/report', requirePermission('leave.balance.read'), async (req, res, next) => {
+    try {
+      const q = reportQuery.parse(req.query);
+      const { rows, total } = await run(req, (ctx) => balanceReport(ctx, q));
+      res.json({ data: rows, meta: { page: q.page, pageSize: q.pageSize, total } });
     } catch (err) {
       next(err);
     }

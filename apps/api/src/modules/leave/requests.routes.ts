@@ -6,9 +6,23 @@ import { withTenant, type Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
 import type { ApprovalEngine } from '../../approvals/index.js';
 import { hasPermission, requirePermission } from '../identity/index.js';
+import { calendarData } from './reports.js';
 import { analyze, cancelRequest, overrideDays, previewDto, submitRequest } from './requests.js';
 
 const uuid = z.string().uuid();
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const calendarQuery = z
+  .object({
+    from: isoDate,
+    to: isoDate,
+    departmentId: uuid.optional(),
+    branchId: uuid.optional(),
+  })
+  .refine((v) => v.to >= v.from, { message: 'تاريخ النهاية قبل البداية', path: ['to'] })
+  .refine((v) => Date.parse(v.to) - Date.parse(v.from) <= 62 * 86_400_000, {
+    message: 'الفترة أطول من 62 يوماً',
+    path: ['to'],
+  });
 const idParam = z.object({ id: uuid });
 
 const employeeOfUser = async (ctx: Ctx, userId: string): Promise<string> => {
@@ -155,6 +169,26 @@ export const createLeaveRequestsRouter = (
       const q = leaveRequestListQuery.parse(req.query);
       const { rows, total } = await run(req, (ctx) => listRequests(ctx, q));
       res.json({ data: rows, meta: { page: q.page, pageSize: q.pageSize, total } });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/calendar', async (req, res, next) => {
+    try {
+      const q = calendarQuery.parse(req.query);
+      const auth = req.auth as NonNullable<Request['auth']>;
+      const data = await run(req, async (ctx) => {
+        const all = hasPermission(auth, 'leave.request.read_all');
+        const mine = await ctx.trx
+          .selectFrom('employees')
+          .select('id')
+          .where('companyId', '=', ctx.companyId)
+          .where('userId', '=', auth.userId)
+          .executeTakeFirst();
+        return calendarData(ctx, q, { all, employeeId: mine?.id ?? null });
+      });
+      res.json({ data });
     } catch (err) {
       next(err);
     }

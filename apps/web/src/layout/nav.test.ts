@@ -48,7 +48,7 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'leave.policy.read',
         'leave.holiday.read',
       ]).length,
-    ).toBe(31);
+    ).toBe(33);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');
