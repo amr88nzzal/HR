@@ -11,6 +11,7 @@ export const errorMessage = (err: unknown, t: TFunction): string => {
       'CUSTOM_FIELD_INVALID',
       'DOCUMENT_FIELD_INVALID',
       'EMAIL_SEND_FAILED',
+      'TELEGRAM_API_FAILED',
     ].includes(err.code)
   )
     return err.message;

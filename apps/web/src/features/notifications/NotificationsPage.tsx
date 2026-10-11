@@ -1,4 +1,15 @@
-import { Badge, Button, Group, Stack, Switch, Table, Tabs, Text, Title } from '@mantine/core';
+import {
+  Anchor,
+  Badge,
+  Button,
+  Group,
+  Stack,
+  Switch,
+  Table,
+  Tabs,
+  Text,
+  Title,
+} from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -7,6 +18,7 @@ import {
   type NotificationChannel,
   type NotificationDto,
   type PreferenceMatrix,
+  type TelegramMeDto,
 } from '@hrms/shared';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +28,68 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { useFormat } from '../../lib/useFormat';
 
 const PAGE_SIZE = 20;
+
+const TelegramLink = () => {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const me = useQuery({
+    queryKey: ['/integrations/telegram/me'],
+    queryFn: async () => (await api.get<TelegramMeDto>('/integrations/telegram/me')).data,
+  });
+  const [link, setLink] = useState<string>();
+  const create = useMutation({
+    mutationFn: async () =>
+      (await api.post<{ deepLink: string }>('/integrations/telegram/me/link-code', {})).data,
+    onSuccess: (d) => setLink(d.deepLink),
+    onError: () => notifications.show({ color: 'red', message: t('apiErrors.generic') }),
+  });
+  const unlink = useMutation({
+    mutationFn: async () => void (await api.del('/integrations/telegram/me')),
+    onSuccess: () => {
+      setLink(undefined);
+      return qc.invalidateQueries({ queryKey: ['/integrations/telegram/me'] });
+    },
+  });
+  if (!me.data?.available) return null;
+  return (
+    <Stack gap="xs" maw={560}>
+      <Group>
+        <Text fw={600}>{t('notifications.telegram.title')}</Text>
+        <Badge color={me.data.linked ? 'green' : 'gray'}>
+          {me.data.linked
+            ? `${t('notifications.telegram.linked')}${me.data.tgUsername ? ` @${me.data.tgUsername}` : ''}`
+            : t('notifications.telegram.notLinked')}
+        </Badge>
+        {me.data.linked ? (
+          <Button size="xs" variant="light" color="red" onClick={() => unlink.mutate()}>
+            {t('notifications.telegram.unlink')}
+          </Button>
+        ) : (
+          <Button size="xs" loading={create.isPending} onClick={() => create.mutate()}>
+            {t('notifications.telegram.link')}
+          </Button>
+        )}
+      </Group>
+      {link && !me.data.linked && (
+        <Text size="sm">
+          {t('notifications.telegram.openLink')}{' '}
+          <Anchor href={link} target="_blank" rel="noreferrer" dir="ltr">
+            {link}
+          </Anchor>
+          <br />
+          <Button
+            mt="xs"
+            size="xs"
+            variant="subtle"
+            onClick={() => qc.invalidateQueries({ queryKey: ['/integrations/telegram/me'] })}
+          >
+            {t('notifications.telegram.refresh')}
+          </Button>
+        </Text>
+      )}
+    </Stack>
+  );
+};
 
 const Preferences = () => {
   const { t } = useTranslation();
@@ -34,6 +108,7 @@ const Preferences = () => {
   });
   return (
     <Stack>
+      <TelegramLink />
       <Text size="sm" c="dimmed">
         {t('notifications.prefsHint')}
       </Text>

@@ -3,7 +3,11 @@ import { createDb } from './db/index.js';
 import { BOSS_SCHEMA } from './jobs/install.js';
 import { PERIODIC_JOBS } from './jobs/definitions.js';
 import { buildRegistry } from './jobs/registry.js';
-import { createMailProvider } from './notifications/index.js';
+import {
+  createMailProvider,
+  createTelegramApi,
+  createTelegramProvider,
+} from './notifications/index.js';
 import { createFieldCrypto } from './shared/crypto.js';
 import { startWorkers } from './jobs/runtime.js';
 import { loadConfig } from './shared/config.js';
@@ -49,7 +53,7 @@ await startWorkers({
   boss,
   db,
   adminDb,
-  registry: buildRegistry(mail),
+  registry: buildRegistry(mail, createTelegramProvider({ crypto, api: createTelegramApi() })),
   periodic: PERIODIC_JOBS,
   logger,
 });

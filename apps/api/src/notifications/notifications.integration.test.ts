@@ -233,7 +233,7 @@ describe('الإشعارات', () => {
 
     const matrix = (await get('admin', '/notifications/preferences')).body.data;
     const system = matrix.find((m: { category: string }) => m.category === 'system');
-    expect(system.channels).toEqual({ in_app: false, email: true });
+    expect(system.channels).toEqual({ in_app: false, email: true, telegram: true });
     expect(
       (
         await put('admin', '/notifications/preferences', {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const NOTIFICATION_CHANNELS = ['in_app', 'email'] as const;
+export const NOTIFICATION_CHANNELS = ['in_app', 'email', 'telegram'] as const;
 export const NOTIFICATION_LOCALES = ['ar', 'en'] as const;
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 export type NotificationLocale = (typeof NOTIFICATION_LOCALES)[number];

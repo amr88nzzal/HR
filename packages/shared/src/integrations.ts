@@ -36,3 +36,44 @@ export type EmailSettingsDto = {
   /** مصدر الإعداد الفعّال: القاعدة، أو متغيرات البيئة (SMTP_URL)، أو لا شيء */
   source: 'db' | 'env' | 'none';
 };
+
+export const telegramSettingsInput = z.object({
+  enabled: z.boolean().default(true),
+  /** غيابه = إبقاء المحفوظ */
+  botToken: z
+    .string()
+    .trim()
+    .regex(/^\d{5,}:[A-Za-z0-9_-]{20,}$/, 'توكن بوت غير صالح')
+    .optional(),
+  /** عنوان الموقع العام (https) الذي يستقبل منه تلغرام التحديثات */
+  publicUrl: z
+    .string()
+    .trim()
+    .url()
+    .max(200)
+    .refine((v) => v.startsWith('https://'), 'يلزم عنوان https')
+    .transform((v) => v.replace(/\/+$/, '')),
+});
+export type TelegramSettingsInput = z.infer<typeof telegramSettingsInput>;
+
+export type TelegramSettingsDto = {
+  enabled: boolean;
+  hasToken: boolean;
+  botUsername: string | null;
+  publicUrl: string;
+};
+
+export type TelegramLinkDto = {
+  userId: string;
+  displayName: string;
+  email: string;
+  tgUsername: string | null;
+  linkedAt: string;
+};
+
+export type TelegramMeDto = {
+  /** القناة مفعّلة على مستوى الشركة */
+  available: boolean;
+  linked: boolean;
+  tgUsername: string | null;
+};

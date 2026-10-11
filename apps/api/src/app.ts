@@ -14,7 +14,11 @@ import type { StorageProvider } from './shared/storage.js';
 import { createJobsRouter, type JobQueue } from './jobs/index.js';
 import {
   createChannelsRouter,
+  createTelegramWebhookRouter,
   createMailProvider,
+  createTelegramApi,
+  createTelegramProvider,
+  type TelegramApi,
   type MailProvider,
   createNotificationsRouter,
   createNotificationTemplatesRouter,
@@ -49,6 +53,8 @@ export type AppDeps = {
     jobs?: JobQueue;
     /** مزوّد البريد الفعّال (إعداد الشركة ثم البيئة)؛ غيابه = إعداد القاعدة فقط */
     mail?: { provider: MailProvider; envConfigured: boolean };
+    /** عميل Bot API (يُستبدل في الاختبار) */
+    telegramApi?: TelegramApi;
   };
 };
 
@@ -86,6 +92,10 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     app.use('/api/v1/auth', createAuthRouter(auth));
     const api = Router();
     const authenticate = createAuthenticate(auth.db, auth.settings.jwtSecret);
+    const telegramApi = auth.telegramApi ?? createTelegramApi();
+    const telegram = createTelegramProvider({ crypto: auth.crypto, api: telegramApi });
+    // قبل أي راوتر يفرض المصادقة على كل المسارات
+    api.use('/integrations/telegram/webhook', createTelegramWebhookRouter(auth.db, { telegram }));
     api.use(createIdentityAdminRouter(auth.db, authenticate));
     mountOrgRoutes(api, auth.db, authenticate);
     mountLeaveRoutes(api, auth.db, authenticate);
@@ -106,6 +116,8 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
           auth.mail?.provider ??
           createMailProvider({ crypto: auth.crypto, envSmtpUrl: undefined, envFrom: '' }),
         envSmtpConfigured: auth.mail?.envConfigured ?? false,
+        telegramApi,
+        telegram,
       }),
     );
     const engine = createApprovalEngine(createNotifier(auth.jobs));
