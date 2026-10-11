@@ -22,6 +22,8 @@ import { ApprovalDetailPage } from './features/approvals/ApprovalDetailPage';
 import { DelegationsPage } from './features/approvals/DelegationsPage';
 import { MyLeavePage } from './features/leave/MyLeavePage';
 import { BalancesAdminPage } from './features/leave/BalancesAdminPage';
+import { TeamCalendarPage } from './features/leave/TeamCalendarPage';
+import { BalancesReportPage } from './features/leave/BalancesReportPage';
 import { AssignmentsPage } from './features/leave/AssignmentsPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { AuditPage } from './features/AuditPage';
@@ -112,6 +114,8 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/channels': () => <ChannelsPage />,
   '/admin/notification-templates': () => <NotificationTemplatesPage />,
   '/leave': () => <MyLeavePage />,
+  '/leave/calendar': () => <TeamCalendarPage />,
+  '/leave/report': () => <BalancesReportPage />,
   '/leave/balances': () => <BalancesAdminPage />,
   '/leave/types': () => <ResourcePage resourceKey="leave-types" />,
   '/leave/policies': () => <ResourcePage resourceKey="leave-policies" />,

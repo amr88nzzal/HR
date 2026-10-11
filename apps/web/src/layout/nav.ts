@@ -27,6 +27,8 @@ import {
   IconScale,
   IconLink,
   IconCalendarStar,
+  IconCalendarMonth,
+  IconReportAnalytics,
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
 
@@ -76,9 +78,21 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         permission: 'leave.request.submit',
       },
       {
+        key: 'leaveCalendar',
+        path: '/leave/calendar',
+        icon: IconCalendarMonth,
+        permission: 'leave.request.submit',
+      },
+      {
         key: 'leaveBalances',
         path: '/leave/balances',
         icon: IconScale,
+        permission: 'leave.balance.read',
+      },
+      {
+        key: 'leaveReport',
+        path: '/leave/report',
+        icon: IconReportAnalytics,
         permission: 'leave.balance.read',
       },
       {
