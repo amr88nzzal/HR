@@ -65,6 +65,9 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   ...crud('leave', 'holiday', 'العطل الرسمية'),
   def('leave', 'balance', 'read', 'عرض أرصدة الإجازات وسجلّها'),
   def('leave', 'balance', 'adjust', 'تعديل أرصدة الإجازات يدوياً'),
+  def('leave', 'request', 'submit', 'تقديم طلب إجازة لنفسه'),
+  def('leave', 'request', 'read_all', 'عرض كل طلبات الإجازة'),
+  def('leave', 'request', 'manage', 'إدارة الطلبات: تقديم نيابة، إلغاء، تجاوز الأيام'),
   def('identity', 'user', 'read', 'عرض المستخدمين'),
   def('identity', 'user', 'create', 'إضافة مستخدم'),
   def('identity', 'user', 'update', 'تعديل مستخدم'),
@@ -98,7 +101,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
     nameAr: 'موظف موارد بشرية',
     nameEn: 'HR Officer',
     grants: (c) =>
-      isRead(c) &&
+      (isRead(c) || c === 'leave.request.read_all') &&
       c !== 'system.audit.read' &&
       c !== 'system.job.read' &&
       c !== 'system.integration.read' &&
@@ -112,6 +115,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
       (isRead(c) && c.startsWith('org.')) ||
       c === 'leave.type.read' ||
       c === 'leave.holiday.read' ||
+      c === 'leave.request.submit' ||
       c === 'approvals.request.submit' ||
       c === 'employees.employee.read' ||
       c === 'employees.employment.read',
@@ -124,6 +128,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
       c === 'system.company.read' ||
       c === 'leave.type.read' ||
       c === 'leave.holiday.read' ||
+      c === 'leave.request.submit' ||
       c === 'approvals.request.submit' ||
       c === 'employees.employee.read' ||
       c === 'employees.employment.read',
