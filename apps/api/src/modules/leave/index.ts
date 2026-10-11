@@ -3,8 +3,11 @@ import { holidayInput, leavePolicyInput, leaveTypeInput } from '@hrms/shared';
 import type { Db } from '../../db/index.js';
 import { createCrudRouter, type CrudConfig } from '../org/index.js';
 import { createAssignmentsRouter } from './assignments.js';
+import { createBalancesRouter } from './balances.routes.js';
 
 export { resolvePolicy } from './assignments.js';
+export { adjust, balancesOf, debit, restore, runLeaveMaintenance } from './ledger.js';
+export { leaveJobs } from './jobs.js';
 
 const CRUDS: Record<string, CrudConfig> = {
   'leave-types': {
@@ -37,4 +40,5 @@ export const mountLeaveRoutes = (api: Router, db: Db, authenticate: RequestHandl
   for (const [path, cfg] of Object.entries(CRUDS))
     api.use(`/${path}`, createCrudRouter(db, cfg, authenticate));
   api.use('/leave-policy-assignments', createAssignmentsRouter(db, authenticate));
+  api.use('/leave-balances', createBalancesRouter(db, authenticate));
 };

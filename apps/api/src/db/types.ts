@@ -759,7 +759,36 @@ export type TelegramLinkCodesTable = {
   createdAt: Generated<Date>;
 };
 
+export type LeaveLedgerTable = {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  leaveTypeId: string;
+  entryType: 'accrual' | 'carry_over' | 'adjustment' | 'consumption' | 'restore' | 'expiry';
+  days: string | number;
+  effectiveDate: DateReq;
+  expiresOn: DateCol;
+  sourceEntryId: string | null;
+  reversesEntryId: string | null;
+  period: string | null;
+  requestId: string | null;
+  reason: string | null;
+  createdBy: string | null;
+  createdAt: Generated<Date>;
+};
+
+export type LeaveBalancesTable = {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  leaveTypeId: string;
+  balance: string;
+  updatedAt: Generated<Date>;
+};
+
 export type Database = {
+  leaveLedger: LeaveLedgerTable;
+  leaveBalances: LeaveBalancesTable;
   telegramLinks: TelegramLinksTable;
   telegramLinkCodes: TelegramLinkCodesTable;
   integrationSettings: IntegrationSettingsTable;
