@@ -422,7 +422,7 @@ export type NotificationTemplatesTable = {
   id: Generated<string>;
   companyId: string;
   eventKey: string;
-  channel: 'in_app' | 'email';
+  channel: 'in_app' | 'email' | 'telegram';
   locale: 'ar' | 'en';
   subject: string | null;
   body: string;
@@ -436,7 +436,7 @@ export type NotificationDeliveriesTable = {
   id: Generated<string>;
   companyId: string;
   notificationId: string;
-  channel: 'email';
+  channel: 'email' | 'telegram';
   toAddress: string;
   subject: string;
   body: string;
@@ -454,7 +454,7 @@ export type NotificationPreferencesTable = {
   companyId: string;
   userId: string;
   category: string;
-  channel: 'in_app' | 'email';
+  channel: 'in_app' | 'email' | 'telegram';
   enabled: boolean;
   updatedAt: Generated<Date>;
 };
@@ -729,7 +729,40 @@ export type HolidaysTable = Versioned & {
   nameEn: string | null;
 };
 
+export type IntegrationSettingsTable = {
+  id: Generated<string>;
+  companyId: string;
+  provider: 'email' | 'telegram';
+  enabled: Generated<boolean>;
+  config: ColumnType<Record<string, unknown>, string | undefined, string>;
+  secretEnc: string | null;
+  version: Generated<number>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
+export type TelegramLinksTable = {
+  id: Generated<string>;
+  companyId: string;
+  userId: string;
+  chatId: string;
+  tgUsername: string | null;
+  linkedAt: Generated<Date>;
+};
+
+export type TelegramLinkCodesTable = {
+  id: Generated<string>;
+  companyId: string;
+  userId: string;
+  code: string;
+  expiresAt: Date;
+  createdAt: Generated<Date>;
+};
+
 export type Database = {
+  telegramLinks: TelegramLinksTable;
+  telegramLinkCodes: TelegramLinkCodesTable;
+  integrationSettings: IntegrationSettingsTable;
   leaveTypes: LeaveTypesTable;
   leavePolicies: LeavePoliciesTable;
   leavePolicyAssignments: LeavePolicyAssignmentsTable;

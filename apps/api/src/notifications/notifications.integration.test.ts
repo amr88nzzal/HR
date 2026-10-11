@@ -156,7 +156,7 @@ describe('الإشعارات', () => {
       boss: workerBoss,
       db: app,
       adminDb: admin,
-      registry: buildRegistry(mail),
+      registry: buildRegistry(async () => mail),
       periodic: [],
       logger: pino({ level: 'silent' }),
       pollSeconds: 0.5,
@@ -233,7 +233,7 @@ describe('الإشعارات', () => {
 
     const matrix = (await get('admin', '/notifications/preferences')).body.data;
     const system = matrix.find((m: { category: string }) => m.category === 'system');
-    expect(system.channels).toEqual({ in_app: false, email: true });
+    expect(system.channels).toEqual({ in_app: false, email: true, telegram: true });
     expect(
       (
         await put('admin', '/notifications/preferences', {

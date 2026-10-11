@@ -14,6 +14,7 @@ import { isGroup, NAV } from './layout/nav';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { JobsPage } from './features/admin/JobsPage';
+import { ChannelsPage } from './features/admin/ChannelsPage';
 import { NotificationTemplatesPage } from './features/admin/NotificationTemplatesPage';
 import { ApprovalFlowsPage } from './features/admin/ApprovalFlowsPage';
 import { ApprovalsPage } from './features/approvals/ApprovalsPage';
@@ -105,6 +106,7 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/settings': () => <SettingsPage />,
   '/admin/audit': () => <AuditPage />,
   '/admin/jobs': () => <JobsPage />,
+  '/admin/channels': () => <ChannelsPage />,
   '/admin/notification-templates': () => <NotificationTemplatesPage />,
   '/approvals': () => <ApprovalsPage />,
   '/approval-delegations': () => <DelegationsPage />,

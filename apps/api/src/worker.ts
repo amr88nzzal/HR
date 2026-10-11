@@ -3,7 +3,12 @@ import { createDb } from './db/index.js';
 import { BOSS_SCHEMA } from './jobs/install.js';
 import { PERIODIC_JOBS } from './jobs/definitions.js';
 import { buildRegistry } from './jobs/registry.js';
-import { createSmtpTransport } from './notifications/mail.js';
+import {
+  createMailProvider,
+  createTelegramApi,
+  createTelegramProvider,
+} from './notifications/index.js';
+import { createFieldCrypto } from './shared/crypto.js';
 import { startWorkers } from './jobs/runtime.js';
 import { loadConfig } from './shared/config.js';
 import { createLogger } from './shared/logging.js';
@@ -16,8 +21,20 @@ if (!config.DATABASE_URL || !config.DATABASE_ADMIN_URL) {
   throw new Error('DATABASE_URL و DATABASE_ADMIN_URL مطلوبان لعملية العمّال');
 }
 
-const mail = config.SMTP_URL ? createSmtpTransport(config.SMTP_URL, config.MAIL_FROM) : undefined;
-if (!mail) logger.warn('SMTP_URL غير مضبوط: لن يُرسل البريد (تُعلَّم الرسائل skipped)');
+const crypto =
+  config.ENCRYPTION_KEYS && config.ENCRYPTION_KEY_ID && config.ENCRYPTION_DIGEST_KEY
+    ? createFieldCrypto({
+        keysSpec: config.ENCRYPTION_KEYS,
+        currentKeyId: config.ENCRYPTION_KEY_ID,
+        digestKey: config.ENCRYPTION_DIGEST_KEY,
+      })
+    : undefined;
+// بريد الشركة من إعدادات القاعدة، ويرجع إلى SMTP_URL إن لم يُضبط
+const mail = createMailProvider({
+  crypto,
+  envSmtpUrl: config.SMTP_URL,
+  envFrom: config.MAIL_FROM,
+});
 const db = createDb(config.DATABASE_URL);
 const adminDb = createDb(config.DATABASE_ADMIN_URL);
 // pg-boss يحتاج صلاحيات صيانة مخططه (أقسام الإحصاءات ...) فيتصل بحساب المالك؛ مهام الأعمال تعمل عبر db الخاضع لـ RLS
@@ -36,7 +53,7 @@ await startWorkers({
   boss,
   db,
   adminDb,
-  registry: buildRegistry(mail),
+  registry: buildRegistry(mail, createTelegramProvider({ crypto, api: createTelegramApi() })),
   periodic: PERIODIC_JOBS,
   logger,
 });

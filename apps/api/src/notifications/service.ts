@@ -51,7 +51,7 @@ export const resolveTexts = async (
       ? { subject: o.subject ?? def.defaults[locale].subject, body: o.body }
       : def.defaults[locale];
   };
-  return { in_app: pick('in_app'), email: pick('email') };
+  return { in_app: pick('in_app'), email: pick('email'), telegram: pick('telegram') };
 };
 
 export const createNotifier = (queue: JobQueue | undefined): Notifier => ({
@@ -122,6 +122,43 @@ export const createNotifier = (queue: JobQueue | undefined): Notifier => ({
         .returning('id')
         .executeTakeFirstOrThrow();
       if (queue) await queue.enqueue(ctx, 'notifications.send_email', { deliveryId: delivery.id });
+    }
+
+    if (allowed('telegram') && queue) {
+      // يُرسل فقط لمن ربط حسابه والقناة مفعّلة على الشركة
+      const link = await ctx.trx
+        .selectFrom('telegramLinks as l')
+        .innerJoin('integrationSettings as i', (j) =>
+          j.onRef('i.companyId', '=', 'l.companyId').on('i.provider', '=', 'telegram'),
+        )
+        .select(['l.chatId', 'i.config'])
+        .where('l.companyId', '=', ctx.companyId)
+        .where('l.userId', '=', user.id)
+        .where('i.enabled', '=', true)
+        .executeTakeFirst();
+      if (link) {
+        const tg = texts.telegram;
+        const subject = renderTemplate(tg.subject, vars);
+        const publicUrl = (link.config as { publicUrl?: string }).publicUrl;
+        const body =
+          renderTemplate(tg.body, vars) +
+          (input.link && publicUrl ? `\n${publicUrl}${input.link}` : '');
+        const delivery = await ctx.trx
+          .insertInto('notificationDeliveries')
+          .values({
+            companyId: ctx.companyId,
+            notificationId: row.id,
+            channel: 'telegram',
+            toAddress: link.chatId,
+            subject,
+            body,
+            bodyHtml: '',
+            status: 'pending',
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+        await queue.enqueue(ctx, 'notifications.send_telegram', { deliveryId: delivery.id });
+      }
     }
     return row.id;
   },

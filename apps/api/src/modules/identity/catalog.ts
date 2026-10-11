@@ -27,6 +27,8 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('system', 'audit', 'read', 'عرض سجل التدقيق'),
   def('system', 'job', 'read', 'عرض مراقب المهام الخلفية'),
   def('system', 'job', 'retry', 'إعادة تشغيل مهمة فاشلة'),
+  def('system', 'integration', 'read', 'عرض إعدادات قنوات الإشعار (بريد وتلغرام)'),
+  def('system', 'integration', 'manage', 'إدارة قنوات الإشعار وتجربتها'),
   def('system', 'notification_template', 'read', 'عرض قوالب الإشعارات'),
   def('system', 'notification_template', 'update', 'تعديل قوالب الإشعارات وتجربتها'),
   ...crud('org', 'department', 'الأقسام'),
@@ -97,6 +99,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
       isRead(c) &&
       c !== 'system.audit.read' &&
       c !== 'system.job.read' &&
+      c !== 'system.integration.read' &&
       c !== 'system.notification_template.read',
   },
   {

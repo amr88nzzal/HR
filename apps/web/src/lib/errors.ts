@@ -5,7 +5,15 @@ import { ApiError } from '../api/client';
 export const errorMessage = (err: unknown, t: TFunction): string => {
   if (!(err instanceof ApiError)) return t('apiErrors.generic');
   // رسائل الخادم المحددة (تذكر الحقل المخالف) تمر كما هي
-  if (['WEAK_PASSWORD', 'CUSTOM_FIELD_INVALID', 'DOCUMENT_FIELD_INVALID'].includes(err.code))
+  if (
+    [
+      'WEAK_PASSWORD',
+      'CUSTOM_FIELD_INVALID',
+      'DOCUMENT_FIELD_INVALID',
+      'EMAIL_SEND_FAILED',
+      'TELEGRAM_API_FAILED',
+    ].includes(err.code)
+  )
     return err.message;
   return t(`apiErrors.${err.code}`, { defaultValue: t('apiErrors.generic') });
 };
