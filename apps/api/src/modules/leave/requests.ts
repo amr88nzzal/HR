@@ -6,8 +6,24 @@ import { registerApprovalRequestType, type ApprovalEngine } from '../../approval
 import { resolvePolicy } from './assignments.js';
 import { computeLeaveDays, fromCents, splitByYear, toCents, type LeaveDay } from './engine.js';
 import { debit, restore } from './ledger.js';
+import { recomputeDays } from '../attendance/index.js';
 
 const DEFAULT_WEEKLY_OFF = [5, 6];
+
+const addDaysIso = (d: string, n: number): string => {
+  const t = new Date(`${d}T00:00:00Z`);
+  t.setUTCDate(t.getUTCDate() + n);
+  return t.toISOString().slice(0, 10);
+};
+
+/** إعادة احتساب أيام الحضور المتأثرة بإجازة (حتى اليوم فقط، وبحد أقصى 62 يوماً). */
+const refreshAttendance = async (ctx: Ctx, employeeId: string, start: string, end: string) => {
+  const today = await todayOf(ctx);
+  const to = end < today ? end : today;
+  if (start > to) return;
+  const minFrom = addDaysIso(to, -61);
+  await recomputeDays(ctx, [employeeId], start < minFrom ? minFrom : start, to);
+};
 
 const todayOf = async (ctx: Ctx): Promise<string> =>
   (await sql<{ d: string }>`select company_today(${ctx.companyId})::text as d`.execute(ctx.trx))
@@ -311,7 +327,7 @@ registerApprovalRequestType({
     if (!request.entityId) return;
     const lr = await ctx.trx
       .selectFrom('leaveRequests')
-      .select(['id', 'status'])
+      .select(['id', 'status', 'employeeId', 'startDate', 'endDate'])
       .where('companyId', '=', ctx.companyId)
       .where('id', '=', request.entityId)
       .forUpdate()
@@ -323,6 +339,7 @@ registerApprovalRequestType({
         .set({ status: 'approved', version: sql`version + 1` })
         .where('id', '=', lr.id)
         .execute();
+      await refreshAttendance(ctx, lr.employeeId, lr.startDate, lr.endDate);
       return;
     }
     await restore(ctx, lr.id, null);
@@ -397,6 +414,7 @@ export const cancelRequest = async (
     })
     .where('id', '=', id)
     .execute();
+  await refreshAttendance(ctx, r.employeeId, r.startDate, r.endDate);
 };
 
 /** تجاوز يدوي لعدد الأيام المخصومة: يعيد الحجز السابق ثم يخصم العدد الجديد. */

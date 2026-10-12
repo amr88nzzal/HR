@@ -70,6 +70,12 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('leave', 'request', 'manage', 'إدارة الطلبات: تقديم نيابة، إلغاء، تجاوز الأيام'),
   ...crud('attendance', 'shift', 'ورديات الدوام'),
   ...crud('attendance', 'schedule', 'جداول الدوام وتعيينها'),
+  def('attendance', 'punch', 'read', 'عرض البصمات الخام'),
+  def('attendance', 'punch', 'create', 'إدخال بصمات يدوياً'),
+  def('attendance', 'punch', 'delete', 'حذف بصمة يدوية'),
+  def('attendance', 'day', 'read_all', 'عرض حضور كل الموظفين'),
+  def('attendance', 'day', 'recompute', 'إعادة احتساب أيام الحضور'),
+  def('attendance', 'day', 'override', 'تجاوز يوم الحضور يدوياً'),
   def('identity', 'user', 'read', 'عرض المستخدمين'),
   def('identity', 'user', 'create', 'إضافة مستخدم'),
   def('identity', 'user', 'update', 'تعديل مستخدم'),
@@ -103,7 +109,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
     nameAr: 'موظف موارد بشرية',
     nameEn: 'HR Officer',
     grants: (c) =>
-      (isRead(c) || c === 'leave.request.read_all') &&
+      (isRead(c) || c === 'leave.request.read_all' || c === 'attendance.day.read_all') &&
       c !== 'system.audit.read' &&
       c !== 'system.job.read' &&
       c !== 'system.integration.read' &&

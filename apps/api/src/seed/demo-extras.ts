@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import type { Db } from '../db/index.js';
 import { withTenant, type Ctx } from '../db/tenant.js';
 import { createApprovalEngine } from '../approvals/index.js';
@@ -6,6 +7,7 @@ import { prepareValues } from '../modules/archive/field-values.js';
 import { maskIban } from '../modules/employees/bank.routes.js';
 import { prepareCustomFields } from '../modules/employees/custom-fields.js';
 import { applyChange } from '../modules/employees/employments.routes.js';
+import { recomputeDays } from '../modules/attendance/index.js';
 import { hashPassword } from '../modules/identity/index.js';
 import {
   adjust,
@@ -17,7 +19,8 @@ import { createNotifier } from '../notifications/index.js';
 import type { FieldCrypto } from '../shared/crypto.js';
 import { DEMO_EMAIL_DOMAIN, DEMO_PREFIX } from './demo.js';
 
-export type ExtrasPart = 'details' | 'lifecycle' | 'archive' | 'approvals' | 'leave' | 'attendance';
+export type ExtrasPart =
+  'details' | 'lifecycle' | 'archive' | 'approvals' | 'leave' | 'attendance' | 'punches';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
 const pad = (n: number, w = 3) => String(n).padStart(w, '0');
@@ -936,6 +939,110 @@ const seedAttendance = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+/** بصمات الأسبوعين الماضيين: التزام وتأخير وخروج مبكر وغياب ووردية ليلية، ثم الاحتساب وتجاوز مفتوح. */
+const seedPunches = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('attendanceRecords')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('note', '=', 'DEMO')
+    .limit(1)
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const hasShifts = await trx
+    .selectFrom('shifts')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('code', '=', 'DEMO-DAY')
+    .executeTakeFirst();
+  if (!hasShifts) return 'skip لا جداول حضور';
+
+  const emps = await trx
+    .selectFrom('employees as e')
+    .leftJoin('employments as m', (j) =>
+      j.onRef('m.employeeId', '=', 'e.id').on('m.validTo', 'is', null),
+    )
+    .leftJoin('departments as d', 'd.id', 'm.departmentId')
+    .select(['e.id', 'e.employeeNo', 'd.code as deptCode'])
+    .where('e.companyId', '=', companyId)
+    .where('e.status', '=', 'active')
+    .where('e.employeeNo', 'like', `${DEMO_PREFIX}%`)
+    .orderBy('e.employeeNo')
+    .execute();
+
+  const addMin = (hhmm: string, delta: number): string => {
+    const [h, m] = hhmm.split(':').map(Number) as [number, number];
+    const t = h * 60 + m + delta;
+    return `${pad(Math.floor(t / 60), 2)}:${pad(t % 60, 2)}`;
+  };
+  const plus1 = (d: string) => new Date(Date.parse(d) + 86_400_000).toISOString().slice(0, 10);
+  type Row = { employeeId: string; date: string; time: string };
+  const rows: Row[] = [];
+  emps.forEach((e, i) => {
+    const night = e.employeeNo === `${DEMO_PREFIX}010`;
+    const [start, end] = night
+      ? ['22:00', '06:00']
+      : e.deptCode === 'DEMO-SAL'
+        ? ['08:00', '20:00']
+        : ['08:00', '16:00'];
+    for (let back = 14; back >= 1; back--) {
+      const date = isoDay(-back);
+      if (new Date(`${date}T00:00:00Z`).getUTCDay() > 4) continue; // الجمعة والسبت راحة
+      const k = i * 3 + back;
+      if (k % 13 === 0) continue; // غياب
+      const late = k % 5 === 0 ? 25 : (k % 4) - 1; // تأخير واضح أو فرق بسيط
+      const early = k % 11 === 0 ? -40 : (k % 3) - 1;
+      rows.push({ employeeId: e.id, date, time: addMin(start, late) });
+      rows.push({
+        employeeId: e.id,
+        date: night ? plus1(date) : date,
+        time: addMin(end, early),
+      });
+    }
+  });
+  const tz = (
+    await trx
+      .selectFrom('companies')
+      .select('timezone')
+      .where('id', '=', companyId)
+      .executeTakeFirstOrThrow()
+  ).timezone;
+  for (let i = 0; i < rows.length; i += 400) {
+    const chunk = rows.slice(i, i + 400);
+    await sql`insert into attendance_records (company_id, employee_id, punched_at, source, note)
+      select ${companyId}, v.employee_id::uuid, ((v.d::date + v.t::time) at time zone ${tz}), 'manual', 'DEMO'
+        from (values ${sql.join(
+          chunk.map((r) => sql`(${r.employeeId}, ${r.date}, ${r.time})`),
+        )}) as v(employee_id, d, t)
+      on conflict do nothing`.execute(trx);
+  }
+  await recomputeDays(ctx, 'all', isoDay(-14), isoDay(-1));
+
+  // تجاوز مفتوح: غياب محتسب يحوّله الموارد البشرية إلى حضور (مع ملاحظة)
+  const absent = await trx
+    .selectFrom('attendanceDays')
+    .select(['id', 'status', 'workedMinutes'])
+    .where('companyId', '=', companyId)
+    .where('status', '=', 'absent')
+    .orderBy('dayDate', 'desc')
+    .limit(1)
+    .executeTakeFirst();
+  if (absent)
+    await trx
+      .updateTable('attendanceDays')
+      .set({
+        overrideStatus: 'present',
+        overrideNote: 'عطل في جهاز البصمة (بيانات تجريبية)',
+        overrideAt: new Date(),
+        baselineStatus: absent.status,
+        baselineWorked: absent.workedMinutes,
+      })
+      .where('id', '=', absent.id)
+      .execute();
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -953,6 +1060,7 @@ export const seedDemoExtras = async (
     ['approvals', (ctx) => seedApprovals(ctx, opts.password)],
     ['leave', (ctx) => seedLeave(ctx)],
     ['attendance', (ctx) => seedAttendance(ctx)],
+    ['punches', (ctx) => seedPunches(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);

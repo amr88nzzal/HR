@@ -1,4 +1,5 @@
 import { digestJobs } from '../digest/jobs.js';
+import { attendanceJobs } from '../modules/attendance/index.js';
 import { leaveJobs } from '../modules/leave/index.js';
 import { notificationJobs } from '../notifications/jobs.js';
 import type { MailProvider, TelegramProvider } from '../notifications/index.js';
@@ -12,4 +13,5 @@ export const buildRegistry = (mail: MailProvider | undefined, telegram?: Telegra
     ...notificationJobs(mail, telegram),
     ...digestJobs(),
     ...leaveJobs(),
+    ...attendanceJobs(),
   ]);

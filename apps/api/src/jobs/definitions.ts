@@ -45,4 +45,5 @@ export const PERIODIC_JOBS: PeriodicJob[] = [
   { job: 'digest.daily', cron: '0 * * * *' },
   // استحقاق الإجازات والترحيل والانتهاء؛ يومياً بعد منتصف الليل UTC ويعوّض الفائت
   { job: 'leave.daily', cron: '20 1 * * *' },
+  { job: 'attendance.daily', cron: '40 1 * * *' },
 ];
