@@ -210,6 +210,14 @@ describe('طلبات الإجازة: من الموظف إلى المدير وأ�
     expect(d.body.data.status).toBe('approved');
     expect(d.body.data.daysDetail).toHaveLength(4);
     expect(await balance()).toBe(9);
+    // الاعتماد يعيد احتساب الحضور: اليوم الماضي يصبح "إجازة"
+    const att = await admin
+      .selectFrom('attendanceDays')
+      .select('status')
+      .where('employeeId', '=', emp)
+      .where('dayDate', '=', '2026-06-15')
+      .executeTakeFirst();
+    expect(att?.status).toBe('leave');
     const mine = await get('emp', '/leave-requests/me');
     expect(mine.body.data.map((x: { id: string }) => x.id)).toContain(reqId);
   });
@@ -275,6 +283,13 @@ describe('طلبات الإجازة: من الموظف إلى المدير وأ�
     const ok = await post('admin', `/leave-requests/${reqId}/cancel`);
     expect(ok.status).toBe(200);
     expect(await balance()).toBe(12);
+    const after = await admin
+      .selectFrom('attendanceDays')
+      .select('status')
+      .where('employeeId', '=', emp)
+      .where('dayDate', '=', '2026-06-15')
+      .executeTakeFirst();
+    expect(after?.status).not.toBe('leave');
   });
 
   it('تجاوز الأيام المخصومة بيد الإدارة فقط', async () => {

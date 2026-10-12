@@ -87,6 +87,7 @@ describe('البيانات التجريبية', () => {
       'approvals:done',
       'leave:done',
       'attendance:done',
+      'punches:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -129,6 +130,16 @@ describe('البيانات التجريبية', () => {
     expect(await n('schedule_assignments', sql`scope = 'company'`)).toBe(1);
     expect(await n('schedule_assignments', sql`scope = 'department'`)).toBe(1);
     expect(await n('schedule_assignments', sql`scope = 'employee'`)).toBe(1);
+
+    // البصمات: حضور وتأخير وغياب وليلي وتجاوز مفتوح
+    expect(await n('attendance_records', sql`note = 'DEMO'`)).toBeGreaterThan(100);
+    expect(await n('attendance_days', sql`status = 'present'`)).toBeGreaterThan(50);
+    expect(await n('attendance_days', sql`late_minutes > 0`)).toBeGreaterThan(0);
+    expect(await n('attendance_days', sql`early_leave_minutes > 0`)).toBeGreaterThan(0);
+    expect(
+      await n('attendance_days', sql`status = 'absent' and override_status is null`),
+    ).toBeGreaterThan(0);
+    expect(await n('attendance_days', sql`override_status is not null`)).toBe(1);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);

@@ -779,6 +779,46 @@ export type ScheduleAssignmentsTable = {
   createdAt: Generated<Date>;
 };
 
+export type AttendanceRecordsTable = {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  punchedAt: ColumnType<Date, Date | string, Date | string>;
+  direction: 'in' | 'out' | null;
+  source: Generated<'manual' | 'import' | 'device' | 'correction'>;
+  note: string | null;
+  createdBy: string | null;
+  createdAt: Generated<Date>;
+};
+
+export type AttendanceStatus =
+  'present' | 'absent' | 'leave' | 'holiday' | 'off' | 'unscheduled' | 'incomplete' | 'pending';
+
+export type AttendanceDaysTable = {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  dayDate: DateReq;
+  status: AttendanceStatus;
+  shiftId: string | null;
+  scheduledMinutes: Generated<number>;
+  firstIn: ColumnType<Date | null, Date | string | null, Date | string | null>;
+  lastOut: ColumnType<Date | null, Date | string | null, Date | string | null>;
+  workedMinutes: Generated<number>;
+  lateMinutes: Generated<number>;
+  earlyLeaveMinutes: Generated<number>;
+  surplusMinutes: Generated<number>;
+  leaveUnits: Generated<string>;
+  overrideStatus: AttendanceStatus | null;
+  overrideNote: string | null;
+  overrideBy: string | null;
+  overrideAt: ColumnType<Date | null, Date | string | null, Date | string | null>;
+  baselineStatus: string | null;
+  baselineWorked: number | null;
+  diffWarning: Generated<boolean>;
+  computedAt: Generated<Date>;
+};
+
 export type IntegrationSettingsTable = {
   id: Generated<string>;
   companyId: string;
@@ -882,6 +922,8 @@ export type Database = {
   workSchedules: WorkSchedulesTable;
   workScheduleDays: WorkScheduleDaysTable;
   scheduleAssignments: ScheduleAssignmentsTable;
+  attendanceRecords: AttendanceRecordsTable;
+  attendanceDays: AttendanceDaysTable;
   approvalFlows: ApprovalFlowsTable;
   approvalSteps: ApprovalStepsTable;
   approvalRequests: ApprovalRequestsTable;

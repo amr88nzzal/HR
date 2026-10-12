@@ -90,3 +90,78 @@ export const scheduleAssignmentInput = z
     message: 'تاريخ النهاية قبل البداية',
     path: ['validTo'],
   });
+
+export const PUNCH_DIRECTIONS = ['in', 'out'] as const;
+
+/** بصمة يدوية: التاريخ والوقت محلّيان بتوقيت الشركة. */
+export const punchInput = z.object({
+  employeeId: uuid,
+  date: isoDate,
+  time: hhmm,
+  direction: z.enum(PUNCH_DIRECTIONS).nullish(),
+  note: z.string().trim().max(300).nullish(),
+});
+export type PunchInput = z.infer<typeof punchInput>;
+
+/** لصق من Excel: كل صف موظف (بالرقم الوظيفي أو المعرّف) + تاريخ + وقت. */
+export const punchBulkInput = z.object({
+  rows: z
+    .array(
+      z
+        .object({
+          employeeNo: z.string().trim().min(1).max(40).optional(),
+          employeeId: uuid.optional(),
+          date: isoDate,
+          time: hhmm,
+          direction: z.enum(PUNCH_DIRECTIONS).nullish(),
+        })
+        .refine((r) => !!r.employeeNo !== !!r.employeeId, 'حدّد الرقم الوظيفي أو المعرّف (واحداً)'),
+    )
+    .min(1)
+    .max(2000),
+});
+
+export const ATTENDANCE_STATUSES = [
+  'present',
+  'absent',
+  'leave',
+  'holiday',
+  'off',
+  'unscheduled',
+  'incomplete',
+  'pending',
+] as const;
+export type AttendanceStatusValue = (typeof ATTENDANCE_STATUSES)[number];
+
+export const attendanceRangeQuery = z
+  .object({
+    employeeId: uuid.optional(),
+    from: isoDate,
+    to: isoDate,
+  })
+  .refine((v) => v.to >= v.from, { message: 'تاريخ النهاية قبل البداية', path: ['to'] })
+  .refine((v) => Date.parse(v.to) - Date.parse(v.from) <= 62 * 86_400_000, {
+    message: 'الفترة أطول من 62 يوماً',
+    path: ['to'],
+  });
+
+export const attendanceRecomputeInput = z
+  .object({
+    employeeId: uuid.optional(),
+    from: isoDate,
+    to: isoDate,
+  })
+  .refine((v) => v.to >= v.from, { message: 'تاريخ النهاية قبل البداية', path: ['to'] })
+  .refine((v) => Date.parse(v.to) - Date.parse(v.from) <= 62 * 86_400_000, {
+    message: 'الفترة أطول من 62 يوماً',
+    path: ['to'],
+  });
+
+export const attendanceOverrideInput = z.object({
+  employeeId: uuid,
+  date: isoDate,
+  status: z.enum(ATTENDANCE_STATUSES),
+  note: z.string().trim().min(1).max(300),
+});
+
+export const attendanceClearOverrideInput = z.object({ employeeId: uuid, date: isoDate });

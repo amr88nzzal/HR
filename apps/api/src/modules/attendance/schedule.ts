@@ -75,6 +75,7 @@ export const resolveSchedule = async (
   ctx: Ctx,
   employeeId: string,
   onDate: string,
+  shiftCache?: Map<string, ShiftDto | null>,
 ): Promise<ResolvedSchedule | null> => {
   const { rows } = await sql<{ scheduleId: string; scheduleCode: string; scope: string }>`
     select a.schedule_id as schedule_id, s.code as schedule_code, a.scope
@@ -103,6 +104,14 @@ export const resolveSchedule = async (
     .where('scheduleId', '=', hit.scheduleId)
     .where('weekday', '=', weekday)
     .executeTakeFirst();
-  const shift = day?.shiftId ? ((await loadShifts(ctx, [day.shiftId]))[0] ?? null) : null;
+  let shift: ShiftDto | null = null;
+  if (day?.shiftId) {
+    const cached = shiftCache?.get(day.shiftId);
+    if (cached !== undefined) shift = cached;
+    else {
+      shift = (await loadShifts(ctx, [day.shiftId]))[0] ?? null;
+      shiftCache?.set(day.shiftId, shift);
+    }
+  }
   return { ...hit, shift };
 };
