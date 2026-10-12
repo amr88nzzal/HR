@@ -22,8 +22,15 @@ const saveCollapsed = (keys: string[]) => {
   }
 };
 
-export const isActivePath = (path: string, pathname: string): boolean =>
-  path === '/' ? pathname === '/' : pathname.startsWith(path);
+const matches = (path: string, pathname: string): boolean =>
+  path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`);
+
+/** العنصر النشط هو أطول مسار يطابق الصفحة الحالية (فلا يضيء الأب والابن معاً). */
+export const activeLeafPath = (nav: (NavLeaf | NavGroup)[], pathname: string): string | null => {
+  const paths = nav.flatMap((n) => (isGroup(n) ? n.items : [n])).map((l) => l.path);
+  const hit = paths.filter((p) => matches(p, pathname)).sort((a, b) => b.length - a.length)[0];
+  return hit ?? null;
+};
 
 /** القائمة الجانبية: المجموعات تُطوى وتُفتح بالنقر وتُحفظ حالتها، والمجموعة الحالية تُفتح تلقائياً. */
 export const SidebarNav = ({
@@ -39,8 +46,9 @@ export const SidebarNav = ({
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed);
   const rtl = i18n.dir() === 'rtl';
 
+  const activePath = activeLeafPath(nav, pathname);
   const activeGroup = nav.find(
-    (n): n is NavGroup => isGroup(n) && n.items.some((i) => isActivePath(i.path, pathname)),
+    (n): n is NavGroup => isGroup(n) && n.items.some((i) => i.path === activePath),
   )?.key;
   useEffect(() => {
     if (activeGroup)
@@ -59,7 +67,7 @@ export const SidebarNav = ({
       key={l.path}
       label={t(`nav.${l.key}`)}
       leftSection={<l.icon size={18} />}
-      active={isActivePath(l.path, pathname)}
+      active={l.path === activePath}
       onClick={() => onGo(l.path)}
     />
   );

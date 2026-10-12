@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '../i18n';
 import { isGroup, visibleNav } from './nav';
-import { SidebarNav } from './SidebarNav';
+import { activeLeafPath, SidebarNav } from './SidebarNav';
 
 const nav = visibleNav(['leave.request.submit', 'leave.type.read', 'leave.holiday.read']);
 
@@ -46,5 +46,17 @@ describe('طيّ مجموعات القائمة', () => {
     expect(screen.getAllByRole('button', { expanded: true }).length).toBe(
       nav.filter(isGroup).length,
     );
+  });
+
+  it('العنصر النشط الأطول مطابقة فقط', () => {
+    const n = visibleNav([
+      'attendance.import.read',
+      'attendance.import_profile.read',
+      'leave.request.submit',
+    ]);
+    expect(activeLeafPath(n, '/attendance/import/profiles')).toBe('/attendance/import/profiles');
+    expect(activeLeafPath(n, '/attendance/import')).toBe('/attendance/import');
+    expect(activeLeafPath(n, '/attendance')).toBe('/attendance');
+    expect(activeLeafPath(n, '/unknown')).toBeNull();
   });
 });
