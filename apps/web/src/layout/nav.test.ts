@@ -47,8 +47,10 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'leave.type.read',
         'leave.policy.read',
         'leave.holiday.read',
+        'attendance.day.read_all',
+        'attendance.punch.create',
       ]).length,
-    ).toBe(33);
+    ).toBe(36);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');

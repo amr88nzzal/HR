@@ -1,7 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { api } from '../api/client';
-import { DEFAULT_FORMAT, formatDate, formatDateTime, type FormatSettings } from './format';
+import {
+  DEFAULT_FORMAT,
+  formatDate,
+  formatDateTime,
+  formatTime,
+  type FormatSettings,
+} from './format';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -29,6 +35,8 @@ export const useFormat = () => {
           : formatDate(v, settings);
         return out || '—';
       },
+      time: (v: unknown): string =>
+        typeof v === 'string' && v ? formatTime(v, settings) || '—' : '—',
       dateTime: (v: unknown): string =>
         typeof v === 'string' && v ? formatDateTime(v, settings) || '—' : '—',
     }),

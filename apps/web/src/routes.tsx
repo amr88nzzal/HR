@@ -25,6 +25,9 @@ import { BalancesAdminPage } from './features/leave/BalancesAdminPage';
 import { TeamCalendarPage } from './features/leave/TeamCalendarPage';
 import { BalancesReportPage } from './features/leave/BalancesReportPage';
 import { AssignmentsPage } from './features/leave/AssignmentsPage';
+import { MyAttendancePage } from './features/attendance/MyAttendancePage';
+import { DailyBoardPage } from './features/attendance/DailyBoardPage';
+import { PunchEntryPage } from './features/attendance/PunchEntryPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { AuditPage } from './features/AuditPage';
 import { CustomFieldsPage } from './features/admin/CustomFieldsPage';
@@ -121,6 +124,9 @@ const screens: Record<string, () => ReactElement> = {
   '/leave/policies': () => <ResourcePage resourceKey="leave-policies" />,
   '/leave/assignments': () => <AssignmentsPage />,
   '/leave/holidays': () => <ResourcePage resourceKey="holidays" />,
+  '/attendance': () => <MyAttendancePage />,
+  '/attendance/daily': () => <DailyBoardPage />,
+  '/attendance/punches': () => <PunchEntryPage />,
   '/approvals': () => <ApprovalsPage />,
   '/approval-delegations': () => <DelegationsPage />,
   '/admin/approval-flows': () => <ApprovalFlowsPage />,
