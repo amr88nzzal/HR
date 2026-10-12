@@ -2,7 +2,7 @@ import { sql, type Insertable } from 'kysely';
 import type { AttendanceDaysTable } from '../../db/types.js';
 import type { Ctx } from '../../db/tenant.js';
 import { computeDay, type DayInput, type Punch, type Segment } from './engine.js';
-import { loadShifts, resolveSchedule, type ShiftDto } from './schedule.js';
+import { loadScheduleBook, loadShifts, type ScheduleBook, type ShiftDto } from './schedule.js';
 import { addDays, diffDays, localParts, minutesOf } from './time.js';
 
 /** تقبل بصمات من 3 ساعات قبل بدء الوردية حتى 4 ساعات بعد نهايتها */
@@ -31,7 +31,7 @@ export const companyToday = async (ctx: Ctx): Promise<string> =>
   (await sql<{ d: string }>`select company_today(${ctx.companyId})::text as d`.execute(ctx.trx))
     .rows[0]?.d as string;
 
-type Env = { tz: string; today: string; holidays: Set<string> };
+type Env = { tz: string; today: string; holidays: Set<string>; book: ScheduleBook };
 
 /** يحتسب أيام موظف واحد في [from, to] ويكتبها (يحفظ التجاوز اليدوي ويضع تحذير الفرق). */
 const recomputeEmployee = async (
@@ -44,9 +44,8 @@ const recomputeEmployee = async (
 ): Promise<number> => {
   // جدول كل يوم من اليوم السابق للّاحق (الدوام الليلي يمتد بين يومين)
   const shiftOf = new Map<string, { kind: 'none' | 'off' | 'work'; shift: ShiftDto | null }>();
-  const shiftCache = new Map<string, ShiftDto | null>();
   for (let d = addDays(from, -1); d <= addDays(to, 1); d = addDays(d, 1)) {
-    const r = await resolveSchedule(ctx, employeeId, d, shiftCache);
+    const r = env.book.resolve(employeeId, d);
     shiftOf.set(d, { kind: !r ? 'none' : r.shift ? 'work' : 'off', shift: r?.shift ?? null });
   }
 
@@ -190,12 +189,19 @@ export const recomputeDays = async (
       ? q.where('status', '<>', 'terminated')
       : q.where('id', 'in', employeeIds);
   const emps = employeeIds !== 'all' && employeeIds.length === 0 ? [] : await q.execute();
+  const book = await loadScheduleBook(
+    ctx,
+    emps.map((e) => e.id),
+    addDays(from, -1),
+    addDays(to, 1),
+  );
   let days = 0;
   for (const e of emps)
     days += await recomputeEmployee(ctx, e.id, e.firstHireDate ?? null, from, to, {
       tz,
       today,
       holidays,
+      book,
     });
   return { employees: emps.length, days };
 };

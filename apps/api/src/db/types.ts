@@ -787,7 +787,66 @@ export type AttendanceRecordsTable = {
   direction: 'in' | 'out' | null;
   source: Generated<'manual' | 'import' | 'device' | 'correction'>;
   note: string | null;
+  batchId: string | null;
   createdBy: string | null;
+  createdAt: Generated<Date>;
+};
+
+export type ImportProfilesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  delimiter: Generated<string>;
+  encoding: Generated<'auto' | 'utf-8' | 'windows-1256'>;
+  hasHeader: Generated<'auto' | 'yes' | 'no'>;
+  columns: ColumnType<Record<string, number | string | null>, string | undefined, string>;
+  dateOrder: Generated<'auto' | 'ymd' | 'dmy' | 'mdy'>;
+  directionMode: Generated<'type' | 'ignore'>;
+  inValues: Generated<string[]>;
+  outValues: Generated<string[]>;
+  systemKey: Generated<string>;
+  isDefault: Generated<boolean>;
+  isActive: Generated<boolean>;
+};
+
+export type ImportBatchesTable = {
+  id: Generated<string>;
+  companyId: string;
+  profileId: string | null;
+  fileName: string | null;
+  fileHash: string;
+  status: Generated<'applied' | 'reverted'>;
+  totalRows: Generated<number>;
+  inserted: Generated<number>;
+  duplicates: Generated<number>;
+  held: Generated<number>;
+  errors: Generated<number>;
+  employees: Generated<number>;
+  dateFrom: ColumnType<string | null, string | null, string | null>;
+  dateTo: ColumnType<string | null, string | null, string | null>;
+  createdBy: string | null;
+  createdAt: Generated<Date>;
+  revertedAt: ColumnType<Date | null, Date | string | null, Date | string | null>;
+  revertedBy: string | null;
+};
+
+export type ImportHeldRowsTable = {
+  id: Generated<string>;
+  companyId: string;
+  batchId: string;
+  lineNo: number;
+  deviceCode: string;
+  deviceBranch: string | null;
+  deviceDepartment: string | null;
+  punchedAt: ColumnType<Date, Date | string, Date | string>;
+  direction: 'in' | 'out' | null;
+  reason: 'unmatched' | 'ambiguous';
+  status: Generated<'held' | 'resolved' | 'discarded'>;
+  employeeId: string | null;
+  resolvedBy: string | null;
+  resolvedAt: ColumnType<Date | null, Date | string | null, Date | string | null>;
   createdAt: Generated<Date>;
 };
 
@@ -924,6 +983,9 @@ export type Database = {
   scheduleAssignments: ScheduleAssignmentsTable;
   attendanceRecords: AttendanceRecordsTable;
   attendanceDays: AttendanceDaysTable;
+  importProfiles: ImportProfilesTable;
+  importBatches: ImportBatchesTable;
+  importHeldRows: ImportHeldRowsTable;
   approvalFlows: ApprovalFlowsTable;
   approvalSteps: ApprovalStepsTable;
   approvalRequests: ApprovalRequestsTable;

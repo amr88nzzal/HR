@@ -88,6 +88,7 @@ describe('البيانات التجريبية', () => {
       'leave:done',
       'attendance:done',
       'punches:done',
+      'import:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -140,6 +141,13 @@ describe('البيانات التجريبية', () => {
       await n('attendance_days', sql`status = 'absent' and override_status is null`),
     ).toBeGreaterThan(0);
     expect(await n('attendance_days', sql`override_status is not null`)).toBe(1);
+
+    // الاستيراد: ملف افتراضي ومراجع أجهزة ودفعة مطبَّقة وسجلات محجوزة
+    expect(await n('import_profiles')).toBe(1);
+    expect(await n('import_batches', sql`status = 'applied'`)).toBe(1);
+    expect(await n('employee_external_refs', sql`notes is null`)).toBeGreaterThanOrEqual(6);
+    expect(await n('attendance_records', sql`source = 'import'`)).toBeGreaterThan(50);
+    expect(await n('import_held_rows', sql`status = 'held'`)).toBeGreaterThan(10);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);

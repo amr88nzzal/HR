@@ -76,6 +76,10 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('attendance', 'day', 'read_all', 'عرض حضور كل الموظفين'),
   def('attendance', 'day', 'recompute', 'إعادة احتساب أيام الحضور'),
   def('attendance', 'day', 'override', 'تجاوز يوم الحضور يدوياً'),
+  ...crud('attendance', 'import_profile', 'ملفات استيراد البصمات'),
+  def('attendance', 'import', 'read', 'عرض دفعات الاستيراد والسجلات المحجوزة'),
+  def('attendance', 'import', 'create', 'رفع ملف بصمات واستيراده'),
+  def('attendance', 'import', 'manage', 'معالجة المحجوز والتراجع عن دفعة'),
   def('identity', 'user', 'read', 'عرض المستخدمين'),
   def('identity', 'user', 'create', 'إضافة مستخدم'),
   def('identity', 'user', 'update', 'تعديل مستخدم'),
@@ -109,7 +113,11 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
     nameAr: 'موظف موارد بشرية',
     nameEn: 'HR Officer',
     grants: (c) =>
-      (isRead(c) || c === 'leave.request.read_all' || c === 'attendance.day.read_all') &&
+      (isRead(c) ||
+        c === 'leave.request.read_all' ||
+        c === 'attendance.day.read_all' ||
+        c === 'attendance.import.create' ||
+        c === 'attendance.import.manage') &&
       c !== 'system.audit.read' &&
       c !== 'system.job.read' &&
       c !== 'system.integration.read' &&
