@@ -115,3 +115,95 @@ export const resolveSchedule = async (
   }
   return { ...hit, shift };
 };
+
+export type ScheduleBook = {
+  resolve: (employeeId: string, onDate: string) => ResolvedSchedule | null;
+};
+
+const SCOPE_RANK: Record<string, number> = { employee: 1, department: 2, branch: 3, company: 4 };
+
+/**
+ * يحمّل التعيينات والجداول والورديات والتعيينات الوظيفية مرة واحدة لفترة، ثم يحلّ كل (موظف، يوم) في الذاكرة
+ * بالقاعدة نفسها لـ resolveSchedule (الأخص ثم الأحدث بدءاً). للاحتساب الجماعي.
+ */
+export const loadScheduleBook = async (
+  ctx: Ctx,
+  employeeIds: string[],
+  from: string,
+  to: string,
+): Promise<ScheduleBook> => {
+  const assignments = await ctx.trx
+    .selectFrom('scheduleAssignments as a')
+    .innerJoin('workSchedules as s', 's.id', 'a.scheduleId')
+    .select([
+      'a.scheduleId',
+      's.code as scheduleCode',
+      'a.scope',
+      'a.scopeRef',
+      'a.validFrom',
+      'a.validTo',
+    ])
+    .where('a.companyId', '=', ctx.companyId)
+    .where('s.isActive', '=', true)
+    .where('a.validFrom', '<=', to)
+    .where(sql<boolean>`(a.valid_to is null or a.valid_to >= ${from}::date)`)
+    .execute();
+  const scheduleIds = [...new Set(assignments.map((a) => a.scheduleId))];
+  const dayRows =
+    scheduleIds.length === 0
+      ? []
+      : await ctx.trx
+          .selectFrom('workScheduleDays')
+          .select(['scheduleId', 'weekday', 'shiftId'])
+          .where('scheduleId', 'in', scheduleIds)
+          .execute();
+  const shiftOfDay = new Map<string, string | null>(
+    dayRows.map((d) => [`${d.scheduleId}:${d.weekday}`, d.shiftId]),
+  );
+  const shiftIds = [...new Set(dayRows.map((d) => d.shiftId).filter((x): x is string => !!x))];
+  const shifts = new Map((await loadShifts(ctx, shiftIds)).map((s) => [s.id, s]));
+  const emps =
+    employeeIds.length === 0
+      ? []
+      : await ctx.trx
+          .selectFrom('employments')
+          .select(['employeeId', 'branchId', 'departmentId', 'validFrom', 'validTo'])
+          .where('companyId', '=', ctx.companyId)
+          .where('employeeId', 'in', employeeIds)
+          .where('validFrom', '<=', to)
+          .where(sql<boolean>`(valid_to is null or valid_to >= ${from}::date)`)
+          .execute();
+  const empByEmployee = new Map<string, typeof emps>();
+  for (const e of emps)
+    empByEmployee.set(e.employeeId, [...(empByEmployee.get(e.employeeId) ?? []), e]);
+  const sorted = [...assignments].sort(
+    (x, y) =>
+      (SCOPE_RANK[x.scope] ?? 9) - (SCOPE_RANK[y.scope] ?? 9) ||
+      (x.validFrom < y.validFrom ? 1 : x.validFrom > y.validFrom ? -1 : 0),
+  );
+  return {
+    resolve: (employeeId, onDate) => {
+      const emp = (empByEmployee.get(employeeId) ?? []).find(
+        (e) => e.validFrom <= onDate && (!e.validTo || e.validTo >= onDate),
+      );
+      const hit = sorted.find(
+        (a) =>
+          a.validFrom <= onDate &&
+          (!a.validTo || a.validTo >= onDate) &&
+          (a.scope === 'company' ||
+            (a.scope === 'employee' && a.scopeRef === employeeId) ||
+            (a.scope === 'department' && !!emp && a.scopeRef === emp.departmentId) ||
+            (a.scope === 'branch' && !!emp && a.scopeRef === emp.branchId)),
+      );
+      if (!hit) return null;
+      const weekday = new Date(`${onDate}T00:00:00Z`).getUTCDay();
+      const shiftId = shiftOfDay.get(`${hit.scheduleId}:${weekday}`) ?? null;
+      return {
+        scheduleId: hit.scheduleId,
+        scheduleCode: hit.scheduleCode,
+        scope: hit.scope,
+        shift: shiftId ? (shifts.get(shiftId) ?? null) : null,
+      };
+    },
+  };
+};

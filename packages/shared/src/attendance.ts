@@ -165,3 +165,47 @@ export const attendanceOverrideInput = z.object({
 });
 
 export const attendanceClearOverrideInput = z.object({ employeeId: uuid, date: isoDate });
+
+// ───── مركز استيراد البصمات (5c) ─────
+export const IMPORT_COLUMN_KEYS = ['branch', 'department', 'employee', 'datetime', 'type'] as const;
+const importColumnRef = z.union([
+  z.number().int().min(0).max(99),
+  z.string().trim().min(1).max(60),
+]);
+
+export const importProfileInput = z
+  .object({
+    code: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/),
+    nameAr: z.string().trim().min(1).max(120),
+    nameEn: z.string().trim().max(120).nullish(),
+    delimiter: z.enum([';', ',', '\t', '|']).default(';'),
+    encoding: z.enum(['auto', 'utf-8', 'windows-1256']).default('auto'),
+    hasHeader: z.enum(['auto', 'yes', 'no']).default('auto'),
+    columns: z
+      .object({
+        branch: importColumnRef.nullable().default(null),
+        department: importColumnRef.nullable().default(null),
+        employee: importColumnRef,
+        datetime: importColumnRef,
+        type: importColumnRef.nullable().default(null),
+      })
+      .default({ branch: 0, department: 1, employee: 2, datetime: 3, type: 4 }),
+    dateOrder: z.enum(['auto', 'ymd', 'dmy', 'mdy']).default('auto'),
+    directionMode: z.enum(['type', 'ignore']).default('type'),
+    inValues: z.array(z.string().trim().min(1).max(20)).min(1).max(10).default(['0', 'in', 'i']),
+    outValues: z.array(z.string().trim().min(1).max(20)).min(1).max(10).default(['1', 'out', 'o']),
+    systemKey: z.string().trim().min(1).max(60).default('attendance_device'),
+    isDefault: z.boolean().default(false),
+    isActive: z.boolean().default(true),
+  })
+  .refine((v) => v.delimiter.length === 1, { message: 'فاصل غير صالح', path: ['delimiter'] });
+export type ImportProfileInput = z.infer<typeof importProfileInput>;
+
+export const importHeldResolveInput = z.object({
+  deviceCode: z.string().trim().min(1).max(100),
+  employeeId: uuid,
+  /** يحفظ رمز الجهاز مرجعاً خارجياً للموظف ليُطابَق تلقائياً لاحقاً */
+  createRef: z.boolean().default(true),
+  systemKey: z.string().trim().min(1).max(60).default('attendance_device'),
+});
+export const importHeldDiscardInput = z.object({ deviceCode: z.string().trim().min(1).max(100) });

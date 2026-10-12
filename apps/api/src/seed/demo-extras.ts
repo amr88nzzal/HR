@@ -7,7 +7,12 @@ import { prepareValues } from '../modules/archive/field-values.js';
 import { maskIban } from '../modules/employees/bank.routes.js';
 import { prepareCustomFields } from '../modules/employees/custom-fields.js';
 import { applyChange } from '../modules/employees/employments.routes.js';
-import { recomputeDays } from '../modules/attendance/index.js';
+import {
+  analyzeFile,
+  applyImport,
+  loadProfile,
+  recomputeDays,
+} from '../modules/attendance/index.js';
 import { hashPassword } from '../modules/identity/index.js';
 import {
   adjust,
@@ -20,7 +25,7 @@ import type { FieldCrypto } from '../shared/crypto.js';
 import { DEMO_EMAIL_DOMAIN, DEMO_PREFIX } from './demo.js';
 
 export type ExtrasPart =
-  'details' | 'lifecycle' | 'archive' | 'approvals' | 'leave' | 'attendance' | 'punches';
+  'details' | 'lifecycle' | 'archive' | 'approvals' | 'leave' | 'attendance' | 'punches' | 'import';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
 const pad = (n: number, w = 3) => String(n).padStart(w, '0');
@@ -1043,6 +1048,90 @@ const seedPunches = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+/** مركز الاستيراد: ملف استيراد افتراضي، مراجع أجهزة لستة موظفين، دفعة مطبَّقة ورمزان غير مطابقين محجوزان. */
+const seedImport = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('importProfiles')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('code', '=', 'DEMO-DEVICE')
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const system = await trx
+    .selectFrom('externalSystems')
+    .select(['id', 'refScope'])
+    .where('companyId', '=', companyId)
+    .where('key', '=', 'attendance_device')
+    .executeTakeFirst();
+  if (!system) return 'skip لا نظام attendance_device';
+  const prof = await trx
+    .insertInto('importProfiles')
+    .values({
+      companyId,
+      code: 'DEMO-DEVICE',
+      nameAr: 'جهاز البصمة (تجريبي)',
+      isDefault: true,
+      columns: JSON.stringify({ branch: 0, department: 1, employee: 2, datetime: 3, type: 4 }),
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+
+  const emps = await trx
+    .selectFrom('employees as e')
+    .innerJoin('employments as m', (j) =>
+      j.onRef('m.employeeId', '=', 'e.id').on('m.validTo', 'is', null),
+    )
+    .select(['e.id', 'e.employeeNo', 'm.branchId'])
+    .where('e.companyId', '=', companyId)
+    .where('e.status', '=', 'active')
+    .where('e.employeeNo', 'like', `${DEMO_PREFIX}%`)
+    .orderBy('e.employeeNo')
+    .limit(6)
+    .execute();
+  const codes = emps.map((_, i) => pad(i + 1, 4));
+  await trx
+    .insertInto('employeeExternalRefs')
+    .values(
+      emps.map((e, i) => ({
+        companyId,
+        employeeId: e.id,
+        systemId: system.id,
+        value: codes[i] as string,
+        branchId: system.refScope === 'branch' ? e.branchId : null,
+        isPrimary: false,
+      })),
+    )
+    .execute();
+
+  const lines = ['branch_id;department_id;empl_id;date_time;type'];
+  for (let back = 28; back >= 16; back--) {
+    const date = isoDay(-back);
+    if (new Date(`${date}T00:00:00Z`).getUTCDay() > 4) continue;
+    codes.forEach((code, i) => {
+      if ((i * 5 + back) % 9 === 0) return; // غياب
+      const late = (i + back) % 4 === 0 ? 20 : (i + back) % 3;
+      lines.push(
+        `1;1;${code};${date} 08:${pad(late, 2)}:00;0`,
+        `1;1;${code};${date} 16:0${i % 5}:00;1`,
+      );
+    });
+    lines.push(`1;1;9001;${date} 08:00:00;0`); // رمز غير مربوط → محجوز
+    if (back % 2 === 0) lines.push(`1;1;9002;${date} 08:10:00;0`);
+  }
+  const profile = await loadProfile(ctx, prof.id);
+  const analysis = await analyzeFile(ctx, Buffer.from(lines.join('\n')), profile);
+  const admin = await trx
+    .selectFrom('users')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .orderBy('createdAt')
+    .limit(1)
+    .executeTakeFirstOrThrow();
+  await applyImport(ctx, analysis, profile, 'demo-device.csv', admin.id);
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -1061,6 +1150,7 @@ export const seedDemoExtras = async (
     ['leave', (ctx) => seedLeave(ctx)],
     ['attendance', (ctx) => seedAttendance(ctx)],
     ['punches', (ctx) => seedPunches(ctx)],
+    ['import', (ctx) => seedImport(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);
