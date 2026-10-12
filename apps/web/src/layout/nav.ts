@@ -29,6 +29,9 @@ import {
   IconCalendarStar,
   IconCalendarMonth,
   IconReportAnalytics,
+  IconClockCheck,
+  IconLayoutList,
+  IconKeyboard,
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
 
@@ -118,6 +121,29 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         path: '/leave/holidays',
         icon: IconCalendarStar,
         permission: 'leave.holiday.read',
+      },
+    ],
+  },
+  {
+    key: 'attendanceGroup',
+    items: [
+      {
+        key: 'myAttendance',
+        path: '/attendance',
+        icon: IconClockCheck,
+        permission: 'leave.request.submit',
+      },
+      {
+        key: 'attendanceDaily',
+        path: '/attendance/daily',
+        icon: IconLayoutList,
+        permission: 'attendance.day.read_all',
+      },
+      {
+        key: 'attendancePunches',
+        path: '/attendance/punches',
+        icon: IconKeyboard,
+        permission: 'attendance.punch.create',
       },
     ],
   },
