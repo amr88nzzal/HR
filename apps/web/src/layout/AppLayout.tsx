@@ -4,9 +4,7 @@ import {
   Burger,
   Group,
   Menu,
-  NavLink,
   ScrollArea,
-  Text,
   Title,
   useMantineColorScheme,
 } from '@mantine/core';
@@ -25,7 +23,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { setLang, type Lang } from '../i18n';
 import { NotificationBell } from '../features/notifications/NotificationBell';
-import { isGroup, visibleNav, type NavLeaf } from './nav';
+import { visibleNav } from './nav';
+import { SidebarNav } from './SidebarNav';
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
   const { t, i18n } = useTranslation();
@@ -40,15 +39,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
     close();
     void navigate({ to: to as never });
   };
-  const leaf = (l: NavLeaf) => (
-    <NavLink
-      key={l.path}
-      label={t(`nav.${l.key}`)}
-      leftSection={<l.icon size={18} />}
-      active={l.path === '/' ? pathname === '/' : pathname.startsWith(l.path)}
-      onClick={() => go(l.path)}
-    />
-  );
   const nextLang: Lang = i18n.language === 'ar' ? 'en' : 'ar';
 
   return (
@@ -105,18 +95,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       </AppShell.Header>
       <AppShell.Navbar p="xs">
         <ScrollArea>
-          {nav.map((n) =>
-            isGroup(n) ? (
-              <div key={n.key}>
-                <Text size="xs" c="dimmed" fw={600} px="sm" pt="md" pb={4}>
-                  {t(`nav.${n.key}`)}
-                </Text>
-                {n.items.map(leaf)}
-              </div>
-            ) : (
-              leaf(n)
-            ),
-          )}
+          <SidebarNav nav={nav} pathname={pathname} onGo={go} />
         </ScrollArea>
       </AppShell.Navbar>
       <AppShell.Main>{children}</AppShell.Main>
