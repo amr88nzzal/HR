@@ -30,6 +30,7 @@ import {
   IconCalendarMonth,
   IconReportAnalytics,
   IconClockCheck,
+  IconClockEdit,
   IconLayoutList,
   IconKeyboard,
   IconFileSpreadsheet,
@@ -142,6 +143,18 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         path: '/attendance/daily',
         icon: IconLayoutList,
         permission: 'attendance.day.read_all',
+      },
+      {
+        key: 'attendanceRequests',
+        path: '/attendance/requests',
+        icon: IconClockEdit,
+        permission: 'attendance.correction.submit',
+      },
+      {
+        key: 'attendanceAdjustments',
+        path: '/attendance/adjustments',
+        icon: IconChecklist,
+        permission: 'attendance.correction.read_all',
       },
       {
         key: 'attendancePunches',

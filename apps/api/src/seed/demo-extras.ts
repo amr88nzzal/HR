@@ -12,6 +12,9 @@ import {
   applyImport,
   loadProfile,
   recomputeDays,
+  directCorrection,
+  submitCorrection,
+  submitOvertime,
 } from '../modules/attendance/index.js';
 import { hashPassword } from '../modules/identity/index.js';
 import {
@@ -25,7 +28,15 @@ import type { FieldCrypto } from '../shared/crypto.js';
 import { DEMO_EMAIL_DOMAIN, DEMO_PREFIX } from './demo.js';
 
 export type ExtrasPart =
-  'details' | 'lifecycle' | 'archive' | 'approvals' | 'leave' | 'attendance' | 'punches' | 'import';
+  | 'details'
+  | 'lifecycle'
+  | 'archive'
+  | 'approvals'
+  | 'leave'
+  | 'attendance'
+  | 'punches'
+  | 'import'
+  | 'adjustments';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
 const pad = (n: number, w = 3) => String(n).padStart(w, '0');
@@ -1049,6 +1060,117 @@ const seedPunches = async (ctx: Ctx): Promise<string | undefined> => {
 };
 
 /** مركز الاستيراد: ملف استيراد افتراضي، مراجع أجهزة لستة موظفين، دفعة مطبَّقة ورمزان غير مطابقين محجوزان. */
+/** تعديلات الحضور والعمل الإضافي: بكل الحالات، تمرّ بالموافقات الفعلية. */
+const seedAdjustments = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const userEmp = async (email: string) =>
+    trx
+      .selectFrom('users as u')
+      .innerJoin('employees as e', 'e.userId', 'u.id')
+      .select(['u.id as userId', 'e.id as employeeId'])
+      .where('u.companyId', '=', companyId)
+      .where('u.email', '=', email)
+      .executeTakeFirst();
+  const emp = await userEmp(`demo.employee@${DEMO_EMAIL_DOMAIN}`);
+  const hr = await userEmp(`demo.hr@${DEMO_EMAIL_DOMAIN}`);
+  if (!emp || !hr) return 'skip مستخدمو التجربة الأساسيون غير موجودين';
+  const marker = await trx
+    .selectFrom('attendanceCorrections')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('employeeId', '=', emp.employeeId)
+    .where('reason', 'like', '%(تجريبي)')
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const hasDays = await trx
+    .selectFrom('attendanceDays')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('employeeId', '=', emp.employeeId)
+    .limit(1)
+    .executeTakeFirst();
+  if (!hasDays) return 'skip لا أيام حضور محتسبة';
+
+  const workdays: string[] = [];
+  for (let back = 1; back <= 14 && workdays.length < 7; back++) {
+    const d = isoDay(-back);
+    if (new Date(`${d}T00:00:00Z`).getUTCDay() <= 4) workdays.push(d);
+  }
+  const [d1, d2, d3, d4, d5, d6, d7] = workdays;
+  if (!d7) return 'skip أيام العمل غير كافية';
+  const tz = (
+    await trx
+      .selectFrom('companies')
+      .select('timezone')
+      .where('id', '=', companyId)
+      .executeTakeFirstOrThrow()
+  ).timezone;
+  // موظف التجربة على الوردية الليلية (22:00–06:00): خروج متأخر 09:00 فيظهر فائض فعلي
+  for (const d of [d5, d6, d7])
+    await sql`insert into attendance_records (company_id, employee_id, punched_at, source, note)
+      values (${companyId}, ${emp.employeeId}, ((${d}::date + 1 + time '09:00') at time zone ${tz}), 'manual', 'DEMO')
+      on conflict do nothing`.execute(trx);
+
+  const engine = createApprovalEngine(createNotifier(undefined));
+  const decide = async (approvalId: string | null, action: 'approve' | 'reject', note?: string) => {
+    const a = await trx
+      .selectFrom('approvalRequestAssignees')
+      .select('userId')
+      .where('requestId', '=', approvalId as string)
+      .where('status', '=', 'pending')
+      .executeTakeFirstOrThrow();
+    await engine.act(ctx, approvalId as string, a.userId, { action, note: note ?? null });
+  };
+  const actor = { userId: emp.userId, canManage: false };
+  const corr = (date: string, inTime: string, outTime: string, reason: string) =>
+    submitCorrection(ctx, engine, actor, emp.employeeId, {
+      date,
+      inTime,
+      outTime,
+      outNextDay: true,
+      reason: `${reason} (تجريبي)`,
+    });
+  const approvalOf = async (table: 'attendanceCorrections' | 'overtimeRequests', id: string) =>
+    (
+      await trx
+        .selectFrom(table)
+        .select('approvalRequestId')
+        .where('id', '=', id)
+        .executeTakeFirstOrThrow()
+    ).approvalRequestId;
+
+  // تعديلات: معتمد، معلّق، مرفوض، ومباشر من الموارد البشرية
+  const c1 = await corr(d1 as string, '22:00', '06:00', 'نسيت البصمة');
+  await decide(await approvalOf('attendanceCorrections', c1), 'approve');
+  await corr(d2 as string, '22:10', '06:05', 'عطل في الجهاز');
+  const c3 = await corr(d3 as string, '21:30', '05:30', 'تعديل غير مبرَّر');
+  await decide(await approvalOf('attendanceCorrections', c3), 'reject', 'لا يوجد ما يثبت ذلك');
+  await directCorrection(ctx, hr.userId, {
+    employeeId: emp.employeeId,
+    date: d4 as string,
+    inTime: '22:00',
+    outTime: '06:00',
+    outNextDay: true,
+    reason: 'تعديل مباشر من الموارد البشرية (تجريبي)',
+  });
+
+  // عمل إضافي: لاحق معتمد، لاحق مرفوض (يبقى الفائض مسجلاً بلا احتساب)، لاحق معلّق، ومسبق معلّق
+  const ot = (date: string, minutes: number, reason: string) =>
+    submitOvertime(ctx, engine, actor, emp.employeeId, {
+      date,
+      minutes,
+      reason: `${reason} (تجريبي)`,
+    });
+  const o5 = await ot(d5 as string, 120, 'إنهاء تسليم عاجل');
+  await decide(await approvalOf('overtimeRequests', o5), 'approve');
+  const o6 = await ot(d6 as string, 180, 'عمل بلا تكليف');
+  await decide(await approvalOf('overtimeRequests', o6), 'reject', 'لم يُكلَّف به مسبقاً');
+  await ot(d7 as string, 150, 'متابعة إغلاق الشهر');
+  await ot(isoDay(2), 90, 'تجهيز لاجتماع مهم');
+  await recomputeDays(ctx, [emp.employeeId], isoDay(-15), isoDay(-1));
+  return undefined;
+};
+
 const seedImport = async (ctx: Ctx): Promise<string | undefined> => {
   const { trx, companyId } = ctx;
   const marker = await trx
@@ -1151,6 +1273,7 @@ export const seedDemoExtras = async (
     ['attendance', (ctx) => seedAttendance(ctx)],
     ['punches', (ctx) => seedPunches(ctx)],
     ['import', (ctx) => seedImport(ctx)],
+    ['adjustments', (ctx) => seedAdjustments(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);

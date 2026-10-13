@@ -89,6 +89,7 @@ describe('البيانات التجريبية', () => {
       'attendance:done',
       'punches:done',
       'import:done',
+      'adjustments:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -148,6 +149,21 @@ describe('البيانات التجريبية', () => {
     expect(await n('employee_external_refs', sql`notes is null`)).toBeGreaterThanOrEqual(6);
     expect(await n('attendance_records', sql`source = 'import'`)).toBeGreaterThan(50);
     expect(await n('import_held_rows', sql`status = 'held'`)).toBeGreaterThan(10);
+
+    // تعديلات الحضور والعمل الإضافي بكل الحالات
+    expect(await n('attendance_corrections', sql`status = 'approved' and method = 'request'`)).toBe(
+      1,
+    );
+    expect(await n('attendance_corrections', sql`status = 'approved' and method = 'direct'`)).toBe(
+      1,
+    );
+    expect(await n('attendance_corrections', sql`status = 'pending'`)).toBe(1);
+    expect(await n('attendance_corrections', sql`status = 'rejected'`)).toBe(1);
+    expect(await n('overtime_requests', sql`status = 'approved'`)).toBe(1);
+    expect(await n('overtime_requests', sql`status = 'rejected'`)).toBe(1);
+    expect(await n('overtime_requests', sql`status = 'pending'`)).toBe(2);
+    expect(await n('attendance_days', sql`overtime_minutes > 0`)).toBe(1);
+    expect(await n('attendance_days', sql`surplus_minutes > 0`)).toBeGreaterThanOrEqual(3);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);

@@ -8,6 +8,8 @@ import {
   createShiftsRouter,
 } from './schedules.routes.js';
 
+export { createCorrectionsRouter, createOvertimeRouter } from './adjustments.routes.js';
+export { directCorrection, submitCorrection, submitOvertime } from './adjustments.js';
 export { attendanceJobs } from './jobs.js';
 export { recomputeDays } from './days.js';
 export { analyzeFile, applyImport, loadProfile } from './import.js';

@@ -80,6 +80,12 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('attendance', 'import', 'read', 'عرض دفعات الاستيراد والسجلات المحجوزة'),
   def('attendance', 'import', 'create', 'رفع ملف بصمات واستيراده'),
   def('attendance', 'import', 'manage', 'معالجة المحجوز والتراجع عن دفعة'),
+  def('attendance', 'correction', 'submit', 'تقديم طلب تعديل حضور'),
+  def('attendance', 'correction', 'read_all', 'عرض كل طلبات تعديل الحضور'),
+  def('attendance', 'correction', 'manage', 'تعديل الحضور مباشرة والتقديم نيابةً عن موظف'),
+  def('attendance', 'overtime', 'submit', 'تقديم طلب عمل إضافي'),
+  def('attendance', 'overtime', 'read_all', 'عرض كل طلبات العمل الإضافي'),
+  def('attendance', 'overtime', 'manage', 'التقديم نيابةً عن موظف وسحب طلبات الآخرين'),
   def('identity', 'user', 'read', 'عرض المستخدمين'),
   def('identity', 'user', 'create', 'إضافة مستخدم'),
   def('identity', 'user', 'update', 'تعديل مستخدم'),
@@ -117,7 +123,9 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
         c === 'leave.request.read_all' ||
         c === 'attendance.day.read_all' ||
         c === 'attendance.import.create' ||
-        c === 'attendance.import.manage') &&
+        c === 'attendance.import.manage' ||
+        c === 'attendance.correction.read_all' ||
+        c === 'attendance.overtime.read_all') &&
       c !== 'system.audit.read' &&
       c !== 'system.job.read' &&
       c !== 'system.integration.read' &&
@@ -134,6 +142,8 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
       c === 'attendance.shift.read' ||
       c === 'attendance.schedule.read' ||
       c === 'leave.request.submit' ||
+      c === 'attendance.correction.submit' ||
+      c === 'attendance.overtime.submit' ||
       c === 'approvals.request.submit' ||
       c === 'employees.employee.read' ||
       c === 'employees.employment.read',
@@ -147,6 +157,8 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
       c === 'leave.type.read' ||
       c === 'leave.holiday.read' ||
       c === 'leave.request.submit' ||
+      c === 'attendance.correction.submit' ||
+      c === 'attendance.overtime.submit' ||
       c === 'approvals.request.submit' ||
       c === 'employees.employee.read' ||
       c === 'employees.employment.read',

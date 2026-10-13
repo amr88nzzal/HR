@@ -28,6 +28,7 @@ import { AssignmentsPage } from './features/leave/AssignmentsPage';
 import { MyAttendancePage } from './features/attendance/MyAttendancePage';
 import { DailyBoardPage } from './features/attendance/DailyBoardPage';
 import { PunchEntryPage } from './features/attendance/PunchEntryPage';
+import { AdjustmentsPage } from './features/attendance/AdjustmentsPage';
 import { ShiftsPage } from './features/attendance/ShiftsPage';
 import { SchedulesPage } from './features/attendance/SchedulesPage';
 import { ImportPage } from './features/attendance/ImportPage';
@@ -130,6 +131,8 @@ const screens: Record<string, () => ReactElement> = {
   '/leave/holidays': () => <ResourcePage resourceKey="holidays" />,
   '/attendance': () => <MyAttendancePage />,
   '/attendance/daily': () => <DailyBoardPage />,
+  '/attendance/requests': () => <AdjustmentsPage all={false} />,
+  '/attendance/adjustments': () => <AdjustmentsPage all />,
   '/attendance/punches': () => <PunchEntryPage />,
   '/attendance/shifts': () => <ShiftsPage />,
   '/attendance/schedules': () => <SchedulesPage />,

@@ -209,3 +209,46 @@ export const importHeldResolveInput = z.object({
   systemKey: z.string().trim().min(1).max(60).default('attendance_device'),
 });
 export const importHeldDiscardInput = z.object({ deviceCode: z.string().trim().min(1).max(100) });
+
+// ───── 5e: تعديلات الحضور والعمل الإضافي ─────
+export const ADJUSTMENT_STATUSES = ['pending', 'approved', 'rejected', 'withdrawn'] as const;
+export type AdjustmentStatus = (typeof ADJUSTMENT_STATUSES)[number];
+
+/** التوقيتان محليان بتوقيت الشركة؛ الخروج قد يقع في اليوم التالي (دوام ليلي). */
+const correctionFields = {
+  employeeId: uuid.optional(),
+  date: isoDate,
+  inTime: hhmm,
+  outTime: hhmm,
+  outNextDay: z.boolean().default(false),
+  reason: z.string().trim().min(1).max(500),
+};
+const correctionRefine = <T extends { inTime: string; outTime: string; outNextDay: boolean }>(
+  v: T,
+) => v.outNextDay || v.outTime > v.inTime;
+const correctionMsg = { message: 'وقت الخروج قبل الدخول', path: ['outTime'] };
+
+export const correctionInput = z.object(correctionFields).refine(correctionRefine, correctionMsg);
+export type CorrectionInput = z.infer<typeof correctionInput>;
+
+export const correctionDirectInput = z
+  .object({ ...correctionFields, employeeId: uuid })
+  .refine(correctionRefine, correctionMsg);
+export type CorrectionDirectInput = z.infer<typeof correctionDirectInput>;
+
+export const overtimeInput = z.object({
+  employeeId: uuid.optional(),
+  date: isoDate,
+  minutes: z.number().int().min(1).max(1440),
+  reason: z.string().trim().min(1).max(500),
+});
+export type OvertimeInput = z.infer<typeof overtimeInput>;
+
+export const adjustmentListQuery = z.object({
+  employeeId: uuid.optional(),
+  status: z.enum(ADJUSTMENT_STATUSES).optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(200).default(25),
+});
