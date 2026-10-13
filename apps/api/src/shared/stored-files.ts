@@ -60,7 +60,7 @@ export type SaveFileInput = {
   buffer: Buffer;
   mime: string;
   originalName: string;
-  purpose: 'document' | 'employee_photo';
+  purpose: 'document' | 'employee_photo' | 'issued_document';
   encrypt: boolean;
   parentId?: string | null;
   variant?: string | null;

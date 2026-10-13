@@ -4,6 +4,7 @@ import { BOSS_SCHEMA, buildRegistry, createJobQueue, type JobQueue } from './job
 import { createDb, pingDb } from './db/index.js';
 import { createFieldCrypto } from './shared/crypto.js';
 import { createMailProvider } from './notifications/index.js';
+import { createHttpRenderer } from './modules/letters/index.js';
 import { createLocalStorage } from './shared/storage.js';
 import { loadConfig } from './shared/config.js';
 import { createLogger } from './shared/logging.js';
@@ -64,6 +65,7 @@ const app = createApp({
           crypto,
           storage: createLocalStorage(config.STORAGE_DIR),
           jobs,
+          render: config.RENDER_URL ? createHttpRenderer(config.RENDER_URL) : undefined,
           mail: {
             provider: createMailProvider({
               crypto,

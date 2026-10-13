@@ -170,6 +170,7 @@ export const hrAr = {
       contracts: 'العقود',
       bank: 'الحسابات البنكية',
       externalRefs: 'المراجع الخارجية',
+      letters: 'الوثائق الصادرة',
       documents: 'الوثائق',
     },
     overview: { personal: 'البيانات الشخصية', custom: 'حقول إضافية' },

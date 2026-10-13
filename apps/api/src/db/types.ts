@@ -468,7 +468,7 @@ export type StoredFilesTable = {
   sizeBytes: ColumnType<string, number | string, number | string>;
   sha256: string;
   isEncrypted: Generated<boolean>;
-  purpose: 'document' | 'employee_photo';
+  purpose: 'document' | 'employee_photo' | 'issued_document';
   parentId: string | null;
   variant: string | null;
   createdBy: string | null;
@@ -914,6 +914,49 @@ export type OvertimeRequestsTable = Versioned & {
   updatedAt: Generated<Date>;
 };
 
+export type LetterTemplatesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  language: 'ar' | 'en';
+  category: Generated<string>;
+  activeVersionId: string | null;
+  isActive: Generated<boolean>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
+export type LetterTemplateVersionsTable = {
+  id: Generated<string>;
+  companyId: string;
+  templateId: string;
+  versionNo: number;
+  bodyHtml: string;
+  contentHash: string;
+  status: Generated<'draft' | 'active' | 'archived'>;
+  note: string | null;
+  createdBy: string | null;
+  createdAt: Generated<Date>;
+  activatedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+};
+
+export type IssuedDocumentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  templateId: string;
+  templateVersionId: string;
+  language: 'ar' | 'en';
+  title: string;
+  data: ColumnType<Record<string, unknown>, string | undefined, string>;
+  templateHash: string;
+  fileId: string | null;
+  issuedBy: string | null;
+  createdAt: Generated<Date>;
+};
+
 export type IntegrationSettingsTable = {
   id: Generated<string>;
   companyId: string;
@@ -1019,6 +1062,9 @@ export type Database = {
   scheduleAssignments: ScheduleAssignmentsTable;
   attendanceRecords: AttendanceRecordsTable;
   attendanceDays: AttendanceDaysTable;
+  letterTemplates: LetterTemplatesTable;
+  letterTemplateVersions: LetterTemplateVersionsTable;
+  issuedDocuments: IssuedDocumentsTable;
   attendanceCorrections: AttendanceCorrectionsTable;
   overtimeRequests: OvertimeRequestsTable;
   importProfiles: ImportProfilesTable;

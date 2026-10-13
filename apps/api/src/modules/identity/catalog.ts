@@ -55,6 +55,9 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('employees', 'bank_account', 'read', 'عرض الحسابات البنكية (مقنّعة)'),
   def('employees', 'bank_account', 'manage', 'إدارة الحسابات البنكية'),
   def('employees', 'bank_account', 'reveal', 'كشف رقم الحساب البنكي كاملاً (مدقَّق)'),
+  ...crud('letters', 'template', 'قوالب الوثائق الصادرة'),
+  def('letters', 'document', 'read', 'عرض سجل الوثائق الصادرة وتنزيلها'),
+  def('letters', 'document', 'issue', 'إصدار وثيقة لموظف'),
   def('approvals', 'flow', 'read', 'عرض سلاسل الموافقة'),
   def('approvals', 'flow', 'manage', 'إدارة سلاسل الموافقة'),
   def('approvals', 'request', 'read_all', 'عرض كل طلبات الموافقة'),
@@ -125,6 +128,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
         c === 'attendance.import.create' ||
         c === 'attendance.import.manage' ||
         c === 'attendance.correction.read_all' ||
+        c === 'letters.document.issue' ||
         c === 'attendance.overtime.read_all') &&
       c !== 'system.audit.read' &&
       c !== 'system.job.read' &&

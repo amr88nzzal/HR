@@ -32,6 +32,9 @@ const workday = (n: number, skip = 0) => {
   }
 };
 
+/** اليوم رقم i من أيام العمل السابقة (يبدأ من أمس)؛ أيام متمايزة بغض النظر عن يوم الأسبوع */
+const wk = (i: number) => workday(1, i);
+
 describe('الحضور 5e: تعديلات الحضور والعمل الإضافي', () => {
   let pgx: TestPg;
   let admin: Db;
@@ -197,7 +200,7 @@ describe('الحضور 5e: تعديلات الحضور والعمل الإضاف
   });
 
   it('طلب تعديل بموافقة: الغياب يصير حضوراً وتُنشأ بصمات source=correction', async () => {
-    const day = workday(2);
+    const day = wk(0);
     await post('admin', '/attendance/recompute', { employeeId: emp, from: day, to: day });
     expect((await dayOf(emp, day)).status).toBe('absent');
     const r = await corr('emp', { date: day });
@@ -219,7 +222,7 @@ describe('الحضور 5e: تعديلات الحضور والعمل الإضاف
   });
 
   it('الرفض لا يغيّر شيئاً، والمعلّق المكرر مرفوض، والسحب يتيح إعادة التقديم', async () => {
-    const day = workday(3, 1);
+    const day = wk(1);
     await post('admin', '/attendance/recompute', { employeeId: emp, from: day, to: day });
     const r = await corr('emp', { date: day });
     const dup = await corr('emp', { date: day });
@@ -251,11 +254,11 @@ describe('الحضور 5e: تعديلات الحضور والعمل الإضاف
     expect(fut.status).toBe(400);
     expect(fut.body.error.code).toBe('FUTURE_DAY');
     // الموظف لا يقدّم نيابة عن غيره
-    expect((await corr('emp', { date: workday(2), employeeId: mgrEmp })).status).toBe(403);
+    expect((await corr('emp', { date: wk(0), employeeId: mgrEmp })).status).toBe(403);
   });
 
   it('التعديل المباشر: بصلاحية الإدارة فقط، ويُعتمد فوراً', async () => {
-    const day = workday(4);
+    const day = wk(2);
     const body = {
       employeeId: emp,
       date: day,
@@ -272,13 +275,13 @@ describe('الحضور 5e: تعديلات الحضور والعمل الإضاف
 
   it('خيار الطريقة: direct يمنع الطلبات، وrequest يمنع المباشر', async () => {
     expect((await setMode('direct')).status).toBe(204);
-    const a = await corr('emp', { date: workday(5) });
+    const a = await corr('emp', { date: wk(3) });
     expect(a.status).toBe(409);
     expect(a.body.error.code).toBe('REQUESTS_DISABLED');
     expect((await setMode('request')).status).toBe(204);
     const b = await post('admin', '/attendance-corrections/direct', {
       employeeId: emp,
-      date: workday(5),
+      date: wk(3),
       inTime: '08:00',
       outTime: '16:00',
       reason: 'x',
@@ -290,9 +293,9 @@ describe('الحضور 5e: تعديلات الحضور والعمل الإضاف
   });
 
   it('العمل الإضافي: يُحتسب المعتمد فقط وبحد الفائض الفعلي', async () => {
-    const d1 = workday(6);
-    const d2 = workday(6, 1);
-    const d3 = workday(6, 2);
+    const d1 = wk(4);
+    const d2 = wk(5);
+    const d3 = wk(6);
     for (const d of [d1, d2, d3]) {
       await post('admin', '/attendance/punches', { employeeId: emp, date: d, time: '08:00' });
       await post('admin', '/attendance/punches', { employeeId: emp, date: d, time: '19:00' });

@@ -22,6 +22,7 @@ import { useOne } from '../../api/hooks';
 import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../lib/errors';
 import { localName } from '../../lib/names';
+import { IssuePanel } from '../letters/IssuePanel';
 import { DocumentsPanel } from '../archive/DocumentsPanel';
 import { BankTab } from './BankTab';
 import {
@@ -180,6 +181,12 @@ export const EmployeePage = () => {
       label: t('hr.emp.tabs.documents'),
       show: can('archive.document.read'),
       body: <DocumentsPanel ownerType="employee" ownerId={employeeId} />,
+    },
+    {
+      value: 'letters',
+      label: t('hr.emp.tabs.letters'),
+      show: can('letters.document.read'),
+      body: <IssuePanel employeeId={employeeId} />,
     },
   ];
   const visible = tabs.filter((x) => x.show);

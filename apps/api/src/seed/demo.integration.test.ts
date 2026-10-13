@@ -90,6 +90,7 @@ describe('البيانات التجريبية', () => {
       'punches:done',
       'import:done',
       'adjustments:done',
+      'letters:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -164,6 +165,11 @@ describe('البيانات التجريبية', () => {
     expect(await n('overtime_requests', sql`status = 'pending'`)).toBe(2);
     expect(await n('attendance_days', sql`overtime_minutes > 0`)).toBe(1);
     expect(await n('attendance_days', sql`surplus_minutes > 0`)).toBeGreaterThanOrEqual(3);
+
+    // قوالب الوثائق: عربي وإنجليزي بإصدارين لكل منهما (مفعّل ومسودة)
+    expect(await n('letter_templates')).toBe(2);
+    expect(await n('letter_template_versions', sql`status = 'active'`)).toBe(2);
+    expect(await n('letter_template_versions', sql`status = 'draft'`)).toBe(2);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);
