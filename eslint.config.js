@@ -10,6 +10,7 @@ export default tseslint.config(
       'reference/**',
       'docs/**',
       'spikes/**',
+      'services/**',
       'coverage/**',
     ],
   },

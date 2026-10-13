@@ -19,7 +19,9 @@ import {
   IconFileDescription,
   IconPlugConnected,
   IconTopologyStar3,
+  IconCertificate,
   IconChecklist,
+  IconFileText,
   IconUserShare,
   IconRoute,
   IconBeach,
@@ -185,6 +187,23 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         path: '/attendance/import/profiles',
         icon: IconAdjustmentsHorizontal,
         permission: 'attendance.import_profile.read',
+      },
+    ],
+  },
+  {
+    key: 'lettersGroup',
+    items: [
+      {
+        key: 'issuedDocuments',
+        path: '/letters/issued',
+        icon: IconCertificate,
+        permission: 'letters.document.read',
+      },
+      {
+        key: 'letterTemplates',
+        path: '/letters/templates',
+        icon: IconFileText,
+        permission: 'letters.template.read',
       },
     ],
   },

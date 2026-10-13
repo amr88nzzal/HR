@@ -10,6 +10,11 @@ import {
 } from './modules/identity/index.js';
 import { mountEmployeesRoutes } from './modules/employees/index.js';
 import type { FieldCrypto } from './shared/crypto.js';
+import {
+  createIssuedDocumentsRouter,
+  createLetterTemplatesRouter,
+  type Renderer,
+} from './modules/letters/index.js';
 import type { StorageProvider } from './shared/storage.js';
 import { createJobsRouter, type JobQueue } from './jobs/index.js';
 import {
@@ -58,6 +63,8 @@ export type AppDeps = {
     jobs?: JobQueue;
     /** مزوّد البريد الفعّال (إعداد الشركة ثم البيئة)؛ غيابه = إعداد القاعدة فقط */
     mail?: { provider: MailProvider; envConfigured: boolean };
+    /** محوّل HTML→PDF (حاوية render)؛ غيابه يعطّل إصدار الوثائق فقط */
+    render?: Renderer;
     /** عميل Bot API (يُستبدل في الاختبار) */
     telegramApi?: TelegramApi;
   };
@@ -131,6 +138,11 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     api.use('/approval-delegations', createDelegationsRouter(auth.db, authenticate));
     api.use('/approvals', createApprovalsRouter(auth.db, authenticate, engine));
     api.use('/leave-requests', createLeaveRequestsRouter(auth.db, authenticate, engine));
+    api.use('/letter-templates', createLetterTemplatesRouter(auth.db, authenticate));
+    api.use(
+      '/issued-documents',
+      createIssuedDocumentsRouter(auth.db, authenticate, files, auth.render),
+    );
     api.use('/attendance-corrections', createCorrectionsRouter(auth.db, authenticate, engine));
     api.use('/overtime-requests', createOvertimeRouter(auth.db, authenticate, engine));
     app.use('/api/v1', api);

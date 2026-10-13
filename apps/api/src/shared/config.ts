@@ -24,6 +24,8 @@ const envSchema = z.object({
   ENCRYPTION_DIGEST_KEY: z.string().optional(),
   /** مجلد تخزين الملفات المرفوعة (يُحمَّل كـ volume ويُنسخ احتياطياً مع القاعدة) */
   STORAGE_DIR: z.string().min(1).default('./data/files'),
+  /** عنوان حاوية render لتحويل HTML إلى PDF (مثل http://render:3100)؛ غيابه يعطّل إصدار الوثائق */
+  RENDER_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   /** SMTP عام لإرسال البريد: smtp://user:pass@host:587؛ غيابه = تُعلَّم رسائل البريد skipped */
   SMTP_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   MAIL_FROM: z.preprocess(

@@ -45,6 +45,14 @@ services:
     restart: 'no'
     networks: [internal]
 
+  # تحويل HTML إلى PDF للوثائق الصادرة (Chromium + الخطوط العربية)؛ داخلية فقط بلا منفذ منشور
+  render:
+    build:
+      context: ..
+      dockerfile: services/render/Dockerfile
+    restart: unless-stopped
+    networks: [internal]
+
   api:
     build:
       context: ..
@@ -62,6 +70,7 @@ services:
       ENCRYPTION_KEY_ID: ${ENCRYPTION_KEY_ID:?set in .env}
       ENCRYPTION_DIGEST_KEY: ${ENCRYPTION_DIGEST_KEY:?set in .env}
       STORAGE_DIR: /data/files
+      RENDER_URL: http://render:3100
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       DEFAULT_COMPANY_SLUG: ${DEFAULT_COMPANY_SLUG:-main}
       # بريد احتياطي إن لم يُضبط من شاشة قنوات الإشعار (يُستعمل أيضاً لاختبار الإرسال)

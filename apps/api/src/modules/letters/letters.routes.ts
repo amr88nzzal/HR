@@ -1,0 +1,472 @@
+import { createHash } from 'node:crypto';
+import { Router, type Request, type RequestHandler, type Response } from 'express';
+import { z } from 'zod';
+import {
+  LETTER_VARIABLES,
+  checkTemplateHtml,
+  issueDocumentInput,
+  issuedListQuery,
+  letterPreviewInput,
+  letterTemplateInput,
+  letterTemplateUpdate,
+  letterVersionInput,
+  renderLetterBody,
+  wrapLetterHtml,
+} from '@hrms/shared';
+import type { Db } from '../../db/index.js';
+import { withTenant, type Ctx } from '../../db/tenant.js';
+import { AppError } from '../../shared/errors.js';
+import { readStoredFile, saveStoredFile, type FileDeps } from '../../shared/stored-files.js';
+import { requirePermission } from '../identity/index.js';
+import type { Renderer } from './render.js';
+import { loadLetterValues } from './values.js';
+
+const idParam = z.object({ id: z.string().uuid() });
+const verParam = z.object({ id: z.string().uuid(), versionId: z.string().uuid() });
+const hashOf = (s: string) => createHash('sha256').update(s).digest('hex');
+
+const wrap =
+  (fn: (req: Request, res: Response) => Promise<void>): RequestHandler =>
+  (req, res, next) => {
+    fn(req, res).catch(next);
+  };
+
+const assertHtml = (html: string) => {
+  const problems = checkTemplateHtml(html);
+  if (problems.length) throw new AppError('INVALID_TEMPLATE', 400, 'القالب غير صالح', { problems });
+};
+
+const makeRun =
+  (db: Db) =>
+  <T>(req: Request, fn: (ctx: Ctx) => Promise<T>): Promise<T> => {
+    const auth = req.auth;
+    if (!auth) throw new AppError('UNAUTHORIZED', 401, 'يلزم تسجيل الدخول');
+    return withTenant(
+      db,
+      { companyId: auth.companyId, userId: auth.userId, requestId: req.requestId },
+      fn,
+    );
+  };
+
+const loadTemplate = async (ctx: Ctx, id: string) => {
+  const t = await ctx.trx
+    .selectFrom('letterTemplates')
+    .selectAll()
+    .where('companyId', '=', ctx.companyId)
+    .where('id', '=', id)
+    .executeTakeFirst();
+  if (!t) throw new AppError('NOT_FOUND', 404, 'القالب غير موجود');
+  return t;
+};
+
+const nextVersionNo = async (ctx: Ctx, templateId: string): Promise<number> => {
+  const r = await ctx.trx
+    .selectFrom('letterTemplateVersions')
+    .select((eb) => eb.fn.max('versionNo').as('n'))
+    .where('templateId', '=', templateId)
+    .executeTakeFirst();
+  return Number(r?.n ?? 0) + 1;
+};
+
+const activate = async (ctx: Ctx, templateId: string, versionId: string) => {
+  await ctx.trx
+    .updateTable('letterTemplateVersions')
+    .set({ status: 'archived' })
+    .where('templateId', '=', templateId)
+    .where('status', '=', 'active')
+    .execute();
+  await ctx.trx
+    .updateTable('letterTemplateVersions')
+    .set({ status: 'active', activatedAt: new Date() })
+    .where('id', '=', versionId)
+    .execute();
+  await ctx.trx
+    .updateTable('letterTemplates')
+    .set({ activeVersionId: versionId })
+    .where('id', '=', templateId)
+    .execute();
+};
+
+/** مدير القوالب: قوالب HTML بإصدارات (مسودة ← مفعّل ← مؤرشف) وتراجع بتفعيل إصدار سابق. */
+export const createLetterTemplatesRouter = (db: Db, authenticate: RequestHandler): Router => {
+  const router = Router();
+  const run = makeRun(db);
+  router.use(authenticate);
+
+  router.get('/variables', (_req, res) => {
+    res.json({ data: LETTER_VARIABLES });
+  });
+
+  router.get(
+    '/',
+    requirePermission('letters.template.read'),
+    wrap(async (req, res) => {
+      const data = await run(req, (ctx) =>
+        ctx.trx
+          .selectFrom('letterTemplates as t')
+          .leftJoin('letterTemplateVersions as v', 'v.id', 't.activeVersionId')
+          .select([
+            't.id',
+            't.code',
+            't.nameAr',
+            't.nameEn',
+            't.language',
+            't.category',
+            't.isActive',
+            't.version',
+            't.activeVersionId',
+            'v.versionNo as activeVersionNo',
+          ])
+          .where('t.companyId', '=', ctx.companyId)
+          .orderBy('t.code')
+          .execute(),
+      );
+      res.json({ data });
+    }),
+  );
+
+  router.post(
+    '/',
+    requirePermission('letters.template.create'),
+    wrap(async (req, res) => {
+      const body = letterTemplateInput.parse(req.body);
+      assertHtml(body.bodyHtml);
+      const auth = req.auth as NonNullable<Request['auth']>;
+      const data = await run(req, async (ctx) => {
+        let id: string;
+        try {
+          id = (
+            await ctx.trx
+              .insertInto('letterTemplates')
+              .values({
+                companyId: ctx.companyId,
+                code: body.code,
+                nameAr: body.nameAr,
+                nameEn: body.nameEn ?? null,
+                language: body.language,
+                category: body.category,
+              })
+              .returning('id')
+              .executeTakeFirstOrThrow()
+          ).id;
+        } catch (e) {
+          if ((e as { code?: string }).code === '23505')
+            throw new AppError('DUPLICATE_CODE', 409, 'رمز القالب مستعمل');
+          throw e;
+        }
+        const v = await ctx.trx
+          .insertInto('letterTemplateVersions')
+          .values({
+            companyId: ctx.companyId,
+            templateId: id,
+            versionNo: 1,
+            bodyHtml: body.bodyHtml,
+            contentHash: hashOf(body.bodyHtml),
+            createdBy: auth.userId,
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+        await activate(ctx, id, v.id);
+        return loadTemplate(ctx, id);
+      });
+      res.status(201).json({ data });
+    }),
+  );
+
+  router.get(
+    '/:id',
+    requirePermission('letters.template.read'),
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      const data = await run(req, async (ctx) => {
+        const t = await loadTemplate(ctx, id);
+        const versions = await ctx.trx
+          .selectFrom('letterTemplateVersions')
+          .select([
+            'id',
+            'versionNo',
+            'bodyHtml',
+            'contentHash',
+            'status',
+            'note',
+            'createdAt',
+            'activatedAt',
+          ])
+          .where('templateId', '=', id)
+          .orderBy('versionNo', 'desc')
+          .execute();
+        return { ...t, versions };
+      });
+      res.json({ data });
+    }),
+  );
+
+  router.patch(
+    '/:id',
+    requirePermission('letters.template.update'),
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      const body = letterTemplateUpdate.parse(req.body);
+      const data = await run(req, async (ctx) => {
+        await loadTemplate(ctx, id);
+        await ctx.trx
+          .updateTable('letterTemplates')
+          .set({
+            ...(body.nameAr !== undefined && { nameAr: body.nameAr }),
+            ...(body.nameEn !== undefined && { nameEn: body.nameEn ?? null }),
+            ...(body.category !== undefined && { category: body.category }),
+            ...(body.isActive !== undefined && { isActive: body.isActive }),
+          })
+          .where('id', '=', id)
+          .execute();
+        return loadTemplate(ctx, id);
+      });
+      res.json({ data });
+    }),
+  );
+
+  router.post(
+    '/:id/versions',
+    requirePermission('letters.template.update'),
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      const body = letterVersionInput.parse(req.body);
+      assertHtml(body.bodyHtml);
+      const auth = req.auth as NonNullable<Request['auth']>;
+      const data = await run(req, async (ctx) => {
+        await loadTemplate(ctx, id);
+        return ctx.trx
+          .insertInto('letterTemplateVersions')
+          .values({
+            companyId: ctx.companyId,
+            templateId: id,
+            versionNo: await nextVersionNo(ctx, id),
+            bodyHtml: body.bodyHtml,
+            contentHash: hashOf(body.bodyHtml),
+            note: body.note ?? null,
+            createdBy: auth.userId,
+          })
+          .returning(['id', 'versionNo', 'status'])
+          .executeTakeFirstOrThrow();
+      });
+      res.status(201).json({ data });
+    }),
+  );
+
+  router.post(
+    '/:id/versions/:versionId/activate',
+    requirePermission('letters.template.update'),
+    wrap(async (req, res) => {
+      const { id, versionId } = verParam.parse(req.params);
+      const data = await run(req, async (ctx) => {
+        await loadTemplate(ctx, id);
+        const v = await ctx.trx
+          .selectFrom('letterTemplateVersions')
+          .select('id')
+          .where('id', '=', versionId)
+          .where('templateId', '=', id)
+          .executeTakeFirst();
+        if (!v) throw new AppError('NOT_FOUND', 404, 'الإصدار غير موجود');
+        await activate(ctx, id, versionId);
+        return loadTemplate(ctx, id);
+      });
+      res.json({ data });
+    }),
+  );
+
+  router.post(
+    '/:id/preview',
+    requirePermission('letters.template.read'),
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      const body = letterPreviewInput.parse(req.body);
+      const data = await run(req, async (ctx) => {
+        const t = await loadTemplate(ctx, id);
+        let html = body.bodyHtml;
+        if (html === undefined) {
+          const v = await ctx.trx
+            .selectFrom('letterTemplateVersions')
+            .select('bodyHtml')
+            .where('templateId', '=', id)
+            .where('id', '=', (body.versionId ?? t.activeVersionId) as string)
+            .executeTakeFirst();
+          if (!v) throw new AppError('NOT_FOUND', 404, 'الإصدار غير موجود');
+          html = v.bodyHtml;
+        }
+        assertHtml(html);
+        const values = await loadLetterValues(ctx, body.employeeId, t.language);
+        return { html: wrapLetterHtml(renderLetterBody(html, values), t.language) };
+      });
+      res.json({ data });
+    }),
+  );
+
+  router.delete(
+    '/:id',
+    requirePermission('letters.template.delete'),
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      await run(req, async (ctx) => {
+        await loadTemplate(ctx, id);
+        const used = await ctx.trx
+          .selectFrom('issuedDocuments')
+          .select('id')
+          .where('templateId', '=', id)
+          .limit(1)
+          .executeTakeFirst();
+        if (used)
+          throw new AppError('TEMPLATE_IN_USE', 409, 'صدرت وثائق بهذا القالب؛ عطّله بدل حذفه');
+        await ctx.trx
+          .updateTable('letterTemplates')
+          .set({ activeVersionId: null })
+          .where('id', '=', id)
+          .execute();
+        await ctx.trx.deleteFrom('letterTemplates').where('id', '=', id).execute();
+      });
+      res.status(204).end();
+    }),
+  );
+  return router;
+};
+
+/** إصدار الوثائق لموظف (PDF مخزَّن بلقطة القيم وبصمة القالب) وسجلها. */
+export const createIssuedDocumentsRouter = (
+  db: Db,
+  authenticate: RequestHandler,
+  files: FileDeps,
+  render: Renderer | undefined,
+): Router => {
+  const router = Router();
+  const run = makeRun(db);
+  router.use(authenticate);
+
+  const select = (ctx: Ctx) =>
+    ctx.trx
+      .selectFrom('issuedDocuments as d')
+      .innerJoin('employees as e', 'e.id', 'd.employeeId')
+      .innerJoin('letterTemplates as t', 't.id', 'd.templateId')
+      .innerJoin('letterTemplateVersions as v', 'v.id', 'd.templateVersionId')
+      .select([
+        'd.id',
+        'd.employeeId',
+        'e.fullNameAr as employeeName',
+        'd.templateId',
+        't.nameAr as templateNameAr',
+        'v.versionNo as templateVersionNo',
+        'd.language',
+        'd.title',
+        'd.fileId',
+        'd.createdAt',
+      ])
+      .where('d.companyId', '=', ctx.companyId);
+
+  router.post(
+    '/',
+    requirePermission('letters.document.issue'),
+    wrap(async (req, res) => {
+      const body = issueDocumentInput.parse(req.body);
+      if (!render) throw new AppError('RENDER_NOT_CONFIGURED', 503, 'خدمة تحويل PDF غير مهيّأة');
+      const data = await run(req, async (ctx) => {
+        const t = await loadTemplate(ctx, body.templateId);
+        if (!t.isActive) throw new AppError('TEMPLATE_INACTIVE', 409, 'القالب معطّل');
+        if (!t.activeVersionId)
+          throw new AppError('NO_ACTIVE_VERSION', 409, 'لا إصدار مفعّل للقالب');
+        const v = await ctx.trx
+          .selectFrom('letterTemplateVersions')
+          .select(['id', 'bodyHtml', 'contentHash'])
+          .where('id', '=', t.activeVersionId)
+          .executeTakeFirstOrThrow();
+        const values = await loadLetterValues(ctx, body.employeeId, t.language);
+        const html = wrapLetterHtml(renderLetterBody(v.bodyHtml, values), t.language);
+        const pdf = await render(html);
+        const name = values['employee.fullName'] ?? body.employeeId;
+        const title = `${t.language === 'en' ? (t.nameEn ?? t.nameAr) : t.nameAr} — ${name}`;
+        const file = await saveStoredFile(ctx, files, {
+          buffer: pdf,
+          mime: 'application/pdf',
+          originalName: `${t.code}-${values['employee.employeeNo'] ?? 'doc'}.pdf`,
+          purpose: 'issued_document',
+          encrypt: false,
+        });
+        const row = await ctx.trx
+          .insertInto('issuedDocuments')
+          .values({
+            companyId: ctx.companyId,
+            employeeId: body.employeeId,
+            templateId: t.id,
+            templateVersionId: v.id,
+            language: t.language,
+            title,
+            data: JSON.stringify(values),
+            templateHash: v.contentHash,
+            fileId: file.id,
+            issuedBy: ctx.userId ?? null,
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+        return select(ctx).where('d.id', '=', row.id).executeTakeFirstOrThrow();
+      });
+      res.status(201).json({ data });
+    }),
+  );
+
+  router.get(
+    '/',
+    requirePermission('letters.document.read'),
+    wrap(async (req, res) => {
+      const q = issuedListQuery.parse(req.query);
+      const { rows, total } = await run(req, async (ctx) => {
+        const apply = <T extends ReturnType<typeof select>>(b: T): T => {
+          let x = b as ReturnType<typeof select>;
+          if (q.employeeId) x = x.where('d.employeeId', '=', q.employeeId);
+          if (q.templateId) x = x.where('d.templateId', '=', q.templateId);
+          return x as T;
+        };
+        const rows = await apply(select(ctx))
+          .orderBy('d.createdAt', 'desc')
+          .orderBy('d.id', 'desc')
+          .limit(q.pageSize)
+          .offset((q.page - 1) * q.pageSize)
+          .execute();
+        const total = Number(
+          (
+            await apply(select(ctx))
+              .clearSelect()
+              .select((eb) => eb.fn.countAll<string>().as('n'))
+              .executeTakeFirstOrThrow()
+          ).n,
+        );
+        return { rows, total };
+      });
+      res.json({ data: rows, meta: { page: q.page, pageSize: q.pageSize, total } });
+    }),
+  );
+
+  router.get(
+    '/:id/content',
+    requirePermission('letters.document.read'),
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      const file = await run(req, async (ctx) => {
+        const f = await ctx.trx
+          .selectFrom('issuedDocuments as d')
+          .innerJoin('storedFiles as f', 'f.id', 'd.fileId')
+          .selectAll('f')
+          .where('d.id', '=', id)
+          .executeTakeFirst();
+        if (!f) throw new AppError('NOT_FOUND', 404, 'الوثيقة غير موجودة');
+        return f;
+      });
+      const bytes = await readStoredFile(files, file);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
+      );
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(bytes);
+    }),
+  );
+  return router;
+};

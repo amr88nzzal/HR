@@ -171,6 +171,7 @@ export const hrEn: typeof hrAr = {
       contracts: 'Contracts',
       bank: 'Bank accounts',
       externalRefs: 'External references',
+      letters: 'Issued documents',
       documents: 'Documents',
     },
     overview: { personal: 'Personal data', custom: 'Additional fields' },

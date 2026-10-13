@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
 import type { Db } from '../db/index.js';
 import { withTenant, type Ctx } from '../db/tenant.js';
@@ -36,7 +37,8 @@ export type ExtrasPart =
   | 'attendance'
   | 'punches'
   | 'import'
-  | 'adjustments';
+  | 'adjustments'
+  | 'letters';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
 const pad = (n: number, w = 3) => String(n).padStart(w, '0');
@@ -1171,6 +1173,66 @@ const seedAdjustments = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+/** قالبا شهادة عمل (عربي وإنجليزي) بإصدارين؛ إصدار الوثائق نفسه يحتاج حاوية render. */
+const seedLetters = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('letterTemplates')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('code', '=', 'DEMO-CERT-AR')
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const bodies = {
+    ar: [
+      '<div style="text-align:center"><h1>شهادة عمل</h1></div>\n<p>تشهد {{company.name}} بأن السيد/ة {{employee.fullName}} (الرقم الوظيفي {{employee.employeeNo}}) يعمل لديها بوظيفة {{job.title}} في {{job.department}} منذ تاريخ {{employee.hireDate}}، وما زال على رأس عمله حتى تاريخه.</p>\n<p>أُعطيت هذه الشهادة بناءً على طلبه دون أدنى مسؤولية على الشركة.</p>\n<p>التاريخ: {{document.today}}</p>',
+      '<div style="text-align:center"><h1>شهادة عمل</h1></div>\n<table><tr><td>الاسم</td><td>{{employee.fullName}}</td></tr><tr><td>الرقم الوظيفي</td><td>{{employee.employeeNo}}</td></tr><tr><td>الوظيفة</td><td>{{job.title}}</td></tr><tr><td>القسم / الفرع</td><td>{{job.department}} / {{job.branch}}</td></tr><tr><td>تاريخ التعيين</td><td>{{employee.hireDate}}</td></tr></table>\n<p>صدرت بتاريخ {{document.today}} عن {{company.name}}.</p>',
+    ],
+    en: [
+      '<div style="text-align:center"><h1>Employment Certificate</h1></div>\n<p>This is to certify that {{employee.fullName}} (Employee No. {{employee.employeeNo}}) has been employed by {{company.name}} as {{job.title}} in {{job.department}} since {{employee.hireDate}}, and remains in service to date.</p>\n<p>Date: {{document.today}}</p>',
+      '<div style="text-align:center"><h1>Employment Certificate</h1></div>\n<table><tr><td>Name</td><td>{{employee.fullName}}</td></tr><tr><td>Employee No.</td><td>{{employee.employeeNo}}</td></tr><tr><td>Position</td><td>{{job.title}}</td></tr><tr><td>Department / Branch</td><td>{{job.department}} / {{job.branch}}</td></tr><tr><td>Hire date</td><td>{{employee.hireDate}}</td></tr></table>\n<p>Issued on {{document.today}} by {{company.name}}.</p>',
+    ],
+  } as const;
+  for (const lang of ['ar', 'en'] as const) {
+    const t = await trx
+      .insertInto('letterTemplates')
+      .values({
+        companyId,
+        code: lang === 'ar' ? 'DEMO-CERT-AR' : 'DEMO-CERT-EN',
+        nameAr: lang === 'ar' ? 'شهادة عمل (عربي)' : 'شهادة عمل (إنجليزي)',
+        nameEn:
+          lang === 'ar' ? 'Employment certificate (Arabic)' : 'Employment certificate (English)',
+        language: lang,
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const ids: string[] = [];
+    for (const [i, body] of bodies[lang].entries()) {
+      const v = await trx
+        .insertInto('letterTemplateVersions')
+        .values({
+          companyId,
+          templateId: t.id,
+          versionNo: i + 1,
+          bodyHtml: body,
+          contentHash: createHash('sha256').update(body).digest('hex'),
+          status: i === 0 ? 'active' : 'draft',
+          note: i === 0 ? 'الإصدار الأول' : 'نسخة بجدول (مسودة)',
+          activatedAt: i === 0 ? new Date() : null,
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      ids.push(v.id);
+    }
+    await trx
+      .updateTable('letterTemplates')
+      .set({ activeVersionId: ids[0] as string })
+      .where('id', '=', t.id)
+      .execute();
+  }
+  return undefined;
+};
+
 const seedImport = async (ctx: Ctx): Promise<string | undefined> => {
   const { trx, companyId } = ctx;
   const marker = await trx
@@ -1274,6 +1336,7 @@ export const seedDemoExtras = async (
     ['punches', (ctx) => seedPunches(ctx)],
     ['import', (ctx) => seedImport(ctx)],
     ['adjustments', (ctx) => seedAdjustments(ctx)],
+    ['letters', (ctx) => seedLetters(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);
