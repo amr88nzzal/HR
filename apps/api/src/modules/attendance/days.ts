@@ -203,6 +203,26 @@ export const recomputeDays = async (
       holidays,
       book,
     });
+  if (emps.length > 0) {
+    // الإضافي المحتسب = min(المعتمد، الفائض الفعلي)؛ المرفوض يبقى فائضاً مسجلاً بلا احتساب
+    await ctx.trx
+      .updateTable('attendanceDays as d')
+      .set({
+        overtimeMinutes: sql`least(d.surplus_minutes, coalesce((
+          select sum(o.minutes) from overtime_requests o
+           where o.company_id = d.company_id and o.employee_id = d.employee_id
+             and o.day_date = d.day_date and o.status = 'approved'), 0))::integer`,
+      })
+      .where('d.companyId', '=', ctx.companyId)
+      .where(
+        'd.employeeId',
+        'in',
+        emps.map((e) => e.id),
+      )
+      .where('d.dayDate', '>=', from)
+      .where('d.dayDate', '<=', to)
+      .execute();
+  }
   return { employees: emps.length, days };
 };
 

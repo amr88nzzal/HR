@@ -108,6 +108,10 @@ export const SETTING_DEFS = {
   numberDigits: { schema: z.enum(['western', 'arabic']), default: 'western' },
   decimalSeparator: { schema: z.enum(['.', ',']), default: '.' },
   thousandsSeparator: { schema: z.enum([',', '.', ' ', '']), default: ',' },
+  /** طريقة تعديل الحضور: طلب موظف بموافقة، أو تعديل مباشر من الإدارة، أو كلاهما */
+  attendanceCorrectionMode: { schema: z.enum(['both', 'request', 'direct']), default: 'both' },
+  /** كم يوماً للخلف يحق للموظف طلب تعديل أو إضافي لاحق فيها (الموارد البشرية بلا حد) */
+  attendanceCorrectionWindowDays: { schema: z.number().int().min(0).max(365), default: 14 },
   /** صيغة الرقم الوظيفي: {seq:N} إلزامي، و{yy}/{yyyy} اختياريان */
   employeeNoFormat: {
     schema: z

@@ -178,6 +178,11 @@ export const MyAttendancePage = () => {
                       {t('attendance.late')} {hm(d.lateMinutes)}
                     </Text>
                   )}
+                  {d.overtimeMinutes > 0 && (
+                    <Text size="10px" c="teal">
+                      {t('adjust.tabs.overtime')} {hm(d.overtimeMinutes)}
+                    </Text>
+                  )}
                   {d.earlyLeaveMinutes > 0 && (
                     <Text size="10px" c="orange">
                       {t('attendance.early')} {hm(d.earlyLeaveMinutes)}

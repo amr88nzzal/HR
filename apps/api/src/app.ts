@@ -32,7 +32,11 @@ import {
 } from './approvals/index.js';
 import { mountArchiveRoutes } from './modules/archive/index.js';
 import { mountOrgRoutes } from './modules/org/index.js';
-import { mountAttendanceRoutes } from './modules/attendance/index.js';
+import {
+  createCorrectionsRouter,
+  createOvertimeRouter,
+  mountAttendanceRoutes,
+} from './modules/attendance/index.js';
 import { createLeaveRequestsRouter, mountLeaveRoutes } from './modules/leave/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
 import { requestIdMiddleware } from './shared/logging.js';
@@ -127,6 +131,8 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     api.use('/approval-delegations', createDelegationsRouter(auth.db, authenticate));
     api.use('/approvals', createApprovalsRouter(auth.db, authenticate, engine));
     api.use('/leave-requests', createLeaveRequestsRouter(auth.db, authenticate, engine));
+    api.use('/attendance-corrections', createCorrectionsRouter(auth.db, authenticate, engine));
+    api.use('/overtime-requests', createOvertimeRouter(auth.db, authenticate, engine));
     app.use('/api/v1', api);
   }
 

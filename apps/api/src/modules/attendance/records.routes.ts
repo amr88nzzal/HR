@@ -41,6 +41,7 @@ const dayColumns = [
   'd.late_minutes',
   'd.early_leave_minutes',
   'd.surplus_minutes',
+  'd.overtime_minutes',
   'd.leave_units::text as leave_units',
   '(d.override_status is not null) as is_overridden',
   'd.override_note',
@@ -62,6 +63,7 @@ type DayDto = {
   lateMinutes: number;
   earlyLeaveMinutes: number;
   surplusMinutes: number;
+  overtimeMinutes: number;
   leaveUnits: string;
   isOverridden: boolean;
   overrideNote: string | null;

@@ -37,6 +37,7 @@ export type DayRow = {
   lateMinutes: number;
   earlyLeaveMinutes: number;
   surplusMinutes: number;
+  overtimeMinutes: number;
   leaveUnits: string;
   isOverridden: boolean;
   overrideNote: string | null;

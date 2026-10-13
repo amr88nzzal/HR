@@ -867,6 +867,7 @@ export type AttendanceDaysTable = {
   lateMinutes: Generated<number>;
   earlyLeaveMinutes: Generated<number>;
   surplusMinutes: Generated<number>;
+  overtimeMinutes: Generated<number>;
   leaveUnits: Generated<string>;
   overrideStatus: AttendanceStatus | null;
   overrideNote: string | null;
@@ -876,6 +877,41 @@ export type AttendanceDaysTable = {
   baselineWorked: number | null;
   diffWarning: Generated<boolean>;
   computedAt: Generated<Date>;
+};
+
+export type AdjustmentStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn';
+
+export type AttendanceCorrectionsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  dayDate: DateReq;
+  inAt: ColumnType<Date, Date | string, Date | string>;
+  outAt: ColumnType<Date, Date | string, Date | string>;
+  reason: string;
+  method: 'request' | 'direct';
+  status: Generated<AdjustmentStatus>;
+  approvalRequestId: string | null;
+  createdBy: string;
+  decidedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+};
+
+export type OvertimeRequestsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  dayDate: DateReq;
+  minutes: number;
+  reason: string;
+  kind: 'pre' | 'post';
+  status: Generated<AdjustmentStatus>;
+  approvalRequestId: string | null;
+  createdBy: string;
+  decidedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
 };
 
 export type IntegrationSettingsTable = {
@@ -983,6 +1019,8 @@ export type Database = {
   scheduleAssignments: ScheduleAssignmentsTable;
   attendanceRecords: AttendanceRecordsTable;
   attendanceDays: AttendanceDaysTable;
+  attendanceCorrections: AttendanceCorrectionsTable;
+  overtimeRequests: OvertimeRequestsTable;
   importProfiles: ImportProfilesTable;
   importBatches: ImportBatchesTable;
   importHeldRows: ImportHeldRowsTable;
