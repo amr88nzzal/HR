@@ -28,6 +28,8 @@ import { AssignmentsPage } from './features/leave/AssignmentsPage';
 import { MyAttendancePage } from './features/attendance/MyAttendancePage';
 import { DailyBoardPage } from './features/attendance/DailyBoardPage';
 import { PunchEntryPage } from './features/attendance/PunchEntryPage';
+import { ShiftsPage } from './features/attendance/ShiftsPage';
+import { SchedulesPage } from './features/attendance/SchedulesPage';
 import { ImportPage } from './features/attendance/ImportPage';
 import { ImportProfilesPage } from './features/attendance/ImportProfilesPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
@@ -129,6 +131,8 @@ const screens: Record<string, () => ReactElement> = {
   '/attendance': () => <MyAttendancePage />,
   '/attendance/daily': () => <DailyBoardPage />,
   '/attendance/punches': () => <PunchEntryPage />,
+  '/attendance/shifts': () => <ShiftsPage />,
+  '/attendance/schedules': () => <SchedulesPage />,
   '/attendance/import': () => <ImportPage />,
   '/attendance/import/profiles': () => <ImportProfilesPage />,
   '/approvals': () => <ApprovalsPage />,

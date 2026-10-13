@@ -51,8 +51,10 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'attendance.punch.create',
         'attendance.import.read',
         'attendance.import_profile.read',
+        'attendance.shift.read',
+        'attendance.schedule.read',
       ]).length,
-    ).toBe(38);
+    ).toBe(40);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');

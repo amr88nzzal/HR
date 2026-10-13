@@ -34,6 +34,8 @@ import {
   IconKeyboard,
   IconFileSpreadsheet,
   IconAdjustmentsHorizontal,
+  IconClockHour4,
+  IconCalendarWeek,
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
 
@@ -146,6 +148,18 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         path: '/attendance/punches',
         icon: IconKeyboard,
         permission: 'attendance.punch.create',
+      },
+      {
+        key: 'attendanceShifts',
+        path: '/attendance/shifts',
+        icon: IconClockHour4,
+        permission: 'attendance.shift.read',
+      },
+      {
+        key: 'attendanceSchedules',
+        path: '/attendance/schedules',
+        icon: IconCalendarWeek,
+        permission: 'attendance.schedule.read',
       },
       {
         key: 'attendanceImport',
