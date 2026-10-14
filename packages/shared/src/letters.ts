@@ -4,7 +4,7 @@ export const LETTER_LANGUAGES = ['ar', 'en'] as const;
 export type LetterLanguage = (typeof LETTER_LANGUAGES)[number];
 
 /** نوع القيمة يحدد العزل الاتجاهي: التواريخ والأرقام والأكواد تُعرض LTR داخل النص العربي. */
-export type VariableKind = 'text' | 'date' | 'code';
+export type VariableKind = 'text' | 'date' | 'code' | 'image';
 export type LetterVariable = {
   key: string;
   group: 'employee' | 'job' | 'contract' | 'company' | 'document';
@@ -118,6 +118,27 @@ export const LETTER_VARIABLES: readonly LetterVariable[] = [
     labelEn: 'Issue date',
   },
   {
+    key: 'document.number',
+    group: 'document',
+    kind: 'code',
+    labelAr: 'رقم الوثيقة',
+    labelEn: 'Document number',
+  },
+  {
+    key: 'document.verifyUrl',
+    group: 'document',
+    kind: 'code',
+    labelAr: 'رابط التحقق',
+    labelEn: 'Verification link',
+  },
+  {
+    key: 'document.qr',
+    group: 'document',
+    kind: 'image',
+    labelAr: 'رمز QR للتحقق',
+    labelEn: 'Verification QR code',
+  },
+  {
     key: 'document.issuedBy',
     group: 'document',
     kind: 'text',
@@ -176,6 +197,11 @@ export const renderLetterBody = (html: string, values: Record<string, string | n
     const raw = values[key];
     if (raw === null || raw === undefined || raw === '') return '—';
     const meta = LETTER_VARIABLES.find((v) => v.key === key);
+    // الصورة يولّدها الخادم فقط (data URL لـ PNG)؛ أي قيمة أخرى تُهمل
+    if (meta?.kind === 'image')
+      return /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(raw)
+        ? `<img src="${raw}" alt="QR" width="110" height="110" style="display:block">`
+        : '—';
     const safe = escapeHtml(raw);
     return meta && meta.kind !== 'text'
       ? `<span dir="ltr" style="unicode-bidi:isolate">${safe}</span>`
@@ -233,6 +259,8 @@ export const issueDocumentInput = z.object({
   templateId: z.string().uuid(),
   employeeId: z.string().uuid(),
 });
+
+export const revokeDocumentInput = z.object({ reason: z.string().trim().min(1).max(300) });
 
 export const issuedListQuery = z.object({
   employeeId: z.string().uuid().optional(),

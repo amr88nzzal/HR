@@ -26,6 +26,8 @@ const envSchema = z.object({
   STORAGE_DIR: z.string().min(1).default('./data/files'),
   /** عنوان حاوية render لتحويل HTML إلى PDF (مثل http://render:3100)؛ غيابه يعطّل إصدار الوثائق */
   RENDER_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  /** العنوان العام للنظام (https://hr.example.com): يُبنى منه رابط التحقق في رمز QR؛ غيابه = بلا QR */
+  PUBLIC_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   /** SMTP عام لإرسال البريد: smtp://user:pass@host:587؛ غيابه = تُعلَّم رسائل البريد skipped */
   SMTP_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   MAIL_FROM: z.preprocess(

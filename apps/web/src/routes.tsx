@@ -12,6 +12,7 @@ import { useAuth } from './auth/AuthContext';
 import { AppLayout } from './layout/AppLayout';
 import { isGroup, NAV } from './layout/nav';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { VerifyPage } from './pages/VerifyPage';
 import { LoginPage } from './pages/LoginPage';
 import { JobsPage } from './features/admin/JobsPage';
 import { ChannelsPage } from './features/admin/ChannelsPage';
@@ -68,6 +69,13 @@ const loginRoute = createRoute({
     if (status === 'authenticated') return <Navigate to="/" />;
     return <LoginPage />;
   },
+});
+
+/** التحقق العام من وثيقة (QR): خارج الجلسة تماماً */
+const verifyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/verify/$token',
+  component: VerifyPage,
 });
 
 /** حارس الجلسة + الهيكل العام. المحتوى المحمي لا يُرسم قبل التحقق. */
@@ -187,6 +195,7 @@ const approvalDetailRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
+  verifyRoute,
   authRoute.addChildren([
     indexRoute,
     passwordRoute,

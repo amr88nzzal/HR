@@ -954,6 +954,11 @@ export type IssuedDocumentsTable = {
   templateHash: string;
   fileId: string | null;
   issuedBy: string | null;
+  docNumber: string | null;
+  verifyToken: string | null;
+  revokedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  revokedBy: string | null;
+  revokeReason: string | null;
   createdAt: Generated<Date>;
 };
 
