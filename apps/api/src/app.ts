@@ -43,6 +43,7 @@ import {
   createOvertimeRouter,
   mountAttendanceRoutes,
 } from './modules/attendance/index.js';
+import { mountPayrollRoutes } from './modules/payroll/index.js';
 import { createLeaveRequestsRouter, mountLeaveRoutes } from './modules/leave/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
 import { requestIdMiddleware } from './shared/logging.js';
@@ -151,6 +152,7 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
       '/issued-documents',
       createIssuedDocumentsRouter(auth.db, authenticate, files, auth.render, auth.publicUrl),
     );
+    mountPayrollRoutes(api, auth.db, authenticate);
     api.use('/attendance-corrections', createCorrectionsRouter(auth.db, authenticate, engine));
     api.use('/overtime-requests', createOvertimeRouter(auth.db, authenticate, engine));
     app.use('/api/v1', api);

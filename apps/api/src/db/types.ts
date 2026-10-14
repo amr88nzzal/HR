@@ -965,6 +965,96 @@ export type IssuedDocumentsTable = {
   createdAt: Generated<Date>;
 };
 
+type Dec = ColumnType<string, string | number, string | number>;
+type DecNull = ColumnType<
+  string | null,
+  string | number | null | undefined,
+  string | number | null
+>;
+
+export type PayrollBasesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  includesBasic: Generated<boolean>;
+  isActive: Generated<boolean>;
+};
+export type RateTablesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  mode: 'progressive' | 'slab';
+  brackets: ColumnType<
+    { from: string; to: string | null; rate: string; fixed: string }[],
+    string,
+    string
+  >;
+  isActive: Generated<boolean>;
+};
+export type PayComponentsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  kind: 'earning' | 'deduction' | 'employer';
+  calcType: 'fixed' | 'percent' | 'formula' | 'rate_table';
+  fixedAmount: DecNull;
+  percent: DecNull;
+  baseId: string | null;
+  formula: string | null;
+  rateTableId: string | null;
+  roundingDecimals: Generated<number>;
+  displayOrder: Generated<number>;
+  isActive: Generated<boolean>;
+};
+export type PayComponentBasesTable = {
+  companyId: string;
+  baseId: string;
+  componentId: string;
+};
+export type SalaryStructuresTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  currency: string | null;
+  isActive: Generated<boolean>;
+};
+export type SalaryStructureComponentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  structureId: string;
+  componentId: string;
+  amount: DecNull;
+  percent: DecNull;
+};
+export type EmployeeSalariesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  structureId: string | null;
+  currency: string;
+  basicAmount: Dec;
+  validFrom: DateReq;
+  validTo: DateCol;
+  note: string | null;
+  createdBy: string | null;
+};
+export type EmployeeSalaryComponentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  employeeSalaryId: string;
+  componentId: string;
+  amount: DecNull;
+  percent: DecNull;
+};
+
 export type IntegrationSettingsTable = {
   id: Generated<string>;
   companyId: string;
@@ -1073,6 +1163,14 @@ export type Database = {
   letterTemplates: LetterTemplatesTable;
   letterTemplateVersions: LetterTemplateVersionsTable;
   issuedDocuments: IssuedDocumentsTable;
+  payrollBases: PayrollBasesTable;
+  rateTables: RateTablesTable;
+  payComponents: PayComponentsTable;
+  payComponentBases: PayComponentBasesTable;
+  salaryStructures: SalaryStructuresTable;
+  salaryStructureComponents: SalaryStructureComponentsTable;
+  employeeSalaries: EmployeeSalariesTable;
+  employeeSalaryComponents: EmployeeSalaryComponentsTable;
   attendanceCorrections: AttendanceCorrectionsTable;
   overtimeRequests: OvertimeRequestsTable;
   importProfiles: ImportProfilesTable;

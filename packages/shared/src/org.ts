@@ -14,7 +14,15 @@ const uuid = z.string().uuid();
 
 /** كل التعديلات تتطلب `version` الحالي (قفل متفائل). */
 export const withVersion = <T extends z.ZodRawShape>(shape: T) =>
-  z.object(shape).partial().extend({ version: z.number().int().positive() });
+  z
+    .object(
+      // بلا قيم افتراضية: وإلا أعاد PATCH الحقول غير المرسلة (مثل isActive) إلى افتراضيها بصمت
+      Object.fromEntries(
+        Object.entries(shape).map(([k, f]) => [k, f instanceof z.ZodDefault ? f.unwrap() : f]),
+      ) as T,
+    )
+    .partial()
+    .extend({ version: z.number().int().positive() });
 
 export const branchInput = z.object({
   code,

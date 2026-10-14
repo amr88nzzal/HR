@@ -91,6 +91,7 @@ describe('البيانات التجريبية', () => {
       'import:done',
       'adjustments:done',
       'letters:done',
+      'payroll:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -170,6 +171,14 @@ describe('البيانات التجريبية', () => {
     expect(await n('letter_templates')).toBe(2);
     expect(await n('letter_template_versions', sql`status = 'active'`)).toBe(2);
     expect(await n('letter_template_versions', sql`status = 'draft'`)).toBe(2);
+
+    // هيكل الرواتب: أسس ومكونات وجدول نسب وهيكلان وراتب لكل موظف (مع زيادتين)
+    expect(await n('payroll_bases')).toBe(2);
+    expect(await n('pay_components')).toBe(7);
+    expect(await n('rate_tables')).toBe(1);
+    expect(await n('salary_structures')).toBe(2);
+    expect(await n('employee_salaries', sql`valid_to is null`)).toBe(30);
+    expect(await n('employee_salaries', sql`valid_to is not null`)).toBe(2);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);
