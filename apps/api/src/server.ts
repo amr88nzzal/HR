@@ -65,6 +65,7 @@ const app = createApp({
           crypto,
           storage: createLocalStorage(config.STORAGE_DIR),
           jobs,
+          publicUrl: config.PUBLIC_URL,
           render: config.RENDER_URL ? createHttpRenderer(config.RENDER_URL) : undefined,
           mail: {
             provider: createMailProvider({

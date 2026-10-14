@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Router, type Request, type RequestHandler, type Response } from 'express';
+import rateLimit from 'express-rate-limit';
+import { sql } from 'kysely';
 import { z } from 'zod';
 import {
   LETTER_VARIABLES,
@@ -11,6 +13,7 @@ import {
   letterTemplateUpdate,
   letterVersionInput,
   renderLetterBody,
+  revokeDocumentInput,
   wrapLetterHtml,
 } from '@hrms/shared';
 import type { Db } from '../../db/index.js';
@@ -18,6 +21,7 @@ import { withTenant, type Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
 import { readStoredFile, saveStoredFile, type FileDeps } from '../../shared/stored-files.js';
 import { requirePermission } from '../identity/index.js';
+import { maskName, newVerifyToken, nextDocNumber, qrDataUrl, verifyUrlOf } from './numbering.js';
 import type { Renderer } from './render.js';
 import { loadLetterValues } from './values.js';
 
@@ -88,7 +92,11 @@ const activate = async (ctx: Ctx, templateId: string, versionId: string) => {
 };
 
 /** مدير القوالب: قوالب HTML بإصدارات (مسودة ← مفعّل ← مؤرشف) وتراجع بتفعيل إصدار سابق. */
-export const createLetterTemplatesRouter = (db: Db, authenticate: RequestHandler): Router => {
+export const createLetterTemplatesRouter = (
+  db: Db,
+  authenticate: RequestHandler,
+  publicUrl?: string,
+): Router => {
   const router = Router();
   const run = makeRun(db);
   router.use(authenticate);
@@ -295,6 +303,12 @@ export const createLetterTemplatesRouter = (db: Db, authenticate: RequestHandler
         }
         assertHtml(html);
         const values = await loadLetterValues(ctx, body.employeeId, t.language);
+        // معاينة: رقم وQR تجريبيان (لا يُستهلك رقم حقيقي)
+        const url = verifyUrlOf(publicUrl, 'preview');
+        values['document.number'] =
+          `${t.code}-${(values['document.today'] ?? '').slice(0, 4)}-XXXXXX`;
+        values['document.verifyUrl'] = url;
+        values['document.qr'] = url ? await qrDataUrl(url) : null;
         return { html: wrapLetterHtml(renderLetterBody(html, values), t.language) };
       });
       res.json({ data });
@@ -335,6 +349,7 @@ export const createIssuedDocumentsRouter = (
   authenticate: RequestHandler,
   files: FileDeps,
   render: Renderer | undefined,
+  publicUrl?: string,
 ): Router => {
   const router = Router();
   const run = makeRun(db);
@@ -355,8 +370,11 @@ export const createIssuedDocumentsRouter = (
         'v.versionNo as templateVersionNo',
         'd.language',
         'd.title',
+        'd.docNumber',
         'd.fileId',
         'd.createdAt',
+        'd.revokedAt',
+        'd.revokeReason',
       ])
       .where('d.companyId', '=', ctx.companyId);
 
@@ -377,6 +395,12 @@ export const createIssuedDocumentsRouter = (
           .where('id', '=', t.activeVersionId)
           .executeTakeFirstOrThrow();
         const values = await loadLetterValues(ctx, body.employeeId, t.language);
+        const docNumber = await nextDocNumber(ctx, t.code);
+        const token = newVerifyToken();
+        const url = verifyUrlOf(publicUrl, token);
+        values['document.number'] = docNumber;
+        values['document.verifyUrl'] = url;
+        values['document.qr'] = url ? await qrDataUrl(url) : null;
         const html = wrapLetterHtml(renderLetterBody(v.bodyHtml, values), t.language);
         const pdf = await render(html);
         const name = values['employee.fullName'] ?? body.employeeId;
@@ -397,7 +421,10 @@ export const createIssuedDocumentsRouter = (
             templateVersionId: v.id,
             language: t.language,
             title,
-            data: JSON.stringify(values),
+            // لا نحفظ صورة QR في اللقطة (تُعاد من الرمز)
+            data: JSON.stringify({ ...values, 'document.qr': null }),
+            docNumber,
+            verifyToken: token,
             templateHash: v.contentHash,
             fileId: file.id,
             issuedBy: ctx.userId ?? null,
@@ -442,6 +469,32 @@ export const createIssuedDocumentsRouter = (
     }),
   );
 
+  router.post(
+    '/:id/revoke',
+    requirePermission('letters.document.revoke'),
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      const { reason } = revokeDocumentInput.parse(req.body);
+      const data = await run(req, async (ctx) => {
+        const d = await ctx.trx
+          .selectFrom('issuedDocuments')
+          .select(['id', 'revokedAt'])
+          .where('id', '=', id)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!d) throw new AppError('NOT_FOUND', 404, 'الوثيقة غير موجودة');
+        if (d.revokedAt) throw new AppError('ALREADY_REVOKED', 409, 'الوثيقة مُبطلة مسبقاً');
+        await ctx.trx
+          .updateTable('issuedDocuments')
+          .set({ revokedAt: new Date(), revokedBy: ctx.userId ?? null, revokeReason: reason })
+          .where('id', '=', id)
+          .execute();
+        return select(ctx).where('d.id', '=', id).executeTakeFirstOrThrow();
+      });
+      res.json({ data });
+    }),
+  );
+
   router.get(
     '/:id/content',
     requirePermission('letters.document.read'),
@@ -466,6 +519,64 @@ export const createIssuedDocumentsRouter = (
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Cache-Control', 'no-store');
       res.send(bytes);
+    }),
+  );
+  return router;
+};
+
+/** التحقق العام (بلا جلسة) برمز QR: صحة الوثيقة ونوعها ورقمها وتاريخها واسم الموظف مقنّعاً فقط. */
+export const createPublicVerifyRouter = (db: Db, limit: boolean): Router => {
+  const router = Router();
+  if (limit)
+    router.use(
+      rateLimit({
+        windowMs: 60_000,
+        limit: 30,
+        standardHeaders: 'draft-7',
+        legacyHeaders: false,
+        handler: (_req, _res, next) =>
+          next(new AppError('RATE_LIMITED', 429, 'محاولات كثيرة، حاول بعد قليل')),
+      }),
+    );
+  router.get(
+    '/:token',
+    wrap(async (req, res) => {
+      const token = z
+        .string()
+        .regex(/^[A-Za-z0-9_-]{20,64}$/)
+        .safeParse(req.params['token']);
+      const notFound = () => new AppError('NOT_FOUND', 404, 'الوثيقة غير موجودة');
+      if (!token.success) throw notFound();
+      const { rows } = await sql<{
+        docNumber: string;
+        language: 'ar' | 'en';
+        templateNameAr: string;
+        templateNameEn: string | null;
+        employeeNameAr: string;
+        employeeNameEn: string | null;
+        companyNameAr: string;
+        companyNameEn: string | null;
+        issuedAt: Date;
+        revokedAt: Date | null;
+        fileSha256: string | null;
+      }>`select * from verify_issued_document(${token.data})`.execute(db);
+      const r = rows[0];
+      if (!r) throw notFound();
+      const en = r.language === 'en';
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({
+        data: {
+          valid: !r.revokedAt,
+          status: r.revokedAt ? 'revoked' : 'valid',
+          number: r.docNumber,
+          language: r.language,
+          type: en ? (r.templateNameEn ?? r.templateNameAr) : r.templateNameAr,
+          holder: maskName(en ? (r.employeeNameEn ?? r.employeeNameAr) : r.employeeNameAr),
+          company: en ? (r.companyNameEn ?? r.companyNameAr) : r.companyNameAr,
+          issuedAt: r.issuedAt.toISOString().slice(0, 10),
+          fileSha256: r.fileSha256,
+        },
+      });
     }),
   );
   return router;

@@ -93,6 +93,7 @@ describe('الوثائق الصادرة 6a: قوالب HTML وإصدار PDF', (
         settings,
         cookieSecure: false,
         rateLimit: false,
+        publicUrl: 'https://hr.example.com',
         storage: createLocalStorage(mkdtempSync(path.join(tmpdir(), 'hrms-letters-'))),
         render: async (html) => {
           rendered.push(html);
@@ -271,5 +272,73 @@ describe('الوثائق الصادرة 6a: قوالب HTML وإصدار PDF', (
       employeeId: emp,
     });
     expect(r.status).toBe(409);
+  });
+
+  it('الترقيم التسلسلي السنوي + QR + التحقق العام بلا جلسة (اسم مقنّع) + الإبطال', async () => {
+    const tpl = await post('admin', '/letter-templates', {
+      code: 'NUM-CERT',
+      nameAr: 'شهادة مرقّمة',
+      language: 'ar',
+      bodyHtml: '<p>رقم {{document.number}}</p>{{document.qr}}<p>{{document.verifyUrl}}</p>',
+    });
+    expect(tpl.status).toBe(201);
+    const before = rendered.length;
+    const a = await post('admin', '/issued-documents', {
+      templateId: tpl.body.data.id,
+      employeeId: emp,
+    });
+    const b = await post('admin', '/issued-documents', {
+      templateId: tpl.body.data.id,
+      employeeId: emp,
+    });
+    const year = String(new Date().getUTCFullYear());
+    expect(a.body.data.docNumber).toMatch(new RegExp(`^NUM-CERT-${year}-000001$`));
+    expect(b.body.data.docNumber).toMatch(new RegExp(`^NUM-CERT-${year}-000002$`));
+    // QR كصورة PNG مضمّنة ورابط التحقق في الصفحة المرسلة للتحويل
+    expect(rendered[before]).toContain('<img src="data:image/png;base64,');
+    const token = (
+      await admin
+        .selectFrom('issuedDocuments')
+        .select('verifyToken')
+        .where('id', '=', a.body.data.id)
+        .executeTakeFirstOrThrow()
+    ).verifyToken as string;
+    expect(token.length).toBeGreaterThanOrEqual(30);
+    expect(rendered[before]).toContain(`https://hr.example.com/verify/${token}`);
+
+    // التحقق العام: بلا Authorization
+    const v = await request(api).get(`/api/v1/public/verify/${token}`);
+    expect(v.status).toBe(200);
+    expect(v.body.data).toMatchObject({
+      valid: true,
+      status: 'valid',
+      number: a.body.data.docNumber,
+      type: 'شهادة مرقّمة',
+      company: 'شركة أكمي',
+    });
+    expect(v.body.data.holder).toBe('أح*** ال*** <b>***'.replace('<b>***', '<b***'));
+    expect(JSON.stringify(v.body)).not.toContain('الخطيب');
+    expect(v.body.data.fileSha256).toHaveLength(64);
+    expect((await request(api).get('/api/v1/public/verify/' + 'x'.repeat(30))).status).toBe(404);
+    expect((await request(api).get('/api/v1/public/verify/short')).status).toBe(404);
+
+    // الإبطال: يتطلب صلاحية وسبباً، فيصير التحقق «مبطلة»
+    expect(
+      (await post('emp', `/issued-documents/${a.body.data.id}/revoke`, { reason: 'x' })).status,
+    ).toBe(403);
+    expect((await post('admin', `/issued-documents/${a.body.data.id}/revoke`, {})).status).toBe(
+      400,
+    );
+    const rv = await post('admin', `/issued-documents/${a.body.data.id}/revoke`, {
+      reason: 'صدرت بالخطأ',
+    });
+    expect(rv.status).toBe(200);
+    expect(rv.body.data.revokedAt).toBeTruthy();
+    const v2 = await request(api).get(`/api/v1/public/verify/${token}`);
+    expect(v2.body.data).toMatchObject({ valid: false, status: 'revoked' });
+    expect(
+      (await post('admin', `/issued-documents/${a.body.data.id}/revoke`, { reason: 'مرة ثانية' }))
+        .status,
+    ).toBe(409);
   });
 });

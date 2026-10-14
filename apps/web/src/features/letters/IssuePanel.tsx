@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Select, Stack } from '@mantine/core';
+import { Alert, Badge, Button, Group, Modal, Select, Stack, Textarea } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -30,6 +30,8 @@ export const IssuePanel = ({ employeeId }: { employeeId?: string }) => {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [tpl, setTpl] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<IssuedRow | null>(null);
+  const [reason, setReason] = useState('');
   const [emp, setEmp] = useState<string | null>(employeeId ?? null);
   const canIssue = can('letters.document.issue');
   const templates = useQuery({
@@ -59,6 +61,16 @@ export const IssuePanel = ({ employeeId }: { employeeId?: string }) => {
     },
     onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
   });
+  const revoke = useMutation({
+    mutationFn: async () => api.post(`/issued-documents/${revoking?.id}/revoke`, { reason }),
+    onSuccess: async () => {
+      notifications.show({ color: 'teal', message: t('letters.revoked') });
+      setRevoking(null);
+      setReason('');
+      await qc.invalidateQueries({ queryKey: ['/issued-documents'] });
+    },
+    onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
+  });
   const download = async (r: IssuedRow) => {
     try {
       saveBlob(await api.blob(`/issued-documents/${r.id}/content`), `${r.title}.pdf`);
@@ -76,7 +88,21 @@ export const IssuePanel = ({ employeeId }: { employeeId?: string }) => {
             render: (r: IssuedRow) => r.employeeName,
           },
         ]),
-    { key: 'title', header: t('letters.docTitle'), render: (r) => r.title },
+    { key: 'no', header: t('letters.number'), render: (r) => r.docNumber ?? '—', ltr: true },
+    {
+      key: 'title',
+      header: t('letters.docTitle'),
+      render: (r) => (
+        <Group gap="xs">
+          {r.title}
+          {r.revokedAt && (
+            <Badge color="red" variant="light">
+              {t('letters.revokedBadge')}
+            </Badge>
+          )}
+        </Group>
+      ),
+    },
     {
       key: 'ver',
       header: t('letters.version'),
@@ -121,11 +147,35 @@ export const IssuePanel = ({ employeeId }: { employeeId?: string }) => {
         total={list.data?.total ?? 0}
         onPage={setPage}
         actions={(r) => (
-          <Button size="xs" variant="subtle" onClick={() => void download(r)}>
-            {t('letters.download')}
-          </Button>
+          <Group gap="xs" wrap="nowrap">
+            <Button size="xs" variant="subtle" onClick={() => void download(r)}>
+              {t('letters.download')}
+            </Button>
+            {can('letters.document.revoke') && !r.revokedAt && (
+              <Button size="xs" variant="subtle" color="red" onClick={() => setRevoking(r)}>
+                {t('letters.revoke')}
+              </Button>
+            )}
+          </Group>
         )}
       />
+      <Modal opened={!!revoking} onClose={() => setRevoking(null)} title={t('letters.revokeTitle')}>
+        <Stack>
+          <Textarea
+            label={t('letters.revokeReason')}
+            value={reason}
+            onChange={(e) => setReason(e.currentTarget.value)}
+          />
+          <Button
+            color="red"
+            disabled={!reason.trim()}
+            loading={revoke.isPending}
+            onClick={() => revoke.mutate()}
+          >
+            {t('letters.revokeConfirm')}
+          </Button>
+        </Stack>
+      </Modal>
     </Stack>
   );
 };

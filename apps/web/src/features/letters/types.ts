@@ -31,6 +31,8 @@ export type IssuedRow = {
   templateVersionNo: number;
   language: 'ar' | 'en';
   title: string;
+  docNumber: string | null;
+  revokedAt: string | null;
   createdAt: string;
 };
 

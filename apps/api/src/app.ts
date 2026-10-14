@@ -13,6 +13,7 @@ import type { FieldCrypto } from './shared/crypto.js';
 import {
   createIssuedDocumentsRouter,
   createLetterTemplatesRouter,
+  createPublicVerifyRouter,
   type Renderer,
 } from './modules/letters/index.js';
 import type { StorageProvider } from './shared/storage.js';
@@ -65,6 +66,8 @@ export type AppDeps = {
     mail?: { provider: MailProvider; envConfigured: boolean };
     /** محوّل HTML→PDF (حاوية render)؛ غيابه يعطّل إصدار الوثائق فقط */
     render?: Renderer;
+    /** العنوان العام (لرابط التحقق في QR)؛ غيابه = بلا QR */
+    publicUrl?: string;
     /** عميل Bot API (يُستبدل في الاختبار) */
     telegramApi?: TelegramApi;
   };
@@ -108,6 +111,8 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     const telegram = createTelegramProvider({ crypto: auth.crypto, api: telegramApi });
     // قبل أي راوتر يفرض المصادقة على كل المسارات
     api.use('/integrations/telegram/webhook', createTelegramWebhookRouter(auth.db, { telegram }));
+    // التحقق العام بلا مصادقة (قبل أي راوتر يفرضها)
+    api.use('/public/verify', createPublicVerifyRouter(auth.db, auth.rateLimit !== false));
     api.use(createIdentityAdminRouter(auth.db, authenticate));
     mountOrgRoutes(api, auth.db, authenticate);
     mountLeaveRoutes(api, auth.db, authenticate);
@@ -138,10 +143,13 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     api.use('/approval-delegations', createDelegationsRouter(auth.db, authenticate));
     api.use('/approvals', createApprovalsRouter(auth.db, authenticate, engine));
     api.use('/leave-requests', createLeaveRequestsRouter(auth.db, authenticate, engine));
-    api.use('/letter-templates', createLetterTemplatesRouter(auth.db, authenticate));
+    api.use(
+      '/letter-templates',
+      createLetterTemplatesRouter(auth.db, authenticate, auth.publicUrl),
+    );
     api.use(
       '/issued-documents',
-      createIssuedDocumentsRouter(auth.db, authenticate, files, auth.render),
+      createIssuedDocumentsRouter(auth.db, authenticate, files, auth.render, auth.publicUrl),
     );
     api.use('/attendance-corrections', createCorrectionsRouter(auth.db, authenticate, engine));
     api.use('/overtime-requests', createOvertimeRouter(auth.db, authenticate, engine));

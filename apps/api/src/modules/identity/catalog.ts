@@ -58,6 +58,7 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   ...crud('letters', 'template', 'قوالب الوثائق الصادرة'),
   def('letters', 'document', 'read', 'عرض سجل الوثائق الصادرة وتنزيلها'),
   def('letters', 'document', 'issue', 'إصدار وثيقة لموظف'),
+  def('letters', 'document', 'revoke', 'إبطال وثيقة صادرة'),
   def('approvals', 'flow', 'read', 'عرض سلاسل الموافقة'),
   def('approvals', 'flow', 'manage', 'إدارة سلاسل الموافقة'),
   def('approvals', 'request', 'read_all', 'عرض كل طلبات الموافقة'),
