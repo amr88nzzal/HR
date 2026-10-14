@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import { createDb, type Db } from '../../db/index.js';
 import { withTenant } from '../../db/tenant.js';
+import { docxText, makeDocx } from '../../test/docx.js';
 import { createLocalStorage } from '../../shared/storage.js';
 import { startTestPg, type TestPg } from '../../test/pg.js';
 import { hashPassword, seedDefaultRoles, syncPermissionCatalog } from '../identity/index.js';
@@ -26,11 +27,20 @@ describe('الوثائق الصادرة 6a: قوالب HTML وإصدار PDF', (
   let acme: string;
   let api: ReturnType<typeof createApp>;
   const rendered: string[] = [];
+  const convertedDocx: Buffer[] = [];
   const tokens: Record<string, string> = {};
   const as = (who: string) => ({ Authorization: `Bearer ${tokens[who]}` });
   const post = (who: string, p: string, body: object = {}) =>
     request(api).post(`/api/v1${p}`).set(as(who)).send(body);
   const get = (who: string, p: string) => request(api).get(`/api/v1${p}`).set(as(who));
+  const bin = (who: string, p: string) =>
+    get(who, p)
+      .buffer(true)
+      .parse((res, cb) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
 
   const makeUser = (email: string, roleCode: string) =>
     withTenant(admin, { companyId: acme }, async (ctx) => {
@@ -95,10 +105,18 @@ describe('الوثائق الصادرة 6a: قوالب HTML وإصدار PDF', (
         rateLimit: false,
         publicUrl: 'https://hr.example.com',
         storage: createLocalStorage(mkdtempSync(path.join(tmpdir(), 'hrms-letters-'))),
-        render: async (html) => {
-          rendered.push(html);
-          return Buffer.from('%PDF-1.4 fake pdf bytes');
-        },
+        render: Object.assign(
+          async (html: string) => {
+            rendered.push(html);
+            return Buffer.from('%PDF-1.4 fake pdf bytes');
+          },
+          {
+            docxToPdf: async (d: Buffer) => {
+              convertedDocx.push(d);
+              return Buffer.from('%PDF-1.4 fake docx pdf bytes');
+            },
+          },
+        ),
       },
     });
     await makeUser('admin@acme.test', 'admin');
@@ -340,5 +358,96 @@ describe('الوثائق الصادرة 6a: قوالب HTML وإصدار PDF', (
       (await post('admin', `/issued-documents/${a.body.data.id}/revoke`, { reason: 'مرة ثانية' }))
         .status,
     ).toBe(409);
+  });
+
+  it('6c: قالب DOCX — رفع وفحص وإصدار (PDF + نسخة DOCX) وتنزيل ومنع الأنواع الخاطئة', async () => {
+    const up = (who: string, p: string, buf: Buffer) =>
+      request(api)
+        .post(`/api/v1${p}`)
+        .set(as(who))
+        .set('Content-Type', 'application/octet-stream')
+        .send(buf);
+    const q = 'code=OFFER&nameAr=%D8%B9%D8%B1%D8%B6&language=ar&fileName=offer.docx';
+    const good = makeDocx([
+      ['تشهد {{company.na', 'me}} بأن {{employee.fullName}}'],
+      'الرقم {{document.number}} — {{document.verifyUrl}}',
+    ]);
+
+    // الصلاحية والفحص
+    expect((await up('emp', `/letter-templates/docx?${q}`, good)).status).toBe(403);
+    const macro = await up(
+      'admin',
+      `/letter-templates/docx?${q}`,
+      makeDocx(['x'], { files: { 'word/vbaProject.bin': 'zz' } }),
+    );
+    expect(macro.status).toBe(400);
+    expect(macro.body.error.code).toBe('INVALID_TEMPLATE');
+    const unknown = await up('admin', `/letter-templates/docx?${q}`, makeDocx(['{{nope}}']));
+    expect(unknown.status).toBe(400);
+    expect((await up('admin', `/letter-templates/docx?${q}`, Buffer.from('plain'))).status).toBe(
+      400,
+    );
+
+    const created = await up('admin', `/letter-templates/docx?${q}`, good);
+    expect(created.status).toBe(201);
+    const tpl = created.body.data;
+    expect(tpl.format).toBe('docx');
+    expect((await up('admin', `/letter-templates/docx?${q}`, good)).status).toBe(409);
+
+    // لا HTML على قالب DOCX ولا معاينة، وإصدار جديد DOCX فقط
+    expect(
+      (await post('admin', `/letter-templates/${tpl.id}/versions`, { bodyHtml: '<p>x</p>' }))
+        .status,
+    ).toBe(409);
+    expect(
+      (await post('admin', `/letter-templates/${tpl.id}/preview`, { employeeId: emp })).status,
+    ).toBe(409);
+    const v2 = await up(
+      'admin',
+      `/letter-templates/${tpl.id}/versions/docx?note=v2`,
+      makeDocx(['الشهادة لـ {{employee.fullName}}']),
+    );
+    expect(v2.status).toBe(201);
+    expect(v2.body.data.versionNo).toBe(2);
+    const detail = await get('admin', `/letter-templates/${tpl.id}`);
+    expect(detail.body.data.versions[0].docxFileId).toBeTruthy();
+    expect(detail.body.data.versions[0].bodyHtml).toBeNull();
+
+    // تنزيل ملف الإصدار الأول
+    const v1id = detail.body.data.versions.find((v: { versionNo: number }) => v.versionNo === 1).id;
+    const dl = await bin('admin', `/letter-templates/${tpl.id}/versions/${v1id}/docx`);
+    expect(dl.status).toBe(200);
+    expect(dl.headers['content-type']).toContain('wordprocessingml');
+    expect(docxText(dl.body)).toContain('{{employee.fullName}}');
+
+    // إصدار من الإصدار الأول (تراجع)
+    await post('admin', `/letter-templates/${tpl.id}/versions/${v1id}/activate`);
+    const before = convertedDocx.length;
+    const issued = await post('admin', '/issued-documents', {
+      templateId: tpl.id,
+      employeeId: emp,
+    });
+    expect(issued.status).toBe(201);
+    expect(issued.body.data.docxFileId).toBeTruthy();
+    expect(issued.body.data.docNumber).toMatch(/^OFFER-\d{4}-\d{6}$/);
+    expect(convertedDocx).toHaveLength(before + 1);
+    const filled = docxText(convertedDocx[before] as Buffer);
+    expect(filled).toContain('شركة أكمي');
+    expect(filled).toContain('أحمد');
+    expect(filled).toContain(issued.body.data.docNumber);
+    expect(filled).toContain('https://hr.example.com/verify/');
+    expect(filled).not.toContain('{{');
+
+    const pdf = await bin('admin', `/issued-documents/${issued.body.data.id}/content`);
+    expect(pdf.body.toString()).toContain('fake docx pdf');
+    const copy = await bin('admin', `/issued-documents/${issued.body.data.id}/docx`);
+    expect(copy.status).toBe(200);
+    expect(docxText(copy.body)).toContain(issued.body.data.docNumber);
+    expect((await get('emp', `/issued-documents/${issued.body.data.id}/docx`)).status).toBe(403);
+    // وثيقة HTML ليس لها نسخة DOCX
+    const htmlDoc = (await get('admin', '/issued-documents?pageSize=50')).body.data.find(
+      (d: { docxFileId: string | null }) => !d.docxFileId,
+    );
+    expect((await get('admin', `/issued-documents/${htmlDoc.id}/docx`)).status).toBe(404);
   });
 });

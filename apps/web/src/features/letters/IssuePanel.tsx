@@ -78,6 +78,13 @@ export const IssuePanel = ({ employeeId }: { employeeId?: string }) => {
       notifications.show({ color: 'red', message: errorMessage(e, t) });
     }
   };
+  const downloadDocx = async (r: IssuedRow) => {
+    try {
+      saveBlob(await api.blob(`/issued-documents/${r.id}/docx`), `${r.title}.docx`);
+    } catch (e) {
+      notifications.show({ color: 'red', message: errorMessage(e, t) });
+    }
+  };
   const columns: Column<IssuedRow>[] = [
     ...(employeeId
       ? []
@@ -151,6 +158,11 @@ export const IssuePanel = ({ employeeId }: { employeeId?: string }) => {
             <Button size="xs" variant="subtle" onClick={() => void download(r)}>
               {t('letters.download')}
             </Button>
+            {r.docxFileId && (
+              <Button size="xs" variant="subtle" onClick={() => void downloadDocx(r)}>
+                {t('letters.downloadDocx')}
+              </Button>
+            )}
             {can('letters.document.revoke') && !r.revokedAt && (
               <Button size="xs" variant="subtle" color="red" onClick={() => setRevoking(r)}>
                 {t('letters.revoke')}

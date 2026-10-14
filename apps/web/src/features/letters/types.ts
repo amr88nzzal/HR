@@ -4,6 +4,7 @@ export type TemplateRow = {
   nameAr: string;
   nameEn: string | null;
   language: 'ar' | 'en';
+  format: 'html' | 'docx';
   category: string;
   isActive: boolean;
   version: number;
@@ -14,7 +15,8 @@ export type TemplateRow = {
 export type VersionRow = {
   id: string;
   versionNo: number;
-  bodyHtml: string;
+  bodyHtml: string | null;
+  docxFileId: string | null;
   status: 'draft' | 'active' | 'archived';
   note: string | null;
   createdAt: string;
@@ -32,6 +34,7 @@ export type IssuedRow = {
   language: 'ar' | 'en';
   title: string;
   docNumber: string | null;
+  docxFileId: string | null;
   revokedAt: string | null;
   createdAt: string;
 };

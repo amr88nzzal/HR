@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { Router, type Request, type RequestHandler, type Response } from 'express';
+import express, { Router, type Request, type RequestHandler, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -19,6 +19,7 @@ import {
 import type { Db } from '../../db/index.js';
 import { withTenant, type Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
+import { DOCX_MIME, fillDocx, inspectDocx, sha256 } from './docx.js';
 import { readStoredFile, saveStoredFile, type FileDeps } from '../../shared/stored-files.js';
 import { requirePermission } from '../identity/index.js';
 import { maskName, newVerifyToken, nextDocNumber, qrDataUrl, verifyUrlOf } from './numbering.js';
@@ -63,6 +64,24 @@ const loadTemplate = async (ctx: Ctx, id: string) => {
   return t;
 };
 
+const DOCX_MAX_BYTES = 5 * 1024 * 1024;
+
+const readDocxBody = (req: Request): Buffer => {
+  const body = req.body as unknown;
+  if (!Buffer.isBuffer(body) || body.length === 0)
+    throw new AppError('INVALID_FILE', 400, 'لم يُرفق ملف');
+  inspectDocx(body);
+  return body;
+};
+
+const sendFile = (res: Response, bytes: Buffer, mime: string, name: string) => {
+  res.setHeader('Content-Type', mime);
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(name)}`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(bytes);
+};
+
 const nextVersionNo = async (ctx: Ctx, templateId: string): Promise<number> => {
   const r = await ctx.trx
     .selectFrom('letterTemplateVersions')
@@ -95,6 +114,7 @@ const activate = async (ctx: Ctx, templateId: string, versionId: string) => {
 export const createLetterTemplatesRouter = (
   db: Db,
   authenticate: RequestHandler,
+  files: FileDeps,
   publicUrl?: string,
 ): Router => {
   const router = Router();
@@ -119,6 +139,7 @@ export const createLetterTemplatesRouter = (
             't.nameAr',
             't.nameEn',
             't.language',
+            't.format',
             't.category',
             't.isActive',
             't.version',
@@ -181,6 +202,124 @@ export const createLetterTemplatesRouter = (
     }),
   );
 
+  const docxUpload = express.raw({ type: () => true, limit: DOCX_MAX_BYTES });
+  const docxName = (q: unknown) =>
+    z.object({ fileName: z.string().max(200).optional() }).parse(q).fileName ?? 'template.docx';
+
+  router.post(
+    '/docx',
+    requirePermission('letters.template.create'),
+    docxUpload,
+    wrap(async (req, res) => {
+      const body = letterTemplateInput.omit({ bodyHtml: true }).parse(req.query);
+      const buf = readDocxBody(req);
+      const auth = req.auth as NonNullable<Request['auth']>;
+      const data = await run(req, async (ctx) => {
+        let id: string;
+        try {
+          id = (
+            await ctx.trx
+              .insertInto('letterTemplates')
+              .values({
+                companyId: ctx.companyId,
+                code: body.code,
+                nameAr: body.nameAr,
+                nameEn: body.nameEn || null,
+                language: body.language,
+                category: body.category,
+                format: 'docx',
+              })
+              .returning('id')
+              .executeTakeFirstOrThrow()
+          ).id;
+        } catch (e) {
+          if ((e as { code?: string }).code === '23505')
+            throw new AppError('DUPLICATE_CODE', 409, 'رمز القالب مستعمل');
+          throw e;
+        }
+        const file = await saveStoredFile(ctx, files, {
+          buffer: buf,
+          mime: DOCX_MIME,
+          originalName: docxName(req.query),
+          purpose: 'letter_template',
+          encrypt: false,
+        });
+        const v = await ctx.trx
+          .insertInto('letterTemplateVersions')
+          .values({
+            companyId: ctx.companyId,
+            templateId: id,
+            versionNo: 1,
+            docxFileId: file.id,
+            contentHash: sha256(buf),
+            createdBy: auth.userId,
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+        await activate(ctx, id, v.id);
+        return loadTemplate(ctx, id);
+      });
+      res.status(201).json({ data });
+    }),
+  );
+
+  router.post(
+    '/:id/versions/docx',
+    requirePermission('letters.template.update'),
+    docxUpload,
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      const note = z.object({ note: z.string().trim().max(300).optional() }).parse(req.query).note;
+      const buf = readDocxBody(req);
+      const auth = req.auth as NonNullable<Request['auth']>;
+      const data = await run(req, async (ctx) => {
+        const t = await loadTemplate(ctx, id);
+        if (t.format !== 'docx') throw new AppError('WRONG_FORMAT', 409, 'هذا القالب من نوع HTML');
+        const file = await saveStoredFile(ctx, files, {
+          buffer: buf,
+          mime: DOCX_MIME,
+          originalName: docxName(req.query),
+          purpose: 'letter_template',
+          encrypt: false,
+        });
+        return ctx.trx
+          .insertInto('letterTemplateVersions')
+          .values({
+            companyId: ctx.companyId,
+            templateId: id,
+            versionNo: await nextVersionNo(ctx, id),
+            docxFileId: file.id,
+            contentHash: sha256(buf),
+            note: note ?? null,
+            createdBy: auth.userId,
+          })
+          .returning(['id', 'versionNo', 'status'])
+          .executeTakeFirstOrThrow();
+      });
+      res.status(201).json({ data });
+    }),
+  );
+
+  router.get(
+    '/:id/versions/:versionId/docx',
+    requirePermission('letters.template.read'),
+    wrap(async (req, res) => {
+      const { id, versionId } = verParam.parse(req.params);
+      const file = await run(req, async (ctx) => {
+        const f = await ctx.trx
+          .selectFrom('letterTemplateVersions as v')
+          .innerJoin('storedFiles as f', 'f.id', 'v.docxFileId')
+          .selectAll('f')
+          .where('v.id', '=', versionId)
+          .where('v.templateId', '=', id)
+          .executeTakeFirst();
+        if (!f) throw new AppError('NOT_FOUND', 404, 'الملف غير موجود');
+        return f;
+      });
+      sendFile(res, await readStoredFile(files, file), DOCX_MIME, file.originalName);
+    }),
+  );
+
   router.get(
     '/:id',
     requirePermission('letters.template.read'),
@@ -194,6 +333,7 @@ export const createLetterTemplatesRouter = (
             'id',
             'versionNo',
             'bodyHtml',
+            'docxFileId',
             'contentHash',
             'status',
             'note',
@@ -242,7 +382,9 @@ export const createLetterTemplatesRouter = (
       assertHtml(body.bodyHtml);
       const auth = req.auth as NonNullable<Request['auth']>;
       const data = await run(req, async (ctx) => {
-        await loadTemplate(ctx, id);
+        const t = await loadTemplate(ctx, id);
+        if (t.format !== 'html')
+          throw new AppError('WRONG_FORMAT', 409, 'هذا القالب من نوع DOCX؛ ارفع ملف DOCX');
         return ctx.trx
           .insertInto('letterTemplateVersions')
           .values({
@@ -290,8 +432,11 @@ export const createLetterTemplatesRouter = (
       const body = letterPreviewInput.parse(req.body);
       const data = await run(req, async (ctx) => {
         const t = await loadTemplate(ctx, id);
+        if (t.format !== 'html')
+          throw new AppError('PREVIEW_UNSUPPORTED', 409, 'المعاينة لقوالب HTML فقط؛ نزّل ملف DOCX');
         let html = body.bodyHtml;
         if (html === undefined) {
+          // (إصدارات HTML فقط)
           const v = await ctx.trx
             .selectFrom('letterTemplateVersions')
             .select('bodyHtml')
@@ -299,7 +444,7 @@ export const createLetterTemplatesRouter = (
             .where('id', '=', (body.versionId ?? t.activeVersionId) as string)
             .executeTakeFirst();
           if (!v) throw new AppError('NOT_FOUND', 404, 'الإصدار غير موجود');
-          html = v.bodyHtml;
+          html = v.bodyHtml ?? '';
         }
         assertHtml(html);
         const values = await loadLetterValues(ctx, body.employeeId, t.language);
@@ -372,6 +517,7 @@ export const createIssuedDocumentsRouter = (
         'd.title',
         'd.docNumber',
         'd.fileId',
+        'd.docxFileId',
         'd.createdAt',
         'd.revokedAt',
         'd.revokeReason',
@@ -391,7 +537,7 @@ export const createIssuedDocumentsRouter = (
           throw new AppError('NO_ACTIVE_VERSION', 409, 'لا إصدار مفعّل للقالب');
         const v = await ctx.trx
           .selectFrom('letterTemplateVersions')
-          .select(['id', 'bodyHtml', 'contentHash'])
+          .select(['id', 'bodyHtml', 'docxFileId', 'contentHash'])
           .where('id', '=', t.activeVersionId)
           .executeTakeFirstOrThrow();
         const values = await loadLetterValues(ctx, body.employeeId, t.language);
@@ -400,15 +546,38 @@ export const createIssuedDocumentsRouter = (
         const url = verifyUrlOf(publicUrl, token);
         values['document.number'] = docNumber;
         values['document.verifyUrl'] = url;
-        values['document.qr'] = url ? await qrDataUrl(url) : null;
-        const html = wrapLetterHtml(renderLetterBody(v.bodyHtml, values), t.language);
-        const pdf = await render(html);
         const name = values['employee.fullName'] ?? body.employeeId;
         const title = `${t.language === 'en' ? (t.nameEn ?? t.nameAr) : t.nameAr} — ${name}`;
+        const base = `${t.code}-${values['employee.employeeNo'] ?? 'doc'}`;
+        let pdf: Buffer;
+        let docxFileId: string | null = null;
+        if (t.format === 'docx') {
+          if (!render.docxToPdf)
+            throw new AppError('RENDER_NOT_CONFIGURED', 503, 'تحويل DOCX إلى PDF غير مهيّأ');
+          const src = await ctx.trx
+            .selectFrom('storedFiles')
+            .selectAll()
+            .where('id', '=', v.docxFileId as string)
+            .executeTakeFirstOrThrow();
+          const filled = fillDocx(await readStoredFile(files, src), values);
+          pdf = await render.docxToPdf(filled);
+          const df = await saveStoredFile(ctx, files, {
+            buffer: filled,
+            mime: DOCX_MIME,
+            originalName: `${base}.docx`,
+            purpose: 'issued_document',
+            encrypt: false,
+          });
+          docxFileId = df.id;
+        } else {
+          values['document.qr'] = url ? await qrDataUrl(url) : null;
+          const html = wrapLetterHtml(renderLetterBody(v.bodyHtml ?? '', values), t.language);
+          pdf = await render(html);
+        }
         const file = await saveStoredFile(ctx, files, {
           buffer: pdf,
           mime: 'application/pdf',
-          originalName: `${t.code}-${values['employee.employeeNo'] ?? 'doc'}.pdf`,
+          originalName: `${base}.pdf`,
           purpose: 'issued_document',
           encrypt: false,
         });
@@ -427,6 +596,7 @@ export const createIssuedDocumentsRouter = (
             verifyToken: token,
             templateHash: v.contentHash,
             fileId: file.id,
+            docxFileId,
             issuedBy: ctx.userId ?? null,
           })
           .returning('id')
@@ -510,15 +680,26 @@ export const createIssuedDocumentsRouter = (
         if (!f) throw new AppError('NOT_FOUND', 404, 'الوثيقة غير موجودة');
         return f;
       });
-      const bytes = await readStoredFile(files, file);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
-      );
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Cache-Control', 'no-store');
-      res.send(bytes);
+      sendFile(res, await readStoredFile(files, file), 'application/pdf', file.originalName);
+    }),
+  );
+
+  router.get(
+    '/:id/docx',
+    requirePermission('letters.document.read'),
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      const file = await run(req, async (ctx) => {
+        const f = await ctx.trx
+          .selectFrom('issuedDocuments as d')
+          .innerJoin('storedFiles as f', 'f.id', 'd.docxFileId')
+          .selectAll('f')
+          .where('d.id', '=', id)
+          .executeTakeFirst();
+        if (!f) throw new AppError('NOT_FOUND', 404, 'لا توجد نسخة DOCX لهذه الوثيقة');
+        return f;
+      });
+      sendFile(res, await readStoredFile(files, file), DOCX_MIME, file.originalName);
     }),
   );
   return router;
