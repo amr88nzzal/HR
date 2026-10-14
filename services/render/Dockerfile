@@ -1,7 +1,8 @@
-# حاوية التحويل إلى PDF: Chromium + الخطوط العربية المضمّنة. تعمل على ARM64 وAMD64.
+# حاوية التحويل إلى PDF: Chromium (HTML) + LibreOffice (DOCX) + الخطوط العربية المضمّنة. تعمل على ARM64 وAMD64.
 FROM node:22-bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends chromium fontconfig ca-certificates \
+       libreoffice-writer libreoffice-core \
     && rm -rf /var/lib/apt/lists/*
 # الخطوط (OFL) تُسجَّل في النظام فيجدها Chromium بالاسم (Amiri / Noto Naskh Arabic)
 COPY spikes/arabic-certificate/fonts/ /usr/local/share/fonts/hrms/

@@ -627,6 +627,15 @@ export const en: Messages = {
     issuedAt: 'Issue date',
   },
   letters: {
+    format: 'Template type',
+    formatHtml: 'HTML page',
+    formatDocx: 'Word file (DOCX)',
+    docxFile: 'Word file (DOCX)',
+    docxHint:
+      'Put variables in the file as {{employee.fullName}} (click a variable to copy it). A QR image is not supported in DOCX; use {{document.number}} and {{document.verifyUrl}}.',
+    downloadTemplate: 'Download template file',
+    downloadDocx: 'Download DOCX',
+    copied: 'Copied {{token}}',
     code: 'Code',
     nameAr: 'Name (Arabic)',
     nameEn: 'Name (English)',

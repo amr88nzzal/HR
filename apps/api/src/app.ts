@@ -145,7 +145,7 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     api.use('/leave-requests', createLeaveRequestsRouter(auth.db, authenticate, engine));
     api.use(
       '/letter-templates',
-      createLetterTemplatesRouter(auth.db, authenticate, auth.publicUrl),
+      createLetterTemplatesRouter(auth.db, authenticate, files, auth.publicUrl),
     );
     api.use(
       '/issued-documents',

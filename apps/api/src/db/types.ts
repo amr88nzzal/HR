@@ -468,7 +468,7 @@ export type StoredFilesTable = {
   sizeBytes: ColumnType<string, number | string, number | string>;
   sha256: string;
   isEncrypted: Generated<boolean>;
-  purpose: 'document' | 'employee_photo' | 'issued_document';
+  purpose: 'document' | 'employee_photo' | 'issued_document' | 'letter_template';
   parentId: string | null;
   variant: string | null;
   createdBy: string | null;
@@ -921,6 +921,7 @@ export type LetterTemplatesTable = Versioned & {
   nameAr: string;
   nameEn: string | null;
   language: 'ar' | 'en';
+  format: Generated<'html' | 'docx'>;
   category: Generated<string>;
   activeVersionId: string | null;
   isActive: Generated<boolean>;
@@ -933,7 +934,8 @@ export type LetterTemplateVersionsTable = {
   companyId: string;
   templateId: string;
   versionNo: number;
-  bodyHtml: string;
+  bodyHtml: string | null;
+  docxFileId: string | null;
   contentHash: string;
   status: Generated<'draft' | 'active' | 'archived'>;
   note: string | null;
@@ -953,6 +955,7 @@ export type IssuedDocumentsTable = {
   data: ColumnType<Record<string, unknown>, string | undefined, string>;
   templateHash: string;
   fileId: string | null;
+  docxFileId: string | null;
   issuedBy: string | null;
   docNumber: string | null;
   verifyToken: string | null;

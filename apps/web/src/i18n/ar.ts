@@ -616,6 +616,15 @@ export const ar = {
     issuedAt: 'تاريخ الإصدار',
   },
   letters: {
+    format: 'نوع القالب',
+    formatHtml: 'صفحة HTML',
+    formatDocx: 'ملف Word (DOCX)',
+    docxFile: 'ملف Word (DOCX)',
+    docxHint:
+      'ضع المتغيرات في الملف بصيغة {{employee.fullName}} (اضغط متغيراً من القائمة لنسخه). لا يُدعم رمز QR كصورة في DOCX؛ استعمل {{document.number}} و{{document.verifyUrl}}.',
+    downloadTemplate: 'تنزيل ملف القالب',
+    downloadDocx: 'تنزيل DOCX',
+    copied: 'نُسخ {{token}}',
     code: 'الرمز',
     nameAr: 'الاسم بالعربية',
     nameEn: 'الاسم بالإنجليزية',
