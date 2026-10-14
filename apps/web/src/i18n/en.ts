@@ -1,5 +1,6 @@
 import type { Messages } from './ar';
 import { hrEn, hrFieldsEn, hrNavEn } from './hr.en';
+import { payrollEn, payrollNavEn } from './payroll.en';
 
 export const en: Messages = {
   app: { name: 'HR Management System', loading: 'Loading…' },
@@ -41,6 +42,7 @@ export const en: Messages = {
   },
   nav: {
     ...hrNavEn,
+    ...payrollNavEn,
     dashboard: 'Home',
     org: 'Organization',
     branches: 'Branches',
@@ -960,6 +962,7 @@ export const en: Messages = {
     },
   },
   hr: hrEn,
+  payroll: payrollEn,
   errors: {
     forbiddenTitle: 'Not authorized',
     forbidden: 'You do not have permission to view this page',

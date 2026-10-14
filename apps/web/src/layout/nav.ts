@@ -208,6 +208,17 @@ export const NAV: (NavLeaf | NavGroup)[] = [
     ],
   },
   {
+    key: 'payrollGroup',
+    items: [
+      {
+        key: 'payrollSetup',
+        path: '/payroll/setup',
+        icon: IconCash,
+        permission: 'payroll.component.read',
+      },
+    ],
+  },
+  {
     key: 'approvalsGroup',
     items: [
       { key: 'approvalsInbox', path: '/approvals', icon: IconChecklist },

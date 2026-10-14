@@ -23,6 +23,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../lib/errors';
 import { localName } from '../../lib/names';
 import { IssuePanel } from '../letters/IssuePanel';
+import { SalaryTab } from '../payroll/SalaryTab';
 import { DocumentsPanel } from '../archive/DocumentsPanel';
 import { BankTab } from './BankTab';
 import {
@@ -181,6 +182,12 @@ export const EmployeePage = () => {
       label: t('hr.emp.tabs.documents'),
       show: can('archive.document.read'),
       body: <DocumentsPanel ownerType="employee" ownerId={employeeId} />,
+    },
+    {
+      value: 'salary',
+      label: t('hr.emp.tabs.salary'),
+      show: can('payroll.salary.read'),
+      body: <SalaryTab employeeId={employeeId} />,
     },
     {
       value: 'letters',

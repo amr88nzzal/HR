@@ -35,3 +35,5 @@ export * from './notifications.js';
 export * from './approvals.js';
 export * from './leave.js';
 export * from './integrations.js';
+export * from './formula.js';
+export * from './payroll.js';

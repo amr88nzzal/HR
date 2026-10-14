@@ -56,6 +56,12 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('employees', 'bank_account', 'manage', 'إدارة الحسابات البنكية'),
   def('employees', 'bank_account', 'reveal', 'كشف رقم الحساب البنكي كاملاً (مدقَّق)'),
   ...crud('letters', 'template', 'قوالب الوثائق الصادرة'),
+  ...crud('payroll', 'base', 'أسس احتساب الرواتب'),
+  ...crud('payroll', 'component', 'مكونات الرواتب (استحقاقات واستقطاعات)'),
+  ...crud('payroll', 'rate_table', 'جداول النسب (تأمينات وضريبة)'),
+  ...crud('payroll', 'structure', 'هياكل الرواتب'),
+  def('payroll', 'salary', 'read', 'عرض رواتب الموظفين'),
+  def('payroll', 'salary', 'manage', 'إدارة رواتب الموظفين'),
   def('letters', 'document', 'read', 'عرض سجل الوثائق الصادرة وتنزيلها'),
   def('letters', 'document', 'issue', 'إصدار وثيقة لموظف'),
   def('letters', 'document', 'revoke', 'إبطال وثيقة صادرة'),
@@ -131,6 +137,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
         c === 'attendance.correction.read_all' ||
         c === 'letters.document.issue' ||
         c === 'attendance.overtime.read_all') &&
+      !c.startsWith('payroll.') &&
       c !== 'system.audit.read' &&
       c !== 'system.job.read' &&
       c !== 'system.integration.read' &&

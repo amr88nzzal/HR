@@ -38,7 +38,8 @@ export type ExtrasPart =
   | 'punches'
   | 'import'
   | 'adjustments'
-  | 'letters';
+  | 'letters'
+  | 'payroll';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
 const pad = (n: number, w = 3) => String(n).padStart(w, '0');
@@ -1316,6 +1317,227 @@ const seedImport = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+// ───────────────────────── 10) هيكل الرواتب ─────────────────────────
+const seedPayroll = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('rateTables')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('code', '=', 'demo_tax')
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const emps = await loadEmployees(ctx);
+  if (!emps.length) return 'skip لا موظفين تجريبيين';
+  const cur = await trx
+    .selectFrom('currencies')
+    .select('code')
+    .where('companyId', '=', companyId)
+    .where('isBase', '=', true)
+    .executeTakeFirst();
+  const currency = cur?.code ?? 'JOD';
+
+  // شرائح توضيحية فقط (ليست قانوناً): تُضبط من «جداول النسب»
+  const tax = await trx
+    .insertInto('rateTables')
+    .values({
+      companyId,
+      code: 'demo_tax',
+      nameAr: 'ضريبة دخل شهرية (توضيحي)',
+      nameEn: 'Monthly income tax (illustrative)',
+      mode: 'progressive',
+      brackets: JSON.stringify([
+        { from: '0', to: '1000', rate: '0', fixed: '0' },
+        { from: '1000', to: '1500', rate: '5', fixed: '0' },
+        { from: '1500', to: null, rate: '10', fixed: '0' },
+      ]),
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  const mkBase = async (code: string, nameAr: string, nameEn: string) =>
+    (
+      await trx
+        .insertInto('payrollBases')
+        .values({ companyId, code, nameAr, nameEn, includesBasic: true })
+        .returning('id')
+        .executeTakeFirstOrThrow()
+    ).id;
+  const insurable = await mkBase('demo_insurable', 'أساس الضمان', 'Social security base');
+  const taxable = await mkBase('demo_taxable', 'الأساس الخاضع للضريبة', 'Taxable base');
+
+  type C = {
+    code: string;
+    nameAr: string;
+    nameEn: string;
+    kind: 'earning' | 'deduction' | 'employer';
+    calcType: 'fixed' | 'percent' | 'formula' | 'rate_table';
+    fixedAmount?: string;
+    percent?: string;
+    baseId?: string;
+    formula?: string;
+    rateTableId?: string;
+    order: number;
+  };
+  const defs: C[] = [
+    {
+      code: 'demo_housing',
+      nameAr: 'بدل سكن',
+      nameEn: 'Housing allowance',
+      kind: 'earning',
+      calcType: 'fixed',
+      fixedAmount: '100',
+      order: 10,
+    },
+    {
+      code: 'demo_transport',
+      nameAr: 'بدل مواصلات',
+      nameEn: 'Transport allowance',
+      kind: 'earning',
+      calcType: 'fixed',
+      fixedAmount: '40',
+      order: 20,
+    },
+    {
+      code: 'demo_overtime',
+      nameAr: 'أجر العمل الإضافي',
+      nameEn: 'Overtime pay',
+      kind: 'earning',
+      calcType: 'formula',
+      formula: 'round(basic / days_in_period / 8 * overtime_hours * 1.25, 3)',
+      order: 30,
+    },
+    {
+      code: 'demo_social',
+      nameAr: 'اشتراك الضمان (الموظف)',
+      nameEn: 'Social security (employee)',
+      kind: 'deduction',
+      calcType: 'percent',
+      percent: '7.5',
+      baseId: insurable,
+      order: 40,
+    },
+    {
+      code: 'demo_tax_ded',
+      nameAr: 'ضريبة الدخل',
+      nameEn: 'Income tax',
+      kind: 'deduction',
+      calcType: 'rate_table',
+      rateTableId: tax.id,
+      baseId: taxable,
+      order: 50,
+    },
+    {
+      code: 'demo_absence',
+      nameAr: 'خصم الغياب',
+      nameEn: 'Absence deduction',
+      kind: 'deduction',
+      calcType: 'formula',
+      formula: 'round(basic / days_in_period * absent_days, 3)',
+      order: 60,
+    },
+    {
+      code: 'demo_social_er',
+      nameAr: 'اشتراك الضمان (الشركة)',
+      nameEn: 'Social security (employer)',
+      kind: 'employer',
+      calcType: 'percent',
+      percent: '14.25',
+      baseId: insurable,
+      order: 70,
+    },
+  ];
+  const ids: Record<string, string> = {};
+  for (const d of defs) {
+    ids[d.code] = (
+      await trx
+        .insertInto('payComponents')
+        .values({
+          companyId,
+          code: d.code,
+          nameAr: d.nameAr,
+          nameEn: d.nameEn,
+          kind: d.kind,
+          calcType: d.calcType,
+          fixedAmount: d.fixedAmount ?? null,
+          percent: d.percent ?? null,
+          baseId: d.baseId ?? null,
+          formula: d.formula ?? null,
+          rateTableId: d.rateTableId ?? null,
+          roundingDecimals: 3,
+          displayOrder: d.order,
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow()
+    ).id;
+  }
+  const link = (baseId: string, codes: string[]) =>
+    trx
+      .insertInto('payComponentBases')
+      .values(codes.map((c) => ({ companyId, baseId, componentId: ids[c] as string })))
+      .execute();
+  await link(insurable, ['demo_housing']);
+  await link(taxable, ['demo_housing', 'demo_transport', 'demo_overtime']);
+
+  const mkStructure = async (code: string, nameAr: string, nameEn: string, housing: string) => {
+    const s = await trx
+      .insertInto('salaryStructures')
+      .values({ companyId, code, nameAr, nameEn, currency })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await trx
+      .insertInto('salaryStructureComponents')
+      .values(
+        defs.map((d) => ({
+          companyId,
+          structureId: s.id,
+          componentId: ids[d.code] as string,
+          amount: d.code === 'demo_housing' ? housing : null,
+          percent: null,
+        })),
+      )
+      .execute();
+    return s.id;
+  };
+  const std = await mkStructure('demo_std', 'هيكل الموظفين', 'Staff structure', '100');
+  const mgr = await mkStructure('demo_mgr', 'هيكل الإدارة', 'Management structure', '250');
+
+  // راتب لكل موظف تجريبي بخط زمني؛ لموظفين اثنين زيادة سابقة وحالية
+  const raised = new Set([5, 12]);
+  for (const [i, e] of emps.entries()) {
+    const n = i + 1;
+    const basic = 350 + (n % 9) * 45;
+    const structureId = n % 10 === 1 ? mgr : std;
+    if (raised.has(n)) {
+      await trx
+        .insertInto('employeeSalaries')
+        .values({
+          companyId,
+          employeeId: e.id,
+          structureId,
+          currency,
+          basicAmount: String(basic),
+          validFrom: '2025-01-01',
+          validTo: '2025-12-31',
+          note: 'راتب التعيين',
+        })
+        .execute();
+    }
+    await trx
+      .insertInto('employeeSalaries')
+      .values({
+        companyId,
+        employeeId: e.id,
+        structureId,
+        currency,
+        basicAmount: String(raised.has(n) ? basic + 50 : basic),
+        validFrom: raised.has(n) ? '2026-01-01' : '2025-01-01',
+        note: raised.has(n) ? 'زيادة سنوية' : 'راتب التعيين',
+      })
+      .execute();
+  }
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -1337,6 +1559,7 @@ export const seedDemoExtras = async (
     ['import', (ctx) => seedImport(ctx)],
     ['adjustments', (ctx) => seedAdjustments(ctx)],
     ['letters', (ctx) => seedLetters(ctx)],
+    ['payroll', (ctx) => seedPayroll(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);

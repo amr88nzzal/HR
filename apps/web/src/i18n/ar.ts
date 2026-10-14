@@ -1,4 +1,5 @@
 import { hrAr, hrFieldsAr, hrNavAr } from './hr.ar';
+import { payrollAr, payrollNavAr } from './payroll.ar';
 
 export const ar = {
   app: { name: 'نظام شؤون الموظفين', loading: 'جارٍ التحميل…' },
@@ -40,6 +41,7 @@ export const ar = {
   },
   nav: {
     ...hrNavAr,
+    ...payrollNavAr,
     dashboard: 'الرئيسية',
     org: 'الهيكل التنظيمي',
     branches: 'الفروع',
@@ -947,6 +949,7 @@ export const ar = {
     },
   },
   hr: hrAr,
+  payroll: payrollAr,
   errors: {
     forbiddenTitle: 'غير مصرّح',
     forbidden: 'لا تملك صلاحية الوصول إلى هذه الصفحة',

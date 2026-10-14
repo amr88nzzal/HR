@@ -1,0 +1,62 @@
+export type Component = {
+  id: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  kind: 'earning' | 'deduction' | 'employer';
+  calcType: 'fixed' | 'percent' | 'formula' | 'rate_table';
+  fixedAmount: string | null;
+  percent: string | null;
+  baseId: string | null;
+  formula: string | null;
+  rateTableId: string | null;
+  roundingDecimals: number;
+  displayOrder: number;
+  isActive: boolean;
+  version: number;
+};
+export type Base = {
+  id: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  includesBasic: boolean;
+  componentIds: string[];
+  isActive: boolean;
+  version: number;
+};
+export type Bracket = { from: string; to: string | null; rate: string; fixed: string };
+export type RateTable = {
+  id: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  mode: 'progressive' | 'slab';
+  brackets: Bracket[];
+  isActive: boolean;
+  version: number;
+};
+export type Item = { componentId: string; amount: string | null; percent: string | null };
+export type Structure = {
+  id: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  currency: string | null;
+  items: Item[];
+  isActive: boolean;
+  version: number;
+};
+export type SalaryRow = {
+  id: string;
+  structureId: string | null;
+  structureName: string | null;
+  currency: string;
+  basicAmount: string;
+  validFrom: string;
+  validTo: string | null;
+  note: string | null;
+  version: number;
+  components: Item[];
+};
+export type Variable = { key: string; labelAr: string; labelEn: string };
