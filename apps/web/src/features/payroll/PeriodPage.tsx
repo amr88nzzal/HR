@@ -24,6 +24,7 @@ import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../lib/errors';
 import { statusColor } from './PeriodsPage';
+import { PaymentsPanel } from './PaymentsPanel';
 import { PayslipDrawer } from './PayslipDrawer';
 import { FormModal } from './crud';
 import type { Period, SlipRow } from './runs-types';
@@ -193,13 +194,15 @@ export const PeriodPage = () => {
       {p.errorCount > 0 && (
         <Alert color="red">{t('payroll.run.errorsAlert', { n: p.errorCount })}</Alert>
       )}
-      <SimpleGrid cols={{ base: 2, sm: 5 }}>
+      <SimpleGrid cols={{ base: 2, sm: 7 }}>
         {(
           [
             ['employees', String(p.employeesCount)],
             ['gross', p.grossTotal],
             ['deductions', p.deductionsTotal],
             ['net', p.netTotal],
+            ['loans', p.loansTotal],
+            ['payable', p.payableTotal],
             ['employer', p.employerTotal],
           ] as const
         ).map(([k, val]) => (
@@ -219,6 +222,9 @@ export const PeriodPage = () => {
           <Tabs.Tab value="slips">{t('payroll.run.tabs.slips')}</Tabs.Tab>
           <Tabs.Tab value="compare">{t('payroll.run.tabs.compare')}</Tabs.Tab>
           <Tabs.Tab value="overrides">{t('payroll.run.tabs.overrides')}</Tabs.Tab>
+          {can('payroll.payment.read') && p.status !== 'draft' && (
+            <Tabs.Tab value="payments">{t('loans.paymentsTab')}</Tabs.Tab>
+          )}
           {can('payroll.input.read') && (
             <Tabs.Tab value="inputs">{t('payroll.run.tabs.inputs')}</Tabs.Tab>
           )}
@@ -252,6 +258,8 @@ export const PeriodPage = () => {
                   <Table.Th>{t('payroll.run.gross')}</Table.Th>
                   <Table.Th>{t('payroll.run.deductions')}</Table.Th>
                   <Table.Th>{t('payroll.run.net')}</Table.Th>
+                  <Table.Th>{t('payroll.run.loans')}</Table.Th>
+                  <Table.Th>{t('payroll.run.payable')}</Table.Th>
                   <Table.Th />
                 </Table.Tr>
               </Table.Thead>
@@ -269,6 +277,10 @@ export const PeriodPage = () => {
                     <Table.Td dir="ltr" fw={600}>
                       {s.netAmount}
                     </Table.Td>
+                    <Table.Td dir="ltr">{s.loansAmount}</Table.Td>
+                    <Table.Td dir="ltr" fw={600}>
+                      {s.payableAmount}
+                    </Table.Td>
                     <Table.Td>
                       <Group gap={4}>
                         {s.hasManual && (
@@ -278,6 +290,11 @@ export const PeriodPage = () => {
                         )}
                         {s.status === 'error' && (
                           <Badge color="red">{t('payroll.run.error')}</Badge>
+                        )}
+                        {s.warnings.includes('LOAN_OVER_CAP') && (
+                          <Badge color="yellow" variant="light">
+                            {t('loans.overCap')}
+                          </Badge>
                         )}
                         {s.warnings.includes('NEGATIVE_NET') && (
                           <Badge color="red" variant="light">
@@ -312,6 +329,10 @@ export const PeriodPage = () => {
               </Group>
             )}
           </Stack>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="payments" pt="md">
+          <PaymentsPanel periodId={periodId} />
         </Tabs.Panel>
 
         <Tabs.Panel value="compare" pt="md">

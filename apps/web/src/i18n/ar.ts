@@ -1,3 +1,4 @@
+import { loansAr } from './loans.ar';
 import { accountAr } from './account.ar';
 import { hrAr, hrFieldsAr, hrNavAr } from './hr.ar';
 import { payrollAr, payrollNavAr } from './payroll.ar';
@@ -510,6 +511,7 @@ export const ar = {
     personalHint: 'تطغى على إعدادات الشركة لحسابك فقط',
     inherit: 'حسب إعدادات الشركة',
     keys: {
+      loanMaxNetPercent: 'أقصى نسبة % من الصافي تُخصم لأقساط السلف',
       createAccountOnHire: 'إنشاء حساب مستخدم عند تعريف موظف جديد (الافتراضي)',
       locale: 'اللغة',
       timezone: 'المنطقة الزمنية',
@@ -953,6 +955,7 @@ export const ar = {
   hr: hrAr,
   payroll: payrollAr,
   account: accountAr,
+  loans: loansAr,
   errors: {
     forbiddenTitle: 'غير مصرّح',
     forbidden: 'لا تملك صلاحية الوصول إلى هذه الصفحة',

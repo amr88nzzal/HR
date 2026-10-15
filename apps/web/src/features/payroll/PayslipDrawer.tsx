@@ -176,7 +176,30 @@ export const PayslipDrawer = ({
             </Code>
           )}
           <Group justify="space-between">
-            <Title order={5} dir="ltr">{`${t('payroll.run.net')}: ${d.netAmount}`}</Title>
+            <Stack gap={2}>
+              <Title order={5} dir="ltr">{`${t('payroll.run.net')}: ${d.netAmount}`}</Title>
+              {(d.loanItems ?? []).length > 0 && (
+                <>
+                  <Text size="sm" dir="ltr">{`${t('payroll.run.loans')}: ${d.loansAmount}`}</Text>
+                  <Title
+                    order={5}
+                    dir="ltr"
+                  >{`${t('payroll.run.payable')}: ${d.payableAmount}`}</Title>
+                  {(d.loanItems ?? []).map((i) => (
+                    <Text
+                      key={i.installmentId}
+                      size="xs"
+                      c={i.overCap ? 'orange' : 'dimmed'}
+                      dir="ltr"
+                    >
+                      {`${t(`loans.kinds.${i.kind}`)} ${i.no}/${i.installmentsCount} · ${i.amount}${
+                        i.overCap ? ` · ${t('loans.overCap')}` : ''
+                      }`}
+                    </Text>
+                  ))}
+                </>
+              )}
+            </Stack>
             {canOverride && (
               <Button size="xs" variant="light" onClick={() => openEdit(null)}>
                 {t('payroll.run.addLine')}

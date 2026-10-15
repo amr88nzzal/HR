@@ -3,6 +3,7 @@ export const payrollNavEn = {
   payrollGroup: 'Payroll',
   payrollSetup: 'Payroll setup',
   payrollPeriods: 'Payroll periods',
+  payrollLoans: 'Loans & advances',
 };
 
 export const payrollEn = {
@@ -22,6 +23,8 @@ export const payrollEn = {
     employees: 'Employees',
     gross: 'Gross',
     deductions: 'Deductions',
+    loans: 'Loan installment',
+    payable: 'Payable',
     net: 'Net',
     employer: 'Employer cost',
     basic: 'Basic',

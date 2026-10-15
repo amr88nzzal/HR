@@ -170,6 +170,18 @@ const SettingsForm = ({
         />
       )}
       {scope === 'company' && (
+        <Select
+          label={t('settingsPage.keys.loanMaxNetPercent')}
+          disabled={!canEdit}
+          allowDeselect={false}
+          data={[25, 40, 50, 60, 75, 100].map((n) => ({ value: String(n), label: `${n}%` }))}
+          value={String(current['loanMaxNetPercent'] ?? 50)}
+          onChange={(v) =>
+            void change({ key: 'loanMaxNetPercent', type: 'select', numeric: true }, v)
+          }
+        />
+      )}
+      {scope === 'company' && (
         <Switch
           label={t('settingsPage.keys.createAccountOnHire')}
           disabled={!canEdit}

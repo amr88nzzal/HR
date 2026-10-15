@@ -25,6 +25,7 @@ import {
   simulatePeriod,
   type Period,
 } from './calc.js';
+import { applyLoansOnLock, revertLoansOnReopen } from './loans.js';
 import { makeRun } from './setup.routes.js';
 
 type Row = Record<string, unknown>;
@@ -73,6 +74,8 @@ const periodRows = (ctx: Ctx, id?: string) =>
            coalesce((select sum(s.gross_amount) from payslips s where s.period_id = p.id), 0)::text as gross_total,
            coalesce((select sum(s.deductions_amount) from payslips s where s.period_id = p.id), 0)::text as deductions_total,
            coalesce((select sum(s.net_amount) from payslips s where s.period_id = p.id), 0)::text as net_total,
+           coalesce((select sum(s.loans_amount) from payslips s where s.period_id = p.id), 0)::text as loans_total,
+           coalesce((select sum(s.payable_amount) from payslips s where s.period_id = p.id), 0)::text as payable_total,
            coalesce((select sum(s.employer_amount) from payslips s where s.period_id = p.id), 0)::text as employer_total
       from payroll_periods p join pay_groups g on g.id = p.pay_group_id
      where p.company_id = ${ctx.companyId} ${id ? sql`and p.id = ${id}` : sql``}
@@ -83,7 +86,8 @@ const slipDetail = async (ctx: Ctx, slipId: string) => {
     select s.id, s.period_id, s.employee_id, e.employee_no, e.full_name_ar as employee_name, s.currency,
            s.status, s.basic_amount::text as basic_amount, s.gross_amount::text as gross_amount,
            s.deductions_amount::text as deductions_amount, s.net_amount::text as net_amount,
-           s.employer_amount::text as employer_amount, s.inputs, s.warnings, s.error, s.has_manual,
+           s.employer_amount::text as employer_amount, s.loans_amount::text as loans_amount,
+           s.payable_amount::text as payable_amount, s.inputs, s.warnings, s.error, s.has_manual,
            s.version, p.status as period_status
       from payslips s join employees e on e.id = s.employee_id join payroll_periods p on p.id = s.period_id
      where s.id = ${slipId} and s.company_id = ${ctx.companyId}`.execute(ctx.trx);
@@ -94,8 +98,16 @@ const slipDetail = async (ctx: Ctx, slipId: string) => {
            r.name_ar as override_reason_name, l.override_note, l.override_by, l.override_at, l.explain, l.sort_order
       from payslip_lines l left join override_reasons r on r.id = l.override_reason_id
      where l.payslip_id = ${slipId} order by l.sort_order, l.code`.execute(ctx.trx);
+  const { rows: loanItems } = await sql<Row>`
+    select it.installment_id, it.amount::text as amount, it.over_cap, i.no, i.due_year, i.due_month,
+           l.id as loan_id, l.kind, l.installments_count
+      from payslip_loan_items it
+      join loan_installments i on i.id = it.installment_id
+      join loans l on l.id = i.loan_id
+     where it.payslip_id = ${slipId} order by i.due_year, i.due_month, i.no`.execute(ctx.trx);
   return {
     ...rows[0],
+    loanItems,
     lines: lines.map((l) => ({
       ...l,
       // الآلي تغيّر بعد التجاوز: تحتاج المراجعة
@@ -324,10 +336,19 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler): Router =
                      reopen_reason = null, version = version + 1 where id = ${p.id}`.execute(
       ctx.trx,
     );
+    // دفعات الرواتب: دفعة معلّقة لكل قسيمة بمبلغها المستحق للدفع
+    await sql`
+      insert into payments (company_id, kind, employee_id, period_id, payslip_id, amount, currency)
+      select s.company_id, 'payslip', s.employee_id, s.period_id, s.id, s.payable_amount, s.currency
+        from payslips s where s.period_id = ${p.id} and s.status = 'calculated' and s.payable_amount > 0
+      on conflict (payslip_id) where kind = 'payslip' do update set amount = excluded.amount`.execute(
+      ctx.trx,
+    );
   });
   transition('lock', `${P}.lock`, ['approved'], async (ctx, p) => {
     await sql`update payroll_periods set status = 'locked', locked_by = ${ctx.userId}, locked_at = now(),
                      version = version + 1 where id = ${p.id}`.execute(ctx.trx);
+    await applyLoansOnLock(ctx, p.id);
   });
   transition('reopen', `${P}.approve`, ['approved', 'locked'], async (ctx, p, req) => {
     const b = reopenInput.parse(req.body);
@@ -335,6 +356,18 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler): Router =
       const ok = req.auth?.grants.some((g) => g.code === `${P}.reopen`);
       if (!ok) throw new AppError('FORBIDDEN', 403, 'إعادة فتح دورة مقفلة تحتاج صلاحية خاصة');
     }
+    const paid = await sql<{ n: number }>`
+      select count(*)::int as n from payments where period_id = ${p.id} and status = 'paid'`.execute(
+      ctx.trx,
+    );
+    if (paid.rows[0]!.n > 0)
+      throw new AppError(
+        'PAYMENTS_PAID',
+        409,
+        'في الدورة دفعات مُعلَّمة مدفوعة؛ ألغِ تعليمها أولاً',
+      );
+    await sql`delete from payments where period_id = ${p.id} and kind = 'payslip'`.execute(ctx.trx);
+    if (p.status === 'locked') await revertLoansOnReopen(ctx, p.id);
     await sql`update payroll_periods set status = 'draft', reopen_reason = ${b.reason}, approved_by = null,
                      approved_at = null, locked_by = null, locked_at = null, version = version + 1
                where id = ${p.id}`.execute(ctx.trx);
@@ -415,7 +448,8 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler): Router =
           select s.id, s.employee_id, employees.employee_no, employees.full_name_ar as employee_name, s.status,
                  s.basic_amount::text as basic_amount, s.gross_amount::text as gross_amount,
                  s.deductions_amount::text as deductions_amount, s.net_amount::text as net_amount,
-                 s.employer_amount::text as employer_amount, s.has_manual, s.warnings, s.error
+                 s.employer_amount::text as employer_amount, s.loans_amount::text as loans_amount,
+                 s.payable_amount::text as payable_amount, s.has_manual, s.warnings, s.error
             from payslips s join employees on employees.id = s.employee_id
            where ${where} order by employees.employee_no
            limit ${q.pageSize} offset ${(q.page - 1) * q.pageSize}`.execute(ctx.trx);

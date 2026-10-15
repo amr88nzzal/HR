@@ -171,6 +171,7 @@ export const hrAr = {
       bank: 'الحسابات البنكية',
       externalRefs: 'المراجع الخارجية',
       salary: 'الراتب',
+      loans: 'السلف',
       letters: 'الوثائق الصادرة',
       documents: 'الوثائق',
     },

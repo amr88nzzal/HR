@@ -94,6 +94,7 @@ describe('البيانات التجريبية', () => {
       'payroll:done',
       'payrollRuns:done',
       'accounts:done',
+      'loans:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -198,6 +199,13 @@ describe('البيانات التجريبية', () => {
       admin,
     );
     expect(Number(invited.rows[0]?.n)).toBe(1);
+
+    // السلف: ثلاث سلف بأقساطها ودفعات صرف، وأقساط ظاهرة في الدورة (واحدة تتجاوز السقف)
+    expect(await n('loans')).toBe(3);
+    expect(await n('loan_installments')).toBe(10);
+    expect(await n('payments', sql`kind = 'loan'`)).toBe(3);
+    expect(await n('payslips', sql`loans_amount > 0`)).toBeGreaterThan(0);
+    expect(await n('payslip_loan_items', sql`over_cap`)).toBeGreaterThan(0);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);

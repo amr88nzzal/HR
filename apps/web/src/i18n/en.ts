@@ -1,3 +1,4 @@
+import { loansEn } from './loans.en';
 import { accountEn } from './account.en';
 import type { Messages } from './ar';
 import { hrEn, hrFieldsEn, hrNavEn } from './hr.en';
@@ -520,6 +521,7 @@ export const en: Messages = {
     personalHint: 'Overrides company settings for your account only',
     inherit: 'Use company setting',
     keys: {
+      loanMaxNetPercent: 'Max % of net salary deducted for loan installments',
       createAccountOnHire: 'Create a user account when adding a new employee (default)',
       locale: 'Language',
       timezone: 'Time zone',
@@ -966,6 +968,7 @@ export const en: Messages = {
   hr: hrEn,
   payroll: payrollEn,
   account: accountEn,
+  loans: loansEn,
   errors: {
     forbiddenTitle: 'Not authorized',
     forbidden: 'You do not have permission to view this page',

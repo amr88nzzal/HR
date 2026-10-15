@@ -16,6 +16,8 @@ export type Period = {
   grossTotal: string;
   deductionsTotal: string;
   netTotal: string;
+  loansTotal: string;
+  payableTotal: string;
   employerTotal: string;
   version: number;
 };
@@ -29,6 +31,8 @@ export type SlipRow = {
   grossAmount: string;
   deductionsAmount: string;
   netAmount: string;
+  loansAmount: string;
+  payableAmount: string;
   employerAmount: string;
   hasManual: boolean;
   warnings: string[];
@@ -49,7 +53,19 @@ export type SlipLine = {
   overrideNote: string | null;
   explain: Record<string, unknown>;
 };
+export type SlipLoanItem = {
+  installmentId: string;
+  amount: string;
+  overCap: boolean;
+  no: number;
+  dueYear: number;
+  dueMonth: number;
+  loanId: string;
+  kind: 'loan' | 'advance';
+  installmentsCount: number;
+};
 export type SlipDetail = SlipRow & {
+  loanItems: SlipLoanItem[];
   periodStatus: Period['status'];
   inputs: Record<string, unknown>;
   lines: SlipLine[];

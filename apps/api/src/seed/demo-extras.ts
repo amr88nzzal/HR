@@ -27,6 +27,7 @@ import {
   runLeaveMaintenance,
   submitRequest,
 } from '../modules/leave/index.js';
+import { buildSchedule } from '@hrms/shared';
 import { createNotifier } from '../notifications/index.js';
 import type { FieldCrypto } from '../shared/crypto.js';
 import { DEMO_EMAIL_DOMAIN, DEMO_PREFIX } from './demo.js';
@@ -44,6 +45,7 @@ export type ExtrasPart =
   | 'letters'
   | 'payroll'
   | 'payrollRuns'
+  | 'loans'
   | 'accounts';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
@@ -1620,6 +1622,100 @@ const seedAccounts = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+// ───────────────────────── 13) السلف والأقساط (7c) ─────────────────────────
+const seedLoans = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('loans')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('reason', 'like', `${DEMO_PREFIX}%`)
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const period = await trx
+    .selectFrom('payrollPeriods')
+    .selectAll()
+    .where('companyId', '=', companyId)
+    .where('status', '=', 'draft')
+    .orderBy('year', 'desc')
+    .orderBy('month', 'desc')
+    .executeTakeFirst();
+  if (!period) return 'skip لا دورة رواتب تجريبية';
+  const salaried = await trx
+    .selectFrom('employeeSalaries')
+    .select('employeeId')
+    .distinct()
+    .where('companyId', '=', companyId)
+    .where('currency', '=', period.currency)
+    .orderBy('employeeId')
+    .limit(3)
+    .execute();
+  if (salaried.length < 3) return 'skip لا رواتب تجريبية كافية';
+  const plans = [
+    { kind: 'loan' as const, principal: '1200', count: 6, reason: `${DEMO_PREFIX} قرض سيارة` },
+    { kind: 'advance' as const, principal: '300', count: 1, reason: `${DEMO_PREFIX} سلفة طارئة` },
+    {
+      kind: 'loan' as const,
+      principal: '9000',
+      count: 3,
+      reason: `${DEMO_PREFIX} قرض كبير (يتجاوز السقف)`,
+    },
+  ];
+  for (const [i, pl] of plans.entries()) {
+    const loan = await trx
+      .insertInto('loans')
+      .values({
+        companyId,
+        employeeId: salaried[i]!.employeeId,
+        kind: pl.kind,
+        currency: period.currency,
+        principal: pl.principal,
+        installmentsCount: pl.count,
+        firstYear: period.year,
+        firstMonth: period.month,
+        reason: pl.reason,
+        createdBy: ctx.userId ?? null,
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    for (const it of buildSchedule(pl.principal, pl.count, period.year, period.month))
+      await trx
+        .insertInto('loanInstallments')
+        .values({
+          companyId,
+          loanId: loan.id,
+          no: it.no,
+          dueYear: it.year,
+          dueMonth: it.month,
+          amount: it.amount,
+        })
+        .execute();
+    await trx
+      .insertInto('payments')
+      .values({
+        companyId,
+        kind: 'loan',
+        employeeId: salaried[i]!.employeeId,
+        loanId: loan.id,
+        amount: pl.principal,
+        currency: period.currency,
+      })
+      .execute();
+  }
+  // أعد احتساب الدورة المسودة لتظهر الأقساط في عمودها
+  await calculatePeriod(ctx, {
+    id: period.id,
+    payGroupId: period.payGroupId,
+    year: period.year,
+    month: period.month,
+    startDate: String(period.startDate),
+    endDate: String(period.endDate),
+    currency: period.currency,
+    status: 'draft',
+  });
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -1644,6 +1740,7 @@ export const seedDemoExtras = async (
     ['payroll', (ctx) => seedPayroll(ctx)],
     ['payrollRuns', (ctx) => seedPayrollRuns(ctx)],
     ['accounts', (ctx) => seedAccounts(ctx)],
+    ['loans', (ctx) => seedLoans(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);

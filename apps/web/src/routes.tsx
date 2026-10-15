@@ -33,6 +33,7 @@ import { PunchEntryPage } from './features/attendance/PunchEntryPage';
 import { AdjustmentsPage } from './features/attendance/AdjustmentsPage';
 import { TemplatesPage } from './features/letters/TemplatesPage';
 import { IssuedPage } from './features/letters/IssuedPage';
+import { LoansPanel } from './features/payroll/LoansPanel';
 import { PeriodPage } from './features/payroll/PeriodPage';
 import { PeriodsPage } from './features/payroll/PeriodsPage';
 import { SetupPage as PayrollSetupPage } from './features/payroll/SetupPage';
@@ -158,6 +159,7 @@ const screens: Record<string, () => ReactElement> = {
   '/letters/issued': () => <IssuedPage />,
   '/payroll/setup': () => <PayrollSetupPage />,
   '/payroll/periods': () => <PeriodsPage />,
+  '/payroll/loans': () => <LoansPanel />,
   '/attendance/punches': () => <PunchEntryPage />,
   '/attendance/shifts': () => <ShiftsPage />,
   '/attendance/schedules': () => <SchedulesPage />,

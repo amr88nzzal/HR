@@ -133,6 +133,8 @@ export const SETTING_DEFS = {
   },
   /** القيمة الافتراضية لمفتاح «إنشاء حساب مستخدم» في نموذج موظف جديد */
   createAccountOnHire: { schema: z.boolean(), default: false },
+  /** أقصى نسبة % من صافي الراتب تُخصم تلقائياً لأقساط السلف؛ ما زاد يُرحَّل */
+  loanMaxNetPercent: { schema: z.number().int().min(1).max(100), default: 50 },
 } as const;
 export type SettingKey = keyof typeof SETTING_DEFS;
 export const settingKeys = Object.keys(SETTING_DEFS) as SettingKey[];
