@@ -222,6 +222,12 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         icon: IconCash,
         permission: 'payroll.period.read',
       },
+      {
+        key: 'payrollLoans',
+        path: '/payroll/loans',
+        icon: IconCash,
+        permission: 'payroll.loan.read',
+      },
     ],
   },
   {

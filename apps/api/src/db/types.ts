@@ -1131,6 +1131,8 @@ export type PayslipsTable = Versioned & {
   warnings: ColumnType<string[], string | undefined, string>;
   error: string | null;
   hasManual: Generated<boolean>;
+  loansAmount: Generated<Dec>;
+  payableAmount: Generated<Dec>;
 };
 export type PayslipLinesTable = {
   id: Generated<string>;
@@ -1152,6 +1154,61 @@ export type PayslipLinesTable = {
   overrideAt: TsNullable;
   explain: ColumnType<Record<string, unknown>, string | undefined, string>;
   sortOrder: Generated<number>;
+};
+export type LoansTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  kind: Generated<'loan' | 'advance'>;
+  currency: string;
+  principal: Dec;
+  installmentsCount: number;
+  firstYear: number;
+  firstMonth: number;
+  reason: string | null;
+  status: Generated<'active' | 'settled' | 'cancelled'>;
+  cancelReason: string | null;
+  createdBy: string | null;
+};
+export type LoanInstallmentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  loanId: string;
+  no: number;
+  dueYear: number;
+  dueMonth: number;
+  amount: Dec;
+  status: Generated<'scheduled' | 'deducted' | 'deferred' | 'cancelled'>;
+  periodId: string | null;
+  payslipId: string | null;
+  deferredReason: string | null;
+  systemDeferred: Generated<boolean>;
+  movedToId: string | null;
+};
+export type PayslipLoanItemsTable = {
+  id: Generated<string>;
+  companyId: string;
+  payslipId: string;
+  installmentId: string;
+  amount: Dec;
+  overCap: Generated<boolean>;
+};
+export type PaymentsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  kind: 'payslip' | 'loan';
+  employeeId: string;
+  periodId: string | null;
+  payslipId: string | null;
+  loanId: string | null;
+  amount: Dec;
+  currency: string;
+  status: Generated<'pending' | 'paid'>;
+  method: 'bank' | 'cash' | 'other' | null;
+  reference: string | null;
+  paidAt: string | null;
+  note: string | null;
+  paidBy: string | null;
 };
 export type PayrollInputsTable = {
   id: Generated<string>;
@@ -1289,6 +1346,10 @@ export type Database = {
   payslips: PayslipsTable;
   payslipLines: PayslipLinesTable;
   payrollInputs: PayrollInputsTable;
+  loans: LoansTable;
+  loanInstallments: LoanInstallmentsTable;
+  payslipLoanItems: PayslipLoanItemsTable;
+  payments: PaymentsTable;
   attendanceCorrections: AttendanceCorrectionsTable;
   overtimeRequests: OvertimeRequestsTable;
   importProfiles: ImportProfilesTable;

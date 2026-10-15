@@ -3,6 +3,7 @@ export const payrollNavAr = {
   payrollGroup: 'الرواتب',
   payrollSetup: 'إعداد الرواتب',
   payrollPeriods: 'دورات الرواتب',
+  payrollLoans: 'قروض وسلف',
 };
 
 export const payrollAr = {
@@ -22,6 +23,8 @@ export const payrollAr = {
     employees: 'الموظفون',
     gross: 'الإجمالي',
     deductions: 'الاستقطاعات',
+    loans: 'قسط السلف',
+    payable: 'المستحق للدفع',
     net: 'الصافي',
     employer: 'تتحمّلها الشركة',
     basic: 'الأساسي',

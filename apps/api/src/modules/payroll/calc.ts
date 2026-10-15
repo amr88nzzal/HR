@@ -12,6 +12,12 @@ import {
   type Line,
   type TableDef,
 } from './engine.js';
+import {
+  allocateInstallments,
+  loadCapPercent,
+  loadDueInstallments,
+  type LoanItem,
+} from './loans.js';
 
 export type Period = {
   id: string;
@@ -340,6 +346,10 @@ export type Built = {
   result: EngineResult | null;
   inputs: Record<string, unknown>;
   old: OldLine[];
+  /** أقساط السلف المخطط خصمها (عمود مستقل بعد الصافي، لا بند راتب) */
+  loanItems: LoanItem[];
+  loansAmount: string;
+  payableAmount: string;
 };
 
 export const buildPayslip = (
@@ -384,10 +394,30 @@ export const buildPayslip = (
           amount: o.amount,
         })),
     });
-    return { employee: e, status: 'calculated', error: null, result, inputs, old };
+    return {
+      employee: e,
+      status: 'calculated',
+      error: null,
+      result,
+      inputs,
+      old,
+      loanItems: [],
+      loansAmount: '0.0000',
+      payableAmount: result.totals.net,
+    };
   } catch (err) {
     if (err instanceof EngineError || err instanceof FormulaError)
-      return { employee: e, status: 'error', error: err.message, result: null, inputs, old };
+      return {
+        employee: e,
+        status: 'error',
+        error: err.message,
+        result: null,
+        inputs,
+        old,
+        loanItems: [],
+        loansAmount: '0.0000',
+        payableAmount: '0.0000',
+      };
     throw err;
   }
 };
@@ -414,6 +444,27 @@ export const buildAll = async (
       old.get(e.employeeId) ?? [],
     ),
   );
+  // الأقساط: تُوزَّع على الصافي بعد الاحتساب (عمود مستقل، ولا تدخل في الصافي)
+  const [due, cap] = await Promise.all([
+    loadDueInstallments(
+      ctx,
+      p.year,
+      p.month,
+      p.currency,
+      built.filter((b) => b.result).map((b) => b.employee.employeeId),
+    ),
+    loadCapPercent(ctx),
+  ]);
+  for (const b of built) {
+    if (!b.result) continue;
+    const list = due.get(b.employee.employeeId);
+    if (!list?.length) continue;
+    const a = allocateInstallments(b.result.totals.net, cap, list);
+    b.loanItems = a.items;
+    b.loansAmount = a.total;
+    b.payableAmount = num(b.result.totals.net).minus(a.total).toFixed(4);
+    if (a.items.some((i) => i.overCap)) b.result.warnings.push('LOAN_OVER_CAP');
+  }
   return { built, eligible };
 };
 
@@ -422,20 +473,29 @@ export const persistPayslip = async (ctx: Ctx, p: Period, b: Built): Promise<str
   const hasManual = !!b.result?.lines.some((l) => l.isManual);
   const { rows } = await sql<{ id: string }>`
     insert into payslips (company_id, period_id, employee_id, currency, status, basic_amount, gross_amount,
-                          deductions_amount, net_amount, employer_amount, inputs, warnings, error, has_manual)
+                          deductions_amount, net_amount, employer_amount, inputs, warnings, error, has_manual,
+                          loans_amount, payable_amount)
     values (${ctx.companyId}, ${p.id}, ${b.employee.employeeId}, ${p.currency}, ${b.status},
             ${t?.basic ?? '0'}, ${t?.gross ?? '0'}, ${t?.deductions ?? '0'}, ${t?.net ?? '0'},
             ${t?.employer ?? '0'}, ${JSON.stringify(b.inputs)}::jsonb,
-            ${JSON.stringify(b.result?.warnings ?? [])}::jsonb, ${b.error}, ${hasManual})
+            ${JSON.stringify(b.result?.warnings ?? [])}::jsonb, ${b.error}, ${hasManual},
+            ${b.loansAmount}, ${b.payableAmount})
     on conflict (period_id, employee_id) do update set
       currency = excluded.currency, status = excluded.status, basic_amount = excluded.basic_amount,
       gross_amount = excluded.gross_amount, deductions_amount = excluded.deductions_amount,
       net_amount = excluded.net_amount, employer_amount = excluded.employer_amount,
       inputs = excluded.inputs, warnings = excluded.warnings, error = excluded.error,
-      has_manual = excluded.has_manual, version = payslips.version + 1
+      has_manual = excluded.has_manual, loans_amount = excluded.loans_amount,
+      payable_amount = excluded.payable_amount, version = payslips.version + 1
     returning id`.execute(ctx.trx);
   const id = rows[0]!.id;
   await sql`delete from payslip_lines where payslip_id = ${id}`.execute(ctx.trx);
+  await sql`delete from payslip_loan_items where payslip_id = ${id}`.execute(ctx.trx);
+  for (const it of b.loanItems)
+    await sql`insert into payslip_loan_items (company_id, payslip_id, installment_id, amount, over_cap)
+              values (${ctx.companyId}, ${id}, ${it.installmentId}, ${it.amount}, ${it.overCap})`.execute(
+      ctx.trx,
+    );
   // عند الخطأ تُحفظ البنود اليدوية القديمة كما هي كي لا تضيع
   const lines: (Line & { old?: OldLine })[] = b.result
     ? b.result.lines.map((l) => {
@@ -508,7 +568,13 @@ export const sumTotals = (built: Built[]) => {
   >;
   for (const b of built)
     if (b.result) for (const k of keys) acc[k] = acc[k].plus(b.result.totals[k]);
-  return Object.fromEntries(keys.map((k) => [k, acc[k].toFixed(4)]));
+  const loans = built.reduce((a, b) => a.plus(b.loansAmount), num(0));
+  const payable = built.reduce((a, b) => a.plus(b.payableAmount), num(0));
+  return {
+    ...Object.fromEntries(keys.map((k) => [k, acc[k].toFixed(4)])),
+    loans: loans.toFixed(4),
+    payable: payable.toFixed(4),
+  };
 };
 
 /** محاكاة بلا أي كتابة */
@@ -522,7 +588,10 @@ export const simulatePeriod = async (ctx: Ctx, p: Period, employeeIds?: string[]
       name: b.employee.name,
       status: b.status,
       error: b.error,
-      totals: b.result?.totals ?? null,
+      totals: b.result
+        ? { ...b.result.totals, loans: b.loansAmount, payable: b.payableAmount }
+        : null,
+      loanItems: b.loanItems,
       warnings: b.result?.warnings ?? [],
       lines: b.result?.lines ?? [],
     })),
