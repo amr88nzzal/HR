@@ -119,7 +119,14 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     mountLeaveRoutes(api, auth.db, authenticate);
     mountAttendanceRoutes(api, auth.db, authenticate);
     const files = { storage: auth.storage, crypto: auth.crypto };
-    mountEmployeesRoutes(api, auth.db, authenticate, auth.crypto, files);
+    mountEmployeesRoutes(
+      api,
+      auth.db,
+      authenticate,
+      auth.crypto,
+      { notifier: createNotifier(auth.jobs), publicUrl: auth.publicUrl },
+      files,
+    );
     mountArchiveRoutes(api, auth.db, authenticate, files, auth.crypto);
     api.use('/jobs', createJobsRouter(auth.db, authenticate, auth.jobs));
     api.use(

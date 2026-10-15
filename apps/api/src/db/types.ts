@@ -30,6 +30,11 @@ export type UsersTable = {
   displayName: string;
   passwordHash: string;
   status: Generated<'active' | 'disabled'>;
+  disabledReason: ColumnType<
+    'employment_ended' | null,
+    'employment_ended' | null | undefined,
+    'employment_ended' | null
+  >;
   mustChangePassword: Generated<boolean>;
   failedAttempts: Generated<number>;
   lockedUntil: TsNullable;

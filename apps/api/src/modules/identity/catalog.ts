@@ -113,6 +113,7 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('identity', 'user', 'update', 'تعديل مستخدم'),
   def('identity', 'user', 'disable', 'تعطيل/تفعيل مستخدم'),
   def('identity', 'user', 'reset_password', 'إعادة تعيين كلمة مرور مستخدم'),
+  def('identity', 'user', 'create_from_employee', 'إنشاء حساب مستخدم للموظف ودعوته'),
   def('identity', 'role', 'read', 'عرض الأدوار'),
   def('identity', 'role', 'manage', 'إدارة الأدوار والصلاحيات'),
 ];

@@ -9,7 +9,8 @@ import {
 import type { Db } from '../../db/index.js';
 import type { Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
-import { requirePermission, type AuthContext } from '../identity/index.js';
+import { clearSnapshotCache, requirePermission, type AuthContext } from '../identity/index.js';
+import { syncAccountWithEmployment } from './accounts.js';
 import { assertEmployeeVisible } from './access.js';
 import { idOf, makeRun } from './children.routes.js';
 
@@ -286,6 +287,10 @@ export const applyChange = async (
     }
   }
 
+  // الحساب المرتبط: يُعطَّل عند إنهاء الخدمة ويُفعَّل عند إعادة التعيين (التعطيل اليدوي لا يُمَس)
+  if (input.changeType === 'termination') await syncAccountWithEmployment(ctx, employeeId, true);
+  if (input.changeType === 'hire') await syncAccountWithEmployment(ctx, employeeId, false);
+
   const change = await ctx.trx
     .insertInto('employmentChanges')
     .values({
@@ -400,6 +405,7 @@ export const createEmploymentsRouter = (db: Db, authenticate: RequestHandler): R
         await assertEmployeeVisible(ctx, auth, employeeId, MANAGE);
         return applyChange(ctx, employeeId, input);
       });
+      clearSnapshotCache(); // تعطيل الحساب ينفذ فوراً
       res.status(201).json({ data: out });
     } catch (err) {
       next(err);
