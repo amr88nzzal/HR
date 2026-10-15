@@ -1008,6 +1008,7 @@ export type PayComponentsTable = Versioned & {
   baseId: string | null;
   formula: string | null;
   rateTableId: string | null;
+  prorate: Generated<boolean>;
   roundingDecimals: Generated<number>;
   displayOrder: Generated<number>;
   isActive: Generated<boolean>;
@@ -1053,6 +1054,110 @@ export type EmployeeSalaryComponentsTable = {
   componentId: string;
   amount: DecNull;
   percent: DecNull;
+};
+
+export type PayGroupsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  isDefault: Generated<boolean>;
+  isActive: Generated<boolean>;
+};
+export type PayGroupAssignmentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  payGroupId: string;
+  employeeId: string;
+  validFrom: DateReq;
+  validTo: DateCol;
+  createdAt: Generated<Date>;
+};
+export type OverrideReasonsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  isActive: Generated<boolean>;
+};
+export type PayrollPeriodsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  payGroupId: string;
+  year: number;
+  month: number;
+  startDate: DateReq;
+  endDate: DateReq;
+  currency: string;
+  status: Generated<'draft' | 'approved' | 'locked'>;
+  calculatedAt: TsNullable;
+  approvedBy: string | null;
+  approvedAt: TsNullable;
+  lockedBy: string | null;
+  lockedAt: TsNullable;
+  reopenReason: string | null;
+};
+export type PayrollRunsTable = {
+  id: Generated<string>;
+  companyId: string;
+  periodId: string;
+  runNo: number;
+  employeesCount: number;
+  errorCount: Generated<number>;
+  totals: ColumnType<Record<string, unknown>, string | undefined, string>;
+  createdBy: string | null;
+  createdAt: Generated<Date>;
+};
+export type PayslipsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  periodId: string;
+  employeeId: string;
+  currency: string;
+  status: Generated<'calculated' | 'error'>;
+  basicAmount: Dec;
+  grossAmount: Dec;
+  deductionsAmount: Dec;
+  netAmount: Dec;
+  employerAmount: Dec;
+  inputs: ColumnType<Record<string, unknown>, string | undefined, string>;
+  warnings: ColumnType<string[], string | undefined, string>;
+  error: string | null;
+  hasManual: Generated<boolean>;
+};
+export type PayslipLinesTable = {
+  id: Generated<string>;
+  companyId: string;
+  payslipId: string;
+  componentId: string | null;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  kind: 'earning' | 'deduction' | 'employer';
+  amount: Dec;
+  autoAmount: DecNull;
+  autoAtOverride: DecNull;
+  isManual: Generated<boolean>;
+  isAdded: Generated<boolean>;
+  overrideReasonId: string | null;
+  overrideNote: string | null;
+  overrideBy: string | null;
+  overrideAt: TsNullable;
+  explain: ColumnType<Record<string, unknown>, string | undefined, string>;
+  sortOrder: Generated<number>;
+};
+export type PayrollInputsTable = {
+  id: Generated<string>;
+  companyId: string;
+  periodId: string;
+  employeeId: string;
+  key: string;
+  value: Dec;
+  note: string | null;
+  updatedBy: string | null;
+  updatedAt: Generated<Date>;
 };
 
 export type IntegrationSettingsTable = {
@@ -1171,6 +1276,14 @@ export type Database = {
   salaryStructureComponents: SalaryStructureComponentsTable;
   employeeSalaries: EmployeeSalariesTable;
   employeeSalaryComponents: EmployeeSalaryComponentsTable;
+  payGroups: PayGroupsTable;
+  payGroupAssignments: PayGroupAssignmentsTable;
+  overrideReasons: OverrideReasonsTable;
+  payrollPeriods: PayrollPeriodsTable;
+  payrollRuns: PayrollRunsTable;
+  payslips: PayslipsTable;
+  payslipLines: PayslipLinesTable;
+  payrollInputs: PayrollInputsTable;
   attendanceCorrections: AttendanceCorrectionsTable;
   overtimeRequests: OvertimeRequestsTable;
   importProfiles: ImportProfilesTable;
