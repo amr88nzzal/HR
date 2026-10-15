@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { BasesPanel } from './BasesPanel';
 import { ComponentsPanel } from './ComponentsPanel';
 import { RatesPanel } from './RatesPanel';
+import { SimpleListPanel } from './GroupsPanel';
 import { StructuresPanel } from './StructuresPanel';
 
 export const SetupPage = () => {
@@ -14,6 +15,18 @@ export const SetupPage = () => {
     { value: 'bases', perm: 'payroll.base.read', body: <BasesPanel /> },
     { value: 'rateTables', perm: 'payroll.rate_table.read', body: <RatesPanel /> },
     { value: 'structures', perm: 'payroll.structure.read', body: <StructuresPanel /> },
+    {
+      value: 'groups',
+      perm: 'payroll.group.read',
+      body: <SimpleListPanel base="groups" perm="payroll.group" kind="group" />,
+    },
+    {
+      value: 'reasons',
+      perm: 'payroll.override_reason.read',
+      body: (
+        <SimpleListPanel base="override-reasons" perm="payroll.override_reason" kind="reason" />
+      ),
+    },
   ].filter((x) => can(x.perm));
   return (
     <Stack>

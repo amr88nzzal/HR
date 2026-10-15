@@ -18,6 +18,8 @@ import {
   submitOvertime,
 } from '../modules/attendance/index.js';
 import { hashPassword } from '../modules/identity/index.js';
+import { calculatePeriod, monthRange } from '../modules/payroll/calc.js';
+import { ensureDefaultGroup } from '../modules/payroll/runs.routes.js';
 import {
   adjust,
   cancelRequest,
@@ -39,7 +41,8 @@ export type ExtrasPart =
   | 'import'
   | 'adjustments'
   | 'letters'
-  | 'payroll';
+  | 'payroll'
+  | 'payrollRuns';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
 const pad = (n: number, w = 3) => String(n).padStart(w, '0');
@@ -1538,6 +1541,61 @@ const seedPayroll = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+// ───────────────────────── 11) دورة رواتب (7b) ─────────────────────────
+const seedPayrollRuns = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('overrideReasons')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('code', '=', 'demo_correction')
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const hasSalaries = await trx
+    .selectFrom('employeeSalaries')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .executeTakeFirst();
+  if (!hasSalaries) return 'skip لا رواتب تجريبية';
+  const cur = await trx
+    .selectFrom('currencies')
+    .select('code')
+    .where('companyId', '=', companyId)
+    .where('isBase', '=', true)
+    .executeTakeFirst();
+  const currency = cur?.code ?? 'JOD';
+  await trx
+    .insertInto('overrideReasons')
+    .values([
+      { companyId, code: 'demo_correction', nameAr: 'تصحيح خطأ', nameEn: 'Correction' },
+      { companyId, code: 'demo_agreement', nameAr: 'اتفاق خاص', nameEn: 'Special agreement' },
+    ])
+    .execute();
+  const groupId = await ensureDefaultGroup(ctx);
+  // الشهر الأخير المكتمل
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + 1;
+  const { startDate, endDate } = monthRange(year, month);
+  const period = await trx
+    .insertInto('payrollPeriods')
+    .values({ companyId, payGroupId: groupId, year, month, startDate, endDate, currency })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  await calculatePeriod(ctx, {
+    id: period.id,
+    payGroupId: groupId,
+    year,
+    month,
+    startDate,
+    endDate,
+    currency,
+    status: 'draft',
+  });
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -1560,6 +1618,7 @@ export const seedDemoExtras = async (
     ['adjustments', (ctx) => seedAdjustments(ctx)],
     ['letters', (ctx) => seedLetters(ctx)],
     ['payroll', (ctx) => seedPayroll(ctx)],
+    ['payrollRuns', (ctx) => seedPayrollRuns(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);

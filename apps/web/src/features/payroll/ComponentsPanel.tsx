@@ -37,6 +37,7 @@ const blank = (): Record<string, unknown> => ({
   rateTableId: null,
   roundingDecimals: 2,
   displayOrder: 100,
+  prorate: true,
   isActive: true,
 });
 
@@ -55,6 +56,7 @@ const toBody = (v: Record<string, unknown>) => {
     rateTableId: s('rateTableId'),
     roundingDecimals: v['roundingDecimals'],
     displayOrder: v['displayOrder'],
+    prorate: v['prorate'],
     isActive: v['isActive'],
   };
 };
@@ -312,6 +314,14 @@ export const ComponentsPanel = () => {
             onChange={(x) => set('displayOrder', Number(x))}
           />
         </Group>
+        {v['calcType'] === 'fixed' && (
+          <Switch
+            label={t('payroll.run.prorate')}
+            description={t('payroll.run.prorateHint')}
+            checked={v['prorate'] !== false}
+            onChange={(e) => set('prorate', e.currentTarget.checked)}
+          />
+        )}
         <Switch
           label={t('payroll.active')}
           checked={v['isActive'] === true}
