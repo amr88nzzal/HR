@@ -32,6 +32,8 @@ import { PunchEntryPage } from './features/attendance/PunchEntryPage';
 import { AdjustmentsPage } from './features/attendance/AdjustmentsPage';
 import { TemplatesPage } from './features/letters/TemplatesPage';
 import { IssuedPage } from './features/letters/IssuedPage';
+import { PeriodPage } from './features/payroll/PeriodPage';
+import { PeriodsPage } from './features/payroll/PeriodsPage';
 import { SetupPage as PayrollSetupPage } from './features/payroll/SetupPage';
 import { ShiftsPage } from './features/attendance/ShiftsPage';
 import { SchedulesPage } from './features/attendance/SchedulesPage';
@@ -147,6 +149,7 @@ const screens: Record<string, () => ReactElement> = {
   '/letters/templates': () => <TemplatesPage />,
   '/letters/issued': () => <IssuedPage />,
   '/payroll/setup': () => <PayrollSetupPage />,
+  '/payroll/periods': () => <PeriodsPage />,
   '/attendance/punches': () => <PunchEntryPage />,
   '/attendance/shifts': () => <ShiftsPage />,
   '/attendance/schedules': () => <SchedulesPage />,
@@ -195,6 +198,17 @@ const approvalDetailRoute = createRoute({
   component: ApprovalDetailPage,
 });
 
+/** تفاصيل دورة رواتب: بصلاحية عرض الدورات */
+const payrollPeriodRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: '/payroll/periods/$periodId',
+  component: function PayrollPeriod() {
+    const { can } = useAuth();
+    if (!can('payroll.period.read')) return <ForbiddenPage />;
+    return <PeriodPage />;
+  },
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   verifyRoute,
@@ -205,6 +219,7 @@ const routeTree = rootRoute.addChildren([
     employeeRoute,
     notificationsRoute,
     approvalDetailRoute,
+    payrollPeriodRoute,
   ]),
 ]);
 

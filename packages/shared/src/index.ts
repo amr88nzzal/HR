@@ -37,3 +37,4 @@ export * from './leave.js';
 export * from './integrations.js';
 export * from './formula.js';
 export * from './payroll.js';
+export * from './payroll-run.js';

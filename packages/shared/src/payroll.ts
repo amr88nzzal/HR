@@ -62,6 +62,8 @@ const componentBase = z.object({
   baseId: uuid.nullish(),
   formula: z.string().trim().max(500).nullish(),
   rateTableId: uuid.nullish(),
+  /** هل يتناسب المبلغ الثابت مع أيام الخدمة في دورة جزئية */
+  prorate: z.boolean().default(true),
   roundingDecimals: z.number().int().min(0).max(4).default(2),
   displayOrder: z.number().int().min(0).max(9999).default(100),
   isActive: z.boolean().default(true),

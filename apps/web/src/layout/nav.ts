@@ -216,6 +216,12 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         icon: IconCash,
         permission: 'payroll.component.read',
       },
+      {
+        key: 'payrollPeriods',
+        path: '/payroll/periods',
+        icon: IconCash,
+        permission: 'payroll.period.read',
+      },
     ],
   },
   {

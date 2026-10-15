@@ -1,0 +1,73 @@
+export type Period = {
+  id: string;
+  payGroupId: string;
+  groupName: string;
+  year: number;
+  month: number;
+  startDate: string;
+  endDate: string;
+  currency: string;
+  status: 'draft' | 'approved' | 'locked';
+  calculatedAt: string | null;
+  reopenReason: string | null;
+  employeesCount: number;
+  errorCount: number;
+  manualCount: number;
+  grossTotal: string;
+  deductionsTotal: string;
+  netTotal: string;
+  employerTotal: string;
+  version: number;
+};
+export type SlipRow = {
+  id: string;
+  employeeId: string;
+  employeeNo: string;
+  employeeName: string;
+  status: 'calculated' | 'error';
+  basicAmount: string;
+  grossAmount: string;
+  deductionsAmount: string;
+  netAmount: string;
+  employerAmount: string;
+  hasManual: boolean;
+  warnings: string[];
+  error: string | null;
+};
+export type SlipLine = {
+  id: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  kind: 'earning' | 'deduction' | 'employer';
+  amount: string;
+  autoAmount: string | null;
+  isManual: boolean;
+  isAdded: boolean;
+  autoChanged: boolean;
+  overrideReasonName: string | null;
+  overrideNote: string | null;
+  explain: Record<string, unknown>;
+};
+export type SlipDetail = SlipRow & {
+  periodStatus: Period['status'];
+  inputs: Record<string, unknown>;
+  lines: SlipLine[];
+};
+export type Group = {
+  id: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  isDefault: boolean;
+  isActive: boolean;
+  version: number;
+};
+export type Reason = {
+  id: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  isActive: boolean;
+  version: number;
+};

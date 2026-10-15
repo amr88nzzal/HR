@@ -12,6 +12,7 @@ export type Component = {
   rateTableId: string | null;
   roundingDecimals: number;
   displayOrder: number;
+  prorate: boolean;
   isActive: boolean;
   version: number;
 };

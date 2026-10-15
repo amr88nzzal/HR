@@ -92,6 +92,7 @@ describe('البيانات التجريبية', () => {
       'adjustments:done',
       'letters:done',
       'payroll:done',
+      'payrollRuns:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -179,6 +180,13 @@ describe('البيانات التجريبية', () => {
     expect(await n('salary_structures')).toBe(2);
     expect(await n('employee_salaries', sql`valid_to is null`)).toBe(30);
     expect(await n('employee_salaries', sql`valid_to is not null`)).toBe(2);
+
+    // دورة الرواتب: مجموعة افتراضية وسببا تجاوز ودورة مسودة محتسبة بقسائم
+    expect(await n('pay_groups', sql`is_default`)).toBe(1);
+    expect(await n('override_reasons')).toBe(2);
+    expect(await n('payroll_periods', sql`status = 'draft' and calculated_at is not null`)).toBe(1);
+    expect(await n('payslips')).toBeGreaterThan(0);
+    expect(await n('payslips', sql`status = 'error'`)).toBe(0);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);
