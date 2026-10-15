@@ -108,6 +108,21 @@ export const NOTIFICATION_EVENTS: readonly NotificationEventDef[] = [
     },
   },
   {
+    key: 'identity.invite',
+    category: 'system',
+    variables: ['name', 'link', 'expires'],
+    defaults: {
+      ar: {
+        subject: 'دعوة لتفعيل حسابك',
+        body: 'مرحباً {{name}}، أُنشئ لك حساب في النظام. عيّن كلمة مرورك من الرابط التالي (صالح حتى {{expires}}): {{link}}',
+      },
+      en: {
+        subject: 'Activate your account',
+        body: 'Hello {{name}}, an account was created for you. Set your password using this link (valid until {{expires}}): {{link}}',
+      },
+    },
+  },
+  {
     key: 'system.test',
     category: 'system',
     variables: ['user'],

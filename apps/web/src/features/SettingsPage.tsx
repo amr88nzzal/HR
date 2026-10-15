@@ -4,6 +4,7 @@ import {
   Select,
   SimpleGrid,
   Stack,
+  Switch,
   Tabs,
   Text,
   TextInput,
@@ -17,7 +18,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { errorMessage } from '../lib/errors';
 
-type Values = Record<string, string | number | number[]>;
+type Values = Record<string, string | number | boolean | number[]>;
 type Def = {
   key: string;
   type: 'select' | 'text';
@@ -166,6 +167,28 @@ const SettingsForm = ({
           }))}
           value={((current['weeklyOff'] as number[] | undefined) ?? [5, 6]).map(String)}
           onChange={(v) => void saveWeeklyOff(v.map(Number))}
+        />
+      )}
+      {scope === 'company' && (
+        <Switch
+          label={t('settingsPage.keys.createAccountOnHire')}
+          disabled={!canEdit}
+          checked={current['createAccountOnHire'] === true}
+          onChange={(e) => {
+            const value = e.currentTarget.checked;
+            setLocal((s) => ({ ...s, createAccountOnHire: value }));
+            api
+              .request('/settings/company/createAccountOnHire', { method: 'PUT', body: { value } })
+              .then(onSaved)
+              .catch((err) => {
+                setLocal((s) => {
+                  const { createAccountOnHire: _d, ...rest } = s;
+                  void _d;
+                  return rest;
+                });
+                notifications.show({ color: 'red', message: errorMessage(err, t) });
+              });
+          }}
         />
       )}
       <Card withBorder>

@@ -18,6 +18,7 @@ import {
   submitOvertime,
 } from '../modules/attendance/index.js';
 import { hashPassword } from '../modules/identity/index.js';
+import { createEmployeeAccount } from '../modules/employees/accounts.js';
 import { calculatePeriod, monthRange } from '../modules/payroll/calc.js';
 import { ensureDefaultGroup } from '../modules/payroll/runs.routes.js';
 import {
@@ -42,7 +43,8 @@ export type ExtrasPart =
   | 'adjustments'
   | 'letters'
   | 'payroll'
-  | 'payrollRuns';
+  | 'payrollRuns'
+  | 'accounts';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
 const pad = (n: number, w = 3) => String(n).padStart(w, '0');
@@ -1596,6 +1598,28 @@ const seedPayrollRuns = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+// ───────────────────────── 12) حساب مدعو من بطاقة الموظف (U) ─────────────────────────
+const seedAccounts = async (ctx: Ctx): Promise<string | undefined> => {
+  const email = `demo.invited@${DEMO_EMAIL_DOMAIN}`;
+  const marker = await ctx.trx
+    .selectFrom('users')
+    .select('id')
+    .where('companyId', '=', ctx.companyId)
+    .where('email', '=', email)
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const emp = (await loadEmployees(ctx)).find((e) => !e.userId);
+  if (!emp) return 'skip لا موظف تجريبي بلا حساب';
+  // الدعوة المُنشأة هنا تظهر «مدعو» في بطاقة الموظف؛ تُعاد من زر «إعادة إرسال الدعوة»
+  await createEmployeeAccount(
+    ctx,
+    { notifier: { notify: async () => '' }, publicUrl: undefined },
+    { id: emp.id, fullNameAr: emp.fullNameAr, userId: null },
+    { email, delivery: 'invite' },
+  );
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -1619,6 +1643,7 @@ export const seedDemoExtras = async (
     ['letters', (ctx) => seedLetters(ctx)],
     ['payroll', (ctx) => seedPayroll(ctx)],
     ['payrollRuns', (ctx) => seedPayrollRuns(ctx)],
+    ['accounts', (ctx) => seedAccounts(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);

@@ -131,6 +131,8 @@ export const SETTING_DEFS = {
       ),
     default: 'EMP-{seq:5}',
   },
+  /** القيمة الافتراضية لمفتاح «إنشاء حساب مستخدم» في نموذج موظف جديد */
+  createAccountOnHire: { schema: z.boolean(), default: false },
 } as const;
 export type SettingKey = keyof typeof SETTING_DEFS;
 export const settingKeys = Object.keys(SETTING_DEFS) as SettingKey[];

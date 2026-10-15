@@ -2,7 +2,7 @@ import cookieParser from 'cookie-parser';
 import { Router, type CookieOptions, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
-import type { ApiEnvelope } from '@hrms/shared';
+import { acceptInviteInput, type ApiEnvelope } from '@hrms/shared';
 import type { Db } from '../../db/index.js';
 import { withTenant } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
@@ -17,6 +17,7 @@ import {
   type Me,
   type Session,
 } from './auth.service.js';
+import { acceptInvite, inviteCompanyId } from './invitations.js';
 import { createAuthenticate } from './middleware.js';
 import { invalidateSnapshot } from './permissions.service.js';
 
@@ -79,7 +80,7 @@ export const createAuthRouter = ({
   if (limit) {
     // حد عام على المسارات الحساسة لكل IP، فوق قفل الحساب بعد 5 محاولات فاشلة
     router.use(
-      ['/login', '/refresh'],
+      ['/login', '/refresh', '/accept-invite'],
       rateLimit({
         windowMs: 60_000,
         limit: 30,
@@ -90,6 +91,20 @@ export const createAuthRouter = ({
       }),
     );
   }
+
+  router.post('/accept-invite', async (req, res, next) => {
+    try {
+      const input = acceptInviteInput.parse(req.body);
+      const companyId = inviteCompanyId(input.token);
+      if (!companyId) throw new AppError('INVALID_INVITE', 400, 'رابط الدعوة غير صالح أو منتهٍ');
+      await withTenant(db, { companyId, requestId: req.requestId ?? '' }, (ctx) =>
+        acceptInvite(ctx, input),
+      );
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  });
 
   router.post('/login', async (req, res, next) => {
     try {

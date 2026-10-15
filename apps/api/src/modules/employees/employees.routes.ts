@@ -2,6 +2,7 @@ import { Router, type Request, type RequestHandler } from 'express';
 import { sql, type RawBuilder } from 'kysely';
 import { z } from 'zod';
 import {
+  employeeAccountInput,
   employeeInput,
   employeeListQuery,
   employeeUpdateInput,
@@ -13,15 +14,10 @@ import {
 import type { Db } from '../../db/index.js';
 import { withTenant, type Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
-import {
-  checkPasswordPolicy,
-  hashPassword,
-  hasPermission,
-  requirePermission,
-  type AuthContext,
-} from '../identity/index.js';
+import { hasPermission, requirePermission, type AuthContext } from '../identity/index.js';
 import type { FieldCrypto } from '../../shared/crypto.js';
 import { employeeScope } from './access.js';
+import { accountOf, createEmployeeAccount, resendInvite, type AccountDeps } from './accounts.js';
 import {
   decryptCustomField,
   prepareCustomFields,
@@ -153,7 +149,8 @@ const audit = (ctx: Ctx, entityId: string, action: string, changes: unknown) =>
 export const createEmployeesRouter = (
   db: Db,
   authenticate: RequestHandler,
-  crypto?: FieldCrypto,
+  crypto: FieldCrypto | undefined,
+  accountDeps: AccountDeps,
 ): Router => {
   const router = Router();
   router.use(authenticate);
@@ -219,6 +216,13 @@ export const createEmployeesRouter = (
             currentValue('department_id').as('currentDepartmentId'),
             currentValue('job_title_id').as('currentJobTitleId'),
             currentValue('manager_employee_id').as('currentManagerEmployeeId'),
+            sql<string>`case
+              when employees.user_id is null then 'none'
+              else coalesce((select case when u.status = 'disabled' then 'disabled'
+                                         when u.last_login_at is null and u.must_change_password then 'invited' else 'active' end
+                               from users u where u.id = employees.user_id), 'none') end`.as(
+              'accountStatus',
+            ),
           ])
           .orderBy(sortCol, query.sort.startsWith('-') ? 'desc' : 'asc')
           .orderBy('id')
@@ -260,7 +264,15 @@ export const createEmployeesRouter = (
   router.post('/', requirePermission('employees.employee.create'), async (req, res, next) => {
     try {
       const input = employeeInput.parse(req.body);
+      const account = z
+        .object({ account: employeeAccountInput.optional() })
+        .parse(req.body).account;
       const data = await run(req, async (ctx, auth) => {
+        if (account && !hasPermission(auth, 'identity.user.create_from_employee')) {
+          throw new AppError('FORBIDDEN', 403, 'لا تملك صلاحية إنشاء حسابات المستخدمين', {
+            required: 'identity.user.create_from_employee',
+          });
+        }
         if (input.employeeNo && !hasPermission(auth, 'employees.employee.set_number')) {
           throw new AppError('FORBIDDEN', 403, 'لا تملك صلاحية تحديد الرقم الوظيفي يدوياً', {
             required: 'employees.employee.set_number',
@@ -269,9 +281,21 @@ export const createEmployeesRouter = (
         const employeeNo = input.employeeNo ?? (await nextEmployeeNo(ctx));
         const customFields = await prepareCustomFields(ctx, crypto, input.customFields, {});
         const row = await insertEmployee(ctx, input, employeeNo, customFields);
-        return row;
+        // الحساب في المعاملة نفسها: فشله (بريد مكرر…) يلغي إنشاء الموظف كاملاً
+        const created = account
+          ? await createEmployeeAccount(
+              ctx,
+              accountDeps,
+              { id: row.id, fullNameAr: row.fullNameAr, userId: null },
+              account,
+            )
+          : null;
+        return { row, account: created };
       });
-      res.status(201).json({ data: withMaskedCustomFields(data) });
+      res.status(201).json({
+        data: withMaskedCustomFields(data.row),
+        ...(data.account ? { meta: { account: data.account } } : {}),
+      });
     } catch (err) {
       next(err);
     }
@@ -387,13 +411,18 @@ export const createEmployeesRouter = (
               .executeTakeFirst();
             if (!u) throw new AppError('INVALID_REFERENCE', 400, 'المستخدم غير موجود');
           }
-          const row = await ctx.trx
-            .updateTable('employees')
-            .set({ userId, version: sql`version + 1` })
-            .where('id', '=', id)
-            .returning([...COLUMNS])
-            .executeTakeFirstOrThrow();
-          return row;
+          try {
+            return await ctx.trx
+              .updateTable('employees')
+              .set({ userId, version: sql`version + 1` })
+              .where('id', '=', id)
+              .returning([...COLUMNS])
+              .executeTakeFirstOrThrow();
+          } catch (e) {
+            if ((e as { code?: string }).code === '23505')
+              throw new AppError('USER_ALREADY_LINKED', 409, 'هذا المستخدم مرتبط بموظف آخر');
+            throw e;
+          }
         });
         res.json({ data: withMaskedCustomFields(data) });
       } catch (err) {
@@ -402,73 +431,62 @@ export const createEmployeesRouter = (
     },
   );
 
-  // إنشاء حساب للموظف وربطه (دور «موظف» بنطاق الذات)
-  router.post(
+  // حساب المستخدم للموظف: الحالة، إنشاء (دعوة/مؤقت)، إعادة إرسال الدعوة
+  router.get(
     '/:id/account',
-    requirePermission('employees.employee.update'),
-    requirePermission('identity.user.create'),
+    requirePermission('employees.employee.read'),
+    requirePermission('identity.user.read'),
     async (req, res, next) => {
       try {
         const id = idOf(req.params['id']);
-        const input = z
-          .object({
-            email: z.string().trim().toLowerCase().email().max(254),
-            username: z
-              .string()
-              .trim()
-              .min(3)
-              .max(60)
-              .regex(/^[A-Za-z0-9._-]+$/)
-              .optional(),
-            password: z.string().min(1).max(256),
-          })
-          .parse(req.body);
+        const data = await run(req, async (ctx, auth) => {
+          await loadVisible(ctx, auth, id, 'employees.employee.read');
+          return accountOf(ctx, id);
+        });
+        res.json({ data });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/:id/account',
+    requirePermission('employees.employee.update'),
+    requirePermission('identity.user.create_from_employee'),
+    async (req, res, next) => {
+      try {
+        const id = idOf(req.params['id']);
+        const body = req.body as { password?: unknown; delivery?: unknown };
+        // توافق: كلمة مرور بلا تحديد التسليم تعني التسليم المؤقت
+        const input = employeeAccountInput.parse(
+          body?.password !== undefined && body?.delivery === undefined
+            ? { ...body, delivery: 'temp' }
+            : req.body,
+        );
         const data = await run(req, async (ctx, auth) => {
           const emp = await loadVisible(ctx, auth, id, 'employees.employee.update');
-          if (emp.userId) throw new AppError('ALREADY_LINKED', 409, 'الموظف مرتبط بحساب بالفعل');
-          const problem = checkPasswordPolicy(input.password, {
-            email: input.email,
-            username: input.username ?? null,
-          });
-          if (problem) throw new AppError('WEAK_PASSWORD', 400, problem);
-          const user = await ctx.trx
-            .insertInto('users')
-            .values({
-              companyId: ctx.companyId,
-              email: input.email,
-              username: input.username ?? null,
-              displayName: emp.fullNameAr,
-              passwordHash: await hashPassword(input.password),
-              mustChangePassword: true,
-            })
-            .returning(['id', 'email'])
-            .executeTakeFirstOrThrow();
-          const role = await ctx.trx
-            .selectFrom('roles')
-            .select('id')
-            .where('code', '=', 'employee')
-            .executeTakeFirst();
-          if (role) {
-            await ctx.trx
-              .insertInto('userRoleAssignments')
-              .values({
-                companyId: ctx.companyId,
-                userId: user.id,
-                roleId: role.id,
-                scopeType: 'self',
-                scopeId: null,
-              })
-              .execute();
-          }
-          await ctx.trx
-            .updateTable('employees')
-            .set({ userId: user.id, version: sql`version + 1` })
-            .where('id', '=', id)
-            .execute();
-          await audit(ctx, id, 'account_created', { userId: user.id, email: user.email });
-          return { userId: user.id, email: user.email };
+          return createEmployeeAccount(ctx, accountDeps, emp, input);
         });
         res.status(201).json({ data });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/:id/account/resend-invite',
+    requirePermission('employees.employee.update'),
+    requirePermission('identity.user.create_from_employee'),
+    async (req, res, next) => {
+      try {
+        const id = idOf(req.params['id']);
+        const data = await run(req, async (ctx, auth) => {
+          const emp = await loadVisible(ctx, auth, id, 'employees.employee.update');
+          return resendInvite(ctx, accountDeps, emp.userId);
+        });
+        res.json({ data });
       } catch (err) {
         next(err);
       }

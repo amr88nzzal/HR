@@ -93,6 +93,7 @@ describe('البيانات التجريبية', () => {
       'letters:done',
       'payroll:done',
       'payrollRuns:done',
+      'accounts:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -187,6 +188,16 @@ describe('البيانات التجريبية', () => {
     expect(await n('payroll_periods', sql`status = 'draft' and calculated_at is not null`)).toBe(1);
     expect(await n('payslips')).toBeGreaterThan(0);
     expect(await n('payslips', sql`status = 'error'`)).toBe(0);
+
+    // حساب مدعو لموظف تجريبي (يظهر «مدعو» في بطاقته)
+    const invited = await sql<{ n: string }>`
+      select count(*)::text as n from users u
+       where u.company_id = ${companyId} and u.email like 'demo.invited@%'
+         and exists (select 1 from employees e where e.user_id = u.id)
+         and exists (select 1 from password_resets p where p.user_id = u.id and p.used_at is null)`.execute(
+      admin,
+    );
+    expect(Number(invited.rows[0]?.n)).toBe(1);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);

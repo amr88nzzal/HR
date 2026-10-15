@@ -16,3 +16,4 @@ export {
 } from './permissions.service.js';
 export { hashPassword, checkPasswordPolicy } from './password.js';
 export { PERMISSION_CATALOG, DEFAULT_ROLES } from './catalog.js';
+export { INVITE_TTL_HOURS, acceptInvite, inviteCompanyId, issueInvite } from './invitations.js';
