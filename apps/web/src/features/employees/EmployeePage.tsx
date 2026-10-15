@@ -25,6 +25,7 @@ import { localName } from '../../lib/names';
 import { IssuePanel } from '../letters/IssuePanel';
 import { SalaryTab } from '../payroll/SalaryTab';
 import { DocumentsPanel } from '../archive/DocumentsPanel';
+import { AccountPanel } from './AccountPanel';
 import { BankTab } from './BankTab';
 import {
   AddressesTab,
@@ -122,6 +123,12 @@ export const EmployeePage = () => {
       label: t('hr.emp.tabs.overview'),
       show: true,
       body: <OverviewTab employee={emp} />,
+    },
+    {
+      value: 'account',
+      label: t('account.tab'),
+      show: can('identity.user.read') && can('identity.user.create_from_employee'),
+      body: <AccountPanel employeeId={employeeId} />,
     },
     {
       value: 'employment',

@@ -294,7 +294,7 @@ export const createEmployeesRouter = (
       });
       res.status(201).json({
         data: withMaskedCustomFields(data.row),
-        ...(data.account ? { account: data.account } : {}),
+        ...(data.account ? { meta: { account: data.account } } : {}),
       });
     } catch (err) {
       next(err);

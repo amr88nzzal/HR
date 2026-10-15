@@ -1,4 +1,14 @@
-import { Button, Group, Modal, Select, Stack, TextInput, Title } from '@mantine/core';
+import {
+  Badge,
+  Button,
+  Group,
+  Modal,
+  Select,
+  Stack,
+  Switch,
+  TextInput,
+  Title,
+} from '@mantine/core';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconDownload, IconPlus } from '@tabler/icons-react';
@@ -6,12 +16,20 @@ import { useNavigate } from '@tanstack/react-router';
 import { employeeInput } from '@hrms/shared';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useList, useSave, type Row } from '../../api/hooks';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from '../../api/client';
+import { useList, type Row } from '../../api/hooks';
 import { useAuth } from '../../auth/AuthContext';
 import { DataTable, type Column } from '../../components/DataTable';
 import { DynamicForm, type FieldDef } from '../../components/DynamicForm';
 import { errorMessage } from '../../lib/errors';
 import { exportCsv, exportXlsx, fetchAllRows, type ExportColumn } from '../../lib/export';
+import {
+  AccountResultModal,
+  stateColor,
+  type AccountResult,
+  type AccountState,
+} from './AccountPanel';
 import { enumLabel, enumOptions, StatusBadge, str, useOrgLookups } from './shared';
 
 const PAGE_SIZE = 25;
@@ -72,7 +90,17 @@ export const EmployeesPage = () => {
     departmentId: departmentId ?? undefined,
   };
   const list = useList('/employees', { page, pageSize: PAGE_SIZE, ...filters });
-  const save = useSave('/employees');
+  const qc = useQueryClient();
+  const defaults = useQuery({
+    queryKey: ['/settings', 'effective'],
+    queryFn: async () => (await api.get<Record<string, unknown>>('/settings/effective')).data,
+    staleTime: 60_000,
+  });
+  const [acct, setAcct] = useState<{ on: boolean; email: string; delivery: string } | null>(null);
+  const [acctResult, setAcctResult] = useState<AccountResult | null>(null);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const canAccount = can('identity.user.create_from_employee');
   const reset =
     <T,>(setter: (v: T) => void) =>
     (v: T) => {
@@ -103,6 +131,23 @@ export const EmployeesPage = () => {
       render: (r) => <StatusBadge status={r['status']} />,
       exportValue: (r) => enumLabel(t, 'empStatus', r['status']),
     },
+    ...(can('identity.user.read')
+      ? [
+          {
+            key: 'account',
+            header: t('account.column'),
+            render: (r: Row) => {
+              const st = (str(r['accountStatus']) || 'none') as AccountState;
+              return (
+                <Badge variant="light" color={stateColor[st]}>
+                  {t(`account.states.${st}`)}
+                </Badge>
+              );
+            },
+            exportValue: (r: Row) => t(`account.states.${str(r['accountStatus']) || 'none'}`),
+          } satisfies Column<Row>,
+        ]
+      : []),
     {
       key: 'branch',
       header: t('hr.emp.branch'),
@@ -141,18 +186,34 @@ export const EmployeesPage = () => {
     }
   };
 
-  const create = (values: Record<string, unknown>) =>
-    save.mutate(
-      { body: values },
-      {
-        onSuccess: (row) => {
-          notifications.show({ color: 'teal', message: t('hr.emp.created') });
-          close();
-          void navigate({ to: '/employees/$employeeId', params: { employeeId: row.id } });
+  const create = async (values: Record<string, unknown>) => {
+    setSaving(true);
+    try {
+      const res = await api.request<Row>('/employees', {
+        method: 'POST',
+        body: {
+          ...values,
+          ...(acct?.on
+            ? { account: { delivery: acct.delivery, ...(acct.email ? { email: acct.email } : {}) } }
+            : {}),
         },
-        onError: (err) => notifications.show({ color: 'red', message: errorMessage(err, t) }),
-      },
-    );
+      });
+      await qc.invalidateQueries({ queryKey: ['/employees'] });
+      notifications.show({ color: 'teal', message: t('hr.emp.created') });
+      close();
+      const account = (res.meta as { account?: AccountResult } | undefined)?.account;
+      if (account) {
+        setCreatedId(res.data.id);
+        setAcctResult(account);
+      } else {
+        void navigate({ to: '/employees/$employeeId', params: { employeeId: res.data.id } });
+      }
+    } catch (err) {
+      notifications.show({ color: 'red', message: errorMessage(err, t) });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Stack>
@@ -171,7 +232,17 @@ export const EmployeesPage = () => {
             {t('table.exportCsv')}
           </Button>
           {can('employees.employee.create') && (
-            <Button leftSection={<IconPlus size={16} />} onClick={open}>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              onClick={() => {
+                setAcct({
+                  on: canAccount && defaults.data?.['createAccountOnHire'] === true,
+                  email: '',
+                  delivery: 'invite',
+                });
+                open();
+              }}
+            >
               {t('hr.emp.add')}
             </Button>
           )}
@@ -228,6 +299,36 @@ export const EmployeesPage = () => {
         }
       />
       <Modal opened={opened} onClose={close} title={t('hr.emp.add')} centered size="lg">
+        {opened && canAccount && acct && (
+          <Stack mb="md" gap="xs">
+            <Switch
+              label={t('account.createOnHire')}
+              checked={acct.on}
+              onChange={(e) => setAcct({ ...acct, on: e.currentTarget.checked })}
+            />
+            {acct.on && (
+              <Group grow align="flex-start">
+                <TextInput
+                  label={t('account.email')}
+                  description={t('account.emailHint')}
+                  dir="ltr"
+                  value={acct.email}
+                  onChange={(e) => setAcct({ ...acct, email: e.currentTarget.value })}
+                />
+                <Select
+                  label={t('account.delivery')}
+                  allowDeselect={false}
+                  value={acct.delivery}
+                  data={[
+                    { value: 'invite', label: t('account.deliveries.invite') },
+                    { value: 'temp', label: t('account.deliveries.temp') },
+                  ]}
+                  onChange={(x) => setAcct({ ...acct, delivery: x ?? 'invite' })}
+                />
+              </Group>
+            )}
+          </Stack>
+        )}
         {opened && (
           <DynamicForm
             fields={employeeFields(t, can('employees.employee.set_number'), true)}
@@ -239,12 +340,20 @@ export const EmployeesPage = () => {
               ]),
             )}
             editing={false}
-            submitting={save.isPending}
-            onSubmit={create}
+            submitting={saving}
+            onSubmit={(v) => void create(v)}
             onCancel={close}
           />
         )}
       </Modal>
+      <AccountResultModal
+        result={acctResult}
+        onClose={() => {
+          setAcctResult(null);
+          if (createdId)
+            void navigate({ to: '/employees/$employeeId', params: { employeeId: createdId } });
+        }}
+      />
     </Stack>
   );
 };

@@ -12,6 +12,7 @@ import { useAuth } from './auth/AuthContext';
 import { AppLayout } from './layout/AppLayout';
 import { isGroup, NAV } from './layout/nav';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { VerifyPage } from './pages/VerifyPage';
 import { LoginPage } from './pages/LoginPage';
 import { JobsPage } from './features/admin/JobsPage';
@@ -79,6 +80,13 @@ const verifyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/verify/$token',
   component: VerifyPage,
+});
+
+/** تفعيل الحساب من رابط الدعوة: خارج الجلسة */
+const acceptInviteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/accept-invite',
+  component: AcceptInvitePage,
 });
 
 /** حارس الجلسة + الهيكل العام. المحتوى المحمي لا يُرسم قبل التحقق. */
@@ -212,6 +220,7 @@ const payrollPeriodRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   loginRoute,
   verifyRoute,
+  acceptInviteRoute,
   authRoute.addChildren([
     indexRoute,
     passwordRoute,

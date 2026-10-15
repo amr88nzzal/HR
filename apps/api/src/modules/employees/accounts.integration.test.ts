@@ -25,10 +25,7 @@ describe('حساب المستخدم من بطاقة الموظف: الدعوة �
   const as = (who: string) => ({ Authorization: `Bearer ${tokens[who]}` });
   const post = (who: string, p: string, body: object = {}) =>
     request(api).post(`/api/v1${p}`).set(as(who)).send(body);
-  const patch = (who: string, p: string, body: object) =>
-    request(api).patch(`/api/v1${p}`).set(as(who)).send(body);
   const get = (who: string, p: string) => request(api).get(`/api/v1${p}`).set(as(who));
-  const del = (who: string, p: string) => request(api).delete(`/api/v1${p}`).set(as(who));
 
   const makeUser = (email: string, roleCode: string) =>
     withTenant(admin, { companyId: acme }, async (ctx) => {
@@ -218,7 +215,7 @@ describe('حساب المستخدم من بطاقة الموظف: الدعوة �
       account: { email: 'joud@acme.test' },
     });
     expect(ok.status).toBe(201);
-    expect(ok.body.account.inviteLink).toBeTruthy();
+    expect(ok.body.meta.account.inviteLink).toBeTruthy();
     const before = (await get('admin', '/employees')).body.meta.total;
     const bad = await post('admin', '/employees', {
       firstNameAr: 'مكرر',

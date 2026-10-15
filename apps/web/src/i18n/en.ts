@@ -1,3 +1,4 @@
+import { accountEn } from './account.en';
 import type { Messages } from './ar';
 import { hrEn, hrFieldsEn, hrNavEn } from './hr.en';
 import { payrollEn, payrollNavEn } from './payroll.en';
@@ -519,6 +520,7 @@ export const en: Messages = {
     personalHint: 'Overrides company settings for your account only',
     inherit: 'Use company setting',
     keys: {
+      createAccountOnHire: 'Create a user account when adding a new employee (default)',
       locale: 'Language',
       timezone: 'Time zone',
       calendar: 'Calendar',
@@ -963,6 +965,7 @@ export const en: Messages = {
   },
   hr: hrEn,
   payroll: payrollEn,
+  account: accountEn,
   errors: {
     forbiddenTitle: 'Not authorized',
     forbidden: 'You do not have permission to view this page',
