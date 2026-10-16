@@ -22,6 +22,7 @@ import { ApprovalFlowsPage } from './features/admin/ApprovalFlowsPage';
 import { ApprovalsPage } from './features/approvals/ApprovalsPage';
 import { ApprovalDetailPage } from './features/approvals/ApprovalDetailPage';
 import { DelegationsPage } from './features/approvals/DelegationsPage';
+import { MyPayslipsPage } from './features/payroll/MyPayslipsPage';
 import { MyLeavePage } from './features/leave/MyLeavePage';
 import { BalancesAdminPage } from './features/leave/BalancesAdminPage';
 import { TeamCalendarPage } from './features/leave/TeamCalendarPage';
@@ -145,6 +146,7 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/jobs': () => <JobsPage />,
   '/admin/channels': () => <ChannelsPage />,
   '/admin/notification-templates': () => <NotificationTemplatesPage />,
+  '/me/payslips': () => <MyPayslipsPage />,
   '/leave': () => <MyLeavePage />,
   '/leave/calendar': () => <TeamCalendarPage />,
   '/leave/report': () => <BalancesReportPage />,

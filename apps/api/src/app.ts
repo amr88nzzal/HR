@@ -170,7 +170,12 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
       createIssuedDocumentsRouter(auth.db, authenticate, files, auth.render, auth.publicUrl),
     );
     api.use('/company-brand', createBrandRouter(auth.db, authenticate, files));
-    mountPayrollRoutes(api, auth.db, authenticate);
+    mountPayrollRoutes(api, auth.db, authenticate, {
+      notifier: createNotifier(auth.jobs),
+      publicUrl: auth.publicUrl,
+      files,
+      render: auth.render,
+    });
     api.use('/attendance-corrections', createCorrectionsRouter(auth.db, authenticate, engine));
     api.use('/overtime-requests', createOvertimeRouter(auth.db, authenticate, engine));
     app.use('/api/v1', api);

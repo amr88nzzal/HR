@@ -5,6 +5,7 @@ export const payrollNavAr = {
   payrollPeriods: 'دورات الرواتب',
   brand: 'الهوية البصرية',
   payrollLoans: 'قروض وسلف',
+  myPayslips: 'قسائم راتبي',
 };
 
 export const payrollAr = {

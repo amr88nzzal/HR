@@ -1,5 +1,6 @@
 import { brandAr } from './brand.ar';
 import { loansAr } from './loans.ar';
+import { payslipsAr } from './payslips.ar';
 import { accountAr } from './account.ar';
 import { hrAr, hrFieldsAr, hrNavAr } from './hr.ar';
 import { payrollAr, payrollNavAr } from './payroll.ar';
@@ -887,7 +888,12 @@ export const ar = {
       chatIdLabel: 'أو أدخل chat id',
       chatIdLink: 'ربط',
     },
-    categories: { approvals: 'الموافقات', archive: 'الأرشيف', system: 'النظام' },
+    categories: {
+      approvals: 'الموافقات',
+      archive: 'الأرشيف',
+      payroll: 'الرواتب',
+      system: 'النظام',
+    },
   },
   notifTemplates: {
     title: 'قوالب الإشعارات',
@@ -959,6 +965,7 @@ export const ar = {
   payroll: payrollAr,
   account: accountAr,
   loans: loansAr,
+  payslips: payslipsAr,
   brand: brandAr,
   errors: {
     forbiddenTitle: 'غير مصرّح',

@@ -46,6 +46,7 @@ export type ExtrasPart =
   | 'payroll'
   | 'payrollRuns'
   | 'loans'
+  | 'payslips'
   | 'brand'
   | 'accounts';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
@@ -1754,6 +1755,59 @@ const seedBrand = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+// ───────────────────────── 14) قسائم منشورة للموظفين (7d) ─────────────────────────
+/** دورة مقفلة قبل الدورة التجريبية: تظهر في «قسائم راتبي» وتعطي المقارنة سابقاً. */
+const seedPublishedPayslips = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const locked = await trx
+    .selectFrom('payrollPeriods')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('status', '=', 'locked')
+    .executeTakeFirst();
+  if (locked) return 'skip';
+  const draft = await trx
+    .selectFrom('payrollPeriods')
+    .selectAll()
+    .where('companyId', '=', companyId)
+    .where('status', '=', 'draft')
+    .orderBy('year', 'desc')
+    .orderBy('month', 'desc')
+    .executeTakeFirst();
+  if (!draft) return 'skip لا دورة رواتب تجريبية';
+  const d = new Date(Date.UTC(draft.year, draft.month - 2, 1));
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + 1;
+  const { startDate, endDate } = monthRange(year, month);
+  const period = await trx
+    .insertInto('payrollPeriods')
+    .values({
+      companyId,
+      payGroupId: draft.payGroupId,
+      year,
+      month,
+      startDate,
+      endDate,
+      currency: draft.currency,
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  await calculatePeriod(ctx, {
+    id: period.id,
+    payGroupId: draft.payGroupId,
+    year,
+    month,
+    startDate,
+    endDate,
+    currency: draft.currency,
+    status: 'draft',
+  });
+  await sql`update payroll_periods set status = 'locked', locked_at = now(), approved_at = now() where id = ${period.id}`.execute(
+    trx,
+  );
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -1779,6 +1833,7 @@ export const seedDemoExtras = async (
     ['payrollRuns', (ctx) => seedPayrollRuns(ctx)],
     ['accounts', (ctx) => seedAccounts(ctx)],
     ['loans', (ctx) => seedLoans(ctx)],
+    ['payslips', (ctx) => seedPublishedPayslips(ctx)],
     ['brand', (ctx) => seedBrand(ctx)],
   ];
   for (const [part, fn] of parts) {

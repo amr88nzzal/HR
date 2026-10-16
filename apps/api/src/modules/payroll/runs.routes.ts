@@ -16,6 +16,7 @@ import type { Db } from '../../db/index.js';
 import type { Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
 import { employeeScope } from '../employees/index.js';
+import type { Notifier } from '../../notifications/index.js';
 import { requirePermission } from '../identity/index.js';
 import {
   assertDraft,
@@ -117,7 +118,9 @@ const slipDetail = async (ctx: Ctx, slipId: string) => {
   };
 };
 
-export const createRunsRouter = (db: Db, authenticate: RequestHandler): Router => {
+export type RunsDeps = { notifier: Notifier; publicUrl: string | undefined };
+
+export const createRunsRouter = (db: Db, authenticate: RequestHandler, deps: RunsDeps): Router => {
   const router = Router();
   const run = makeRun(db);
   router.use(authenticate);
@@ -349,6 +352,25 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler): Router =
     await sql`update payroll_periods set status = 'locked', locked_by = ${ctx.userId}, locked_at = now(),
                      version = version + 1 where id = ${p.id}`.execute(ctx.trx);
     await applyLoansOnLock(ctx, p.id);
+    // إشعار الموظفين بنشر قسائمهم (لمن لديه حساب)؛ فشل الإشعار لا يمنع القفل
+    const { rows } = await sql<{ userId: string; name: string }>`
+      select e.user_id, e.full_name_ar as name from payslips s join employees e on e.id = s.employee_id
+       where s.period_id = ${p.id} and s.status = 'calculated' and e.user_id is not null`.execute(
+      ctx.trx,
+    );
+    const period = `${p.year}-${String(p.month).padStart(2, '0')}`;
+    const link = `${(deps.publicUrl ?? '').replace(/\/$/, '')}/me/payslips`;
+    for (const r of rows) {
+      try {
+        await deps.notifier.notify(ctx, {
+          userId: r.userId,
+          event: 'payroll.payslip_ready',
+          vars: { name: r.name, period, link },
+        });
+      } catch {
+        /* الإشعار best-effort */
+      }
+    }
   });
   transition('reopen', `${P}.approve`, ['approved', 'locked'], async (ctx, p, req) => {
     const b = reopenInput.parse(req.body);
@@ -485,7 +507,82 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler): Router =
            order by abs(coalesce(cur.net_amount, 0) - coalesce(old.net_amount, 0)) desc, e.employee_no`.execute(
           ctx.trx,
         );
-        return { previousPeriodId: prevId, rows: rows.filter((r) => r.diff !== '0.0000') };
+        const changed = rows.filter((r) => r.diff !== '0.0000');
+        const ids = changed.map((r) => r.employeeId as string);
+        const periods = [id, ...(prevId ? [prevId] : [])];
+        const lineRows = ids.length
+          ? (
+              await sql<Row>`
+                select s.employee_id, s.period_id, l.code, l.name_ar, l.kind, l.amount::text as amount
+                  from payslip_lines l join payslips s on s.id = l.payslip_id
+                 where s.period_id in (${sql.join(periods)}) and s.employee_id in (${sql.join(ids)})
+                   and l.kind <> 'employer'`.execute(ctx.trx)
+            ).rows
+          : [];
+        const loanRows = ids.length
+          ? (
+              await sql<Row>`
+                select employee_id, period_id, loans_amount::text as loans from payslips
+                 where period_id in (${sql.join(periods)}) and employee_id in (${sql.join(ids)})`.execute(
+                ctx.trx,
+              )
+            ).rows
+          : [];
+        const byEmp = new Map<string, Map<string, Row>>();
+        for (const l of lineRows) {
+          const m = byEmp.get(l.employeeId as string) ?? new Map<string, Row>();
+          const key = `${l.kind as string}:${l.code as string}`;
+          const e = m.get(key) ?? {
+            code: l.code,
+            nameAr: l.nameAr,
+            kind: l.kind,
+            cur: '0',
+            prev: '0',
+          };
+          e[l.periodId === id ? 'cur' : 'prev'] = l.amount;
+          m.set(key, e);
+          byEmp.set(l.employeeId as string, m);
+        }
+        const loanOf = (emp: string, per: string | null) =>
+          String(loanRows.find((x) => x.employeeId === emp && x.periodId === per)?.loans ?? '0');
+        return {
+          previousPeriodId: prevId,
+          rows: changed.map((r) => {
+            const emp = r.employeeId as string;
+            const lines = [...(byEmp.get(emp)?.values() ?? [])]
+              .map((l) => {
+                const cur = num(l.cur as string);
+                const prevV = num(l.prev as string);
+                const diff = cur.minus(prevV);
+                return {
+                  code: l.code,
+                  nameAr: l.nameAr,
+                  kind: l.kind,
+                  cur: cur.toFixed(4),
+                  prev: prevV.toFixed(4),
+                  diff: diff.toFixed(4),
+                  pct: prevV.isZero() ? null : diff.div(prevV).times(100).toFixed(2),
+                };
+              })
+              .filter((l) => l.diff !== '0.0000')
+              .sort((a, b) => Math.abs(Number(b.diff)) - Math.abs(Number(a.diff)));
+            const lc = num(loanOf(emp, id));
+            const lp = num(loanOf(emp, prevId));
+            const prevNet = num((r.prevNet as string | null) ?? '0');
+            return {
+              ...r,
+              pct: prevNet.isZero()
+                ? null
+                : num(r.diff as string)
+                    .div(prevNet)
+                    .times(100)
+                    .toFixed(2),
+              lines,
+              loans: lc.toFixed(4),
+              prevLoans: lp.toFixed(4),
+            };
+          }),
+        };
       });
       res.json({ data });
     }),

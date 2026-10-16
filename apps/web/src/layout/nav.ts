@@ -55,6 +55,8 @@ export type NavGroup = { key: string; items: NavLeaf[] };
 /** القائمة تُبنى من الصلاحيات: العنصر بلا صلاحية يختفي، والمجموعة الفارغة تختفي. */
 export const NAV: (NavLeaf | NavGroup)[] = [
   { key: 'dashboard', path: '/', icon: IconHome },
+  /** بلا صلاحية: كل مستخدم مرتبط بموظف يرى قسائمه (تُقيَّد في الخادم) */
+  { key: 'myPayslips', path: '/me/payslips', icon: IconCash },
   {
     key: 'hrGroup',
     items: [
