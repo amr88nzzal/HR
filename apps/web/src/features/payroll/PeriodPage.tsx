@@ -23,7 +23,9 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../lib/errors';
+import { downloadBlob } from '../../lib/export';
 import { statusColor } from './PeriodsPage';
+import { ComparePanel, type CompareRow } from './ComparePanel';
 import { PaymentsPanel } from './PaymentsPanel';
 import { PayslipDrawer } from './PayslipDrawer';
 import { FormModal } from './crud';
@@ -81,14 +83,7 @@ export const PeriodPage = () => {
     queryFn: async () =>
       (
         await api.get<{
-          rows: {
-            employeeId: string;
-            employeeNo: string;
-            employeeName: string;
-            net: string | null;
-            prevNet: string | null;
-            diff: string;
-          }[];
+          rows: CompareRow[];
         }>(`${base}/compare`)
       ).data,
     enabled: can('payroll.payslip.read'),
@@ -120,6 +115,17 @@ export const PeriodPage = () => {
     },
     onError: fail,
   });
+  const [zipping, setZipping] = useState(false);
+  const downloadZip = async () => {
+    setZipping(true);
+    try {
+      downloadBlob(await api.blob(`${base}/payslips.zip`), `payslips-${periodId}.zip`);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setZipping(false);
+    }
+  };
   const simulate = useMutation({
     mutationFn: async () => (await api.post<Sim>(`${base}/simulate`, {})).data,
     onSuccess: setSim,
@@ -178,6 +184,11 @@ export const PeriodPage = () => {
           {p.status === 'approved' && can('payroll.period.lock') && (
             <Button color="teal" onClick={() => act.mutate({ path: 'lock' })}>
               {t('payroll.run.lock')}
+            </Button>
+          )}
+          {can('payroll.payslip.read') && p.employeesCount > 0 && (
+            <Button variant="default" loading={zipping} onClick={() => void downloadZip()}>
+              {t('payslips.zip')}
             </Button>
           )}
           {p.status !== 'draft' &&
@@ -336,28 +347,7 @@ export const PeriodPage = () => {
         </Tabs.Panel>
 
         <Tabs.Panel value="compare" pt="md">
-          <Table withTableBorder striped>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t('payroll.run.employee')}</Table.Th>
-                <Table.Th>{t('payroll.run.prevNet')}</Table.Th>
-                <Table.Th>{t('payroll.run.net')}</Table.Th>
-                <Table.Th>{t('payroll.run.diff')}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {(compare.data?.rows ?? []).map((r) => (
-                <Table.Tr key={r.employeeId}>
-                  <Table.Td>{`${r.employeeNo} · ${r.employeeName}`}</Table.Td>
-                  <Table.Td dir="ltr">{r.prevNet ?? '—'}</Table.Td>
-                  <Table.Td dir="ltr">{r.net ?? '—'}</Table.Td>
-                  <Table.Td dir="ltr" c={Number(r.diff) < 0 ? 'red' : 'teal'}>
-                    {r.diff}
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+          <ComparePanel rows={compare.data?.rows ?? []} />
         </Tabs.Panel>
 
         <Tabs.Panel value="overrides" pt="md">

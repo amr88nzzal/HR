@@ -1,0 +1,26 @@
+/** Employee payslips and comparison texts (7d) */
+export const payslipsEn = {
+  title: 'My payslips',
+  empty: 'No published payslips yet. A payslip appears once the payroll period is locked.',
+  period: 'Period',
+  net: 'Net salary',
+  payable: 'Payable',
+  loans: 'Loan installment',
+  gross: 'Gross earnings',
+  totalDeductions: 'Total deductions',
+  earnings: 'Earnings',
+  deductions: 'Deductions',
+  view: 'View',
+  reveal: 'Show amounts',
+  hide: 'Hide amounts',
+  zip: 'Download all payslips (ZIP)',
+  cmp: {
+    pct: '%',
+    threshold: 'Show differences above (%)',
+    onlyBig: 'Large differences only',
+    loansLine: 'Loan installment',
+    none: 'No differences',
+    prev: 'Previous',
+    cur: 'Current',
+  },
+};

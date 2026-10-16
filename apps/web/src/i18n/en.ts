@@ -1,5 +1,6 @@
 import { brandEn } from './brand.en';
 import { loansEn } from './loans.en';
+import { payslipsEn } from './payslips.en';
 import { accountEn } from './account.en';
 import type { Messages } from './ar';
 import { hrEn, hrFieldsEn, hrNavEn } from './hr.en';
@@ -900,7 +901,12 @@ export const en: Messages = {
       chatIdLabel: 'Or enter your chat id',
       chatIdLink: 'Link',
     },
-    categories: { approvals: 'Approvals', archive: 'Archive', system: 'System' },
+    categories: {
+      approvals: 'Approvals',
+      archive: 'Archive',
+      payroll: 'Payroll',
+      system: 'System',
+    },
   },
   notifTemplates: {
     title: 'Notification templates',
@@ -972,6 +978,7 @@ export const en: Messages = {
   payroll: payrollEn,
   account: accountEn,
   loans: loansEn,
+  payslips: payslipsEn,
   brand: brandEn,
   errors: {
     forbiddenTitle: 'Not authorized',

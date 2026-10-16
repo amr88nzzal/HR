@@ -9,6 +9,7 @@ export type NotificationLocale = (typeof NOTIFICATION_LOCALES)[number];
 export const NOTIFICATION_CATEGORIES = [
   { key: 'approvals', mandatory: false },
   { key: 'archive', mandatory: false },
+  { key: 'payroll', mandatory: false },
   { key: 'system', mandatory: false },
 ] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number]['key'];
@@ -95,6 +96,21 @@ export const NOTIFICATION_EVENTS: readonly NotificationEventDef[] = [
       en: {
         subject: 'Document due soon',
         body: 'The document "{{documentType}}" for {{owner}} is due on {{dueDate}}.',
+      },
+    },
+  },
+  {
+    key: 'payroll.payslip_ready',
+    category: 'payroll',
+    variables: ['name', 'period', 'link'],
+    defaults: {
+      ar: {
+        subject: 'قسيمة راتبك جاهزة',
+        body: 'مرحباً {{name}}، قسيمة راتب {{period}} متاحة الآن: {{link}}',
+      },
+      en: {
+        subject: 'Your payslip is ready',
+        body: 'Hello {{name}}, your payslip for {{period}} is now available: {{link}}',
       },
     },
   },

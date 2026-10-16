@@ -7,11 +7,12 @@ const keys = (perms: string[]) =>
 describe('القائمة تُبنى من الصلاحيات', () => {
   it('بلا صلاحيات تظهر الرئيسية فقط وتختفي المجموعات الفارغة', () => {
     // الموافقات والتفويض متاحان لكل مستخدم (بلا صلاحية)، وسلاسل الموافقة بصلاحية
-    expect(keys([])).toEqual(['dashboard', 'approvalsInbox', 'approvalDelegations']);
+    expect(keys([])).toEqual(['dashboard', 'myPayslips', 'approvalsInbox', 'approvalDelegations']);
   });
   it('تظهر العناصر المطابقة فقط', () => {
     expect(keys(['system.branch.read', 'identity.user.read'])).toEqual([
       'dashboard',
+      'myPayslips',
       'approvalsInbox',
       'approvalDelegations',
       'branches',
@@ -58,7 +59,7 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'letters.document.read',
         'letters.template.read',
       ]).length,
-    ).toBe(44);
+    ).toBe(45);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');
