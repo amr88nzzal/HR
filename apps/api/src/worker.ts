@@ -9,6 +9,7 @@ import {
   createTelegramProvider,
 } from './notifications/index.js';
 import { createFieldCrypto } from './shared/crypto.js';
+import { createLocalStorage } from './shared/storage.js';
 import { startWorkers } from './jobs/runtime.js';
 import { loadConfig } from './shared/config.js';
 import { createLogger } from './shared/logging.js';
@@ -53,7 +54,12 @@ await startWorkers({
   boss,
   db,
   adminDb,
-  registry: buildRegistry(mail, createTelegramProvider({ crypto, api: createTelegramApi() })),
+  registry: buildRegistry(
+    mail,
+    createTelegramProvider({ crypto, api: createTelegramApi() }),
+    { storage: createLocalStorage(config.STORAGE_DIR), crypto },
+    config.PUBLIC_URL,
+  ),
   periodic: PERIODIC_JOBS,
   logger,
 });

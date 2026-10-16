@@ -473,7 +473,8 @@ export type StoredFilesTable = {
   sizeBytes: ColumnType<string, number | string, number | string>;
   sha256: string;
   isEncrypted: Generated<boolean>;
-  purpose: 'document' | 'employee_photo' | 'issued_document' | 'letter_template' | 'brand';
+  purpose:
+    'document' | 'employee_photo' | 'issued_document' | 'letter_template' | 'brand' | 'report';
   parentId: string | null;
   variant: string | null;
   createdBy: string | null;
@@ -1156,6 +1157,34 @@ export type PayslipLinesTable = {
   explain: ColumnType<Record<string, unknown>, string | undefined, string>;
   sortOrder: Generated<number>;
 };
+export type ReportRunsTable = {
+  id: Generated<string>;
+  companyId: string;
+  userId: string;
+  reportCode: string;
+  format: 'csv' | 'xlsx' | 'html' | 'pdf';
+  mode: 'direct' | 'job';
+  filters: Generated<unknown>;
+  columns: Generated<unknown>;
+  lang: Generated<'ar' | 'en'>;
+  status: Generated<'queued' | 'running' | 'done' | 'failed'>;
+  rowCount: number | null;
+  fileId: string | null;
+  error: string | null;
+  expiresAt: Date | null;
+  finishedAt: Date | null;
+  createdAt: Generated<Date>;
+};
+export type ReportLayoutsTable = {
+  id: Generated<string>;
+  companyId: string;
+  userId: string;
+  reportCode: string;
+  name: string;
+  columns: unknown;
+  isDefault: Generated<boolean>;
+  createdAt: Generated<Date>;
+};
 export type CompanyBrandTable = Versioned & {
   companyId: string;
   logoArFileId: string | null;
@@ -1367,6 +1396,8 @@ export type Database = {
   payslipLines: PayslipLinesTable;
   payrollInputs: PayrollInputsTable;
   companyBrand: CompanyBrandTable;
+  reportRuns: ReportRunsTable;
+  reportLayouts: ReportLayoutsTable;
   loans: LoansTable;
   loanInstallments: LoanInstallmentsTable;
   payslipLoanItems: PayslipLoanItemsTable;

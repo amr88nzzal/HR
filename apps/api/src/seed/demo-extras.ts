@@ -47,6 +47,7 @@ export type ExtrasPart =
   | 'payrollRuns'
   | 'loans'
   | 'payslips'
+  | 'reports'
   | 'brand'
   | 'accounts';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
@@ -1808,6 +1809,41 @@ const seedPublishedPayslips = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+// ───────────────────────── 15) تخطيطات التقارير (المرحلة 8) ─────────────────────────
+/** تخطيط أعمدة افتراضي لقائمة الموظفين لمستخدمين تجريبيين (مرتبطين بموظف) ليظهر في مركز التقارير. */
+const seedReports = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('reportLayouts')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('name', 'like', `${DEMO_PREFIX}%`)
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const users = await trx
+    .selectFrom('users')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('email', 'like', `%@${DEMO_EMAIL_DOMAIN}`)
+    .orderBy('email')
+    .limit(2)
+    .execute();
+  if (!users.length) return 'skip لا مستخدمون تجريبيون';
+  for (const u of users)
+    await trx
+      .insertInto('reportLayouts')
+      .values({
+        companyId,
+        userId: u.id,
+        reportCode: 'employees.roster',
+        name: `${DEMO_PREFIX} عرض مختصر`,
+        columns: JSON.stringify(['employeeNo', 'nameAr', 'department', 'jobTitle']),
+        isDefault: true,
+      })
+      .execute();
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -1834,6 +1870,7 @@ export const seedDemoExtras = async (
     ['accounts', (ctx) => seedAccounts(ctx)],
     ['loans', (ctx) => seedLoans(ctx)],
     ['payslips', (ctx) => seedPublishedPayslips(ctx)],
+    ['reports', (ctx) => seedReports(ctx)],
     ['brand', (ctx) => seedBrand(ctx)],
   ];
   for (const [part, fn] of parts) {

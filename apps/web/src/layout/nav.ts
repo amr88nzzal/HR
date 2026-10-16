@@ -57,6 +57,8 @@ export const NAV: (NavLeaf | NavGroup)[] = [
   { key: 'dashboard', path: '/', icon: IconHome },
   /** بلا صلاحية: كل مستخدم مرتبط بموظف يرى قسائمه (تُقيَّد في الخادم) */
   { key: 'myPayslips', path: '/me/payslips', icon: IconCash },
+  /** بلا صلاحية: القائمة نفسها تُحجب في الخادم حسب صلاحيات المستخدم */
+  { key: 'reportsCenter', path: '/reports', icon: IconReportAnalytics },
   {
     key: 'hrGroup',
     items: [

@@ -22,6 +22,7 @@ import { ApprovalFlowsPage } from './features/admin/ApprovalFlowsPage';
 import { ApprovalsPage } from './features/approvals/ApprovalsPage';
 import { ApprovalDetailPage } from './features/approvals/ApprovalDetailPage';
 import { DelegationsPage } from './features/approvals/DelegationsPage';
+import { ReportsPage } from './features/reports/ReportsPage';
 import { MyPayslipsPage } from './features/payroll/MyPayslipsPage';
 import { MyLeavePage } from './features/leave/MyLeavePage';
 import { BalancesAdminPage } from './features/leave/BalancesAdminPage';
@@ -57,7 +58,8 @@ import { ResourcePage } from './features/ResourcePage';
 import { RolesPage } from './features/RolesPage';
 import { SettingsPage } from './features/SettingsPage';
 import { UsersPage } from './features/UsersPage';
-import { ComingSoonPage, DashboardPage, ForbiddenPage, NotFoundPage } from './pages/SimplePages';
+import { DashboardPage } from './pages/DashboardPage';
+import { ComingSoonPage, ForbiddenPage, NotFoundPage } from './pages/SimplePages';
 
 const Spinner = () => (
   <Center mih="100vh">
@@ -147,6 +149,7 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/channels': () => <ChannelsPage />,
   '/admin/notification-templates': () => <NotificationTemplatesPage />,
   '/me/payslips': () => <MyPayslipsPage />,
+  '/reports': () => <ReportsPage />,
   '/leave': () => <MyLeavePage />,
   '/leave/calendar': () => <TeamCalendarPage />,
   '/leave/report': () => <BalancesReportPage />,

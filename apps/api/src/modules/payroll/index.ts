@@ -43,3 +43,6 @@ export const mountPayrollRoutes = (
   api.use('/payroll', createPayrollSetupRouter(db, authenticate));
   api.use('/employees/:employeeId/salaries', createSalariesRouter(db, authenticate));
 };
+
+export { makeRun } from './setup.routes.js';
+export { companyLang } from './payslip-doc.js';
