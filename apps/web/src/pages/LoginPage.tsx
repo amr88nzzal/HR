@@ -14,7 +14,7 @@ import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 
 export const LoginPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { login } = useAuth();
   const company = new URLSearchParams(window.location.search).get('company') ?? undefined;
   const [identifier, setIdentifier] = useState('');
@@ -41,6 +41,14 @@ export const LoginPage = () => {
     <Center mih="100vh" p="md">
       <Paper withBorder shadow="sm" p="xl" w={400} maw="100%" component="form" onSubmit={submit}>
         <Stack>
+          <img
+            src={`/api/v1/public/brand/${encodeURIComponent(company ?? 'default')}/logo?lang=${i18n.language === 'en' ? 'en' : 'ar'}`}
+            alt=""
+            style={{ maxHeight: 60, maxWidth: 220, alignSelf: 'center' }}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
           <Title order={3}>{t('app.name')}</Title>
           <Title order={5} c="dimmed" fw={500}>
             {t('login.title')}

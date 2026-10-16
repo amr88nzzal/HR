@@ -24,6 +24,7 @@ import { readStoredFile, saveStoredFile, type FileDeps } from '../../shared/stor
 import { requirePermission } from '../identity/index.js';
 import { maskName, newVerifyToken, nextDocNumber, qrDataUrl, verifyUrlOf } from './numbering.js';
 import type { Renderer } from './render.js';
+import { loadLetterhead } from '../brand/index.js';
 import { loadLetterValues } from './values.js';
 
 const idParam = z.object({ id: z.string().uuid() });
@@ -174,6 +175,7 @@ export const createLetterTemplatesRouter = (
                 nameEn: body.nameEn ?? null,
                 language: body.language,
                 category: body.category,
+                useLetterhead: body.useLetterhead,
               })
               .returning('id')
               .executeTakeFirstOrThrow()
@@ -363,6 +365,7 @@ export const createLetterTemplatesRouter = (
             ...(body.nameAr !== undefined && { nameAr: body.nameAr }),
             ...(body.nameEn !== undefined && { nameEn: body.nameEn ?? null }),
             ...(body.category !== undefined && { category: body.category }),
+            ...(body.useLetterhead !== undefined && { useLetterhead: body.useLetterhead }),
             ...(body.isActive !== undefined && { isActive: body.isActive }),
           })
           .where('id', '=', id)
@@ -454,7 +457,15 @@ export const createLetterTemplatesRouter = (
           `${t.code}-${(values['document.today'] ?? '').slice(0, 4)}-XXXXXX`;
         values['document.verifyUrl'] = url;
         values['document.qr'] = url ? await qrDataUrl(url) : null;
-        return { html: wrapLetterHtml(renderLetterBody(html, values), t.language) };
+        const lh = await loadLetterhead(ctx, files, t.language);
+        Object.assign(values, lh.values);
+        return {
+          html: wrapLetterHtml(
+            renderLetterBody(html, values),
+            t.language,
+            t.useLetterhead ? lh : undefined,
+          ),
+        };
       });
       res.json({ data });
     }),
@@ -559,6 +570,11 @@ export const createIssuedDocumentsRouter = (
             .selectAll()
             .where('id', '=', v.docxFileId as string)
             .executeTakeFirstOrThrow();
+          // DOCX: نصوص الشركة البسيطة فقط (الصور وكتل HTML غير مدعومة فيه)
+          const lh = await loadLetterhead(ctx, files, t.language);
+          for (const [k, val] of Object.entries(lh.values))
+            if (!['company.logo', 'company.stamp', 'company.header', 'company.footer'].includes(k))
+              values[k] = val;
           const filled = fillDocx(await readStoredFile(files, src), values);
           pdf = await render.docxToPdf(filled);
           const df = await saveStoredFile(ctx, files, {
@@ -571,7 +587,13 @@ export const createIssuedDocumentsRouter = (
           docxFileId = df.id;
         } else {
           values['document.qr'] = url ? await qrDataUrl(url) : null;
-          const html = wrapLetterHtml(renderLetterBody(v.bodyHtml ?? '', values), t.language);
+          const lh = await loadLetterhead(ctx, files, t.language);
+          Object.assign(values, lh.values);
+          const html = wrapLetterHtml(
+            renderLetterBody(v.bodyHtml ?? '', values),
+            t.language,
+            t.useLetterhead ? lh : undefined,
+          );
           pdf = await render(html);
         }
         const file = await saveStoredFile(ctx, files, {
@@ -591,7 +613,15 @@ export const createIssuedDocumentsRouter = (
             language: t.language,
             title,
             // لا نحفظ صورة QR في اللقطة (تُعاد من الرمز)
-            data: JSON.stringify({ ...values, 'document.qr': null }),
+            data: JSON.stringify({
+              ...values,
+              'document.qr': null,
+              // الصور والكتل الكبيرة لا تُحفظ في اللقطة (الـ PDF المخزَّن هو المرجع)
+              'company.logo': null,
+              'company.stamp': null,
+              'company.header': null,
+              'company.footer': null,
+            }),
             docNumber,
             verifyToken: token,
             templateHash: v.contentHash,

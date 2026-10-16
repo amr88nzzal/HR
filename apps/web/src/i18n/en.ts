@@ -1,3 +1,4 @@
+import { brandEn } from './brand.en';
 import { loansEn } from './loans.en';
 import { accountEn } from './account.en';
 import type { Messages } from './ar';
@@ -633,6 +634,8 @@ export const en: Messages = {
     issuedAt: 'Issue date',
   },
   letters: {
+    useLetterhead: 'Wrap automatically with the company letterhead and footer',
+    useLetterheadHint: 'When off, place {{company.header}} and {{company.footer}} where you want',
     format: 'Template type',
     formatHtml: 'HTML page',
     formatDocx: 'Word file (DOCX)',
@@ -969,6 +972,7 @@ export const en: Messages = {
   payroll: payrollEn,
   account: accountEn,
   loans: loansEn,
+  brand: brandEn,
   errors: {
     forbiddenTitle: 'Not authorized',
     forbidden: 'You do not have permission to view this page',

@@ -1,0 +1,28 @@
+export const brandEn = {
+  hint: 'The logo and letterhead are used on issued documents (and later payslips and reports), the app bar and the sign-in page. Images are converted to a safe PNG; PNG, JPG and SVG up to 1MB are accepted.',
+  slots: {
+    logo_ar: 'Logo (Arabic)',
+    logo_en: 'Logo (English)',
+    logo_dark_ar: 'Dark logo (Arabic)',
+    logo_dark_en: 'Dark logo (English)',
+    stamp: 'Stamp / signature',
+  },
+  noImage: 'No image',
+  upload: 'Upload',
+  remove: 'Remove',
+  saved: 'Saved',
+  preview: 'Letterhead preview',
+  fields: {
+    legalNameAr: 'Legal name (Arabic)',
+    legalNameEn: 'Legal name (English)',
+    addressAr: 'Address (Arabic)',
+    addressEn: 'Address (English)',
+    footerAr: 'Footer (Arabic)',
+    footerEn: 'Footer (English)',
+    phone: 'Phone',
+    email: 'Email',
+    website: 'Website',
+    taxNo: 'Tax number',
+    registrationNo: 'Registration number',
+  },
+};

@@ -40,3 +40,4 @@ export * from './payroll.js';
 export * from './payroll-run.js';
 export * from './account.js';
 export * from './loan.js';
+export * from './brand.js';

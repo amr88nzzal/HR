@@ -4,7 +4,8 @@ export const LETTER_LANGUAGES = ['ar', 'en'] as const;
 export type LetterLanguage = (typeof LETTER_LANGUAGES)[number];
 
 /** نوع القيمة يحدد العزل الاتجاهي: التواريخ والأرقام والأكواد تُعرض LTR داخل النص العربي. */
-export type VariableKind = 'text' | 'date' | 'code' | 'image';
+/** html: كتلة يولّدها الخادم فقط (مهروبة)؛ image: PNG data URL يولّده الخادم */
+export type VariableKind = 'text' | 'date' | 'code' | 'image' | 'html';
 export type LetterVariable = {
   key: string;
   group: 'employee' | 'job' | 'contract' | 'company' | 'document';
@@ -111,6 +112,83 @@ export const LETTER_VARIABLES: readonly LetterVariable[] = [
     labelEn: 'Company name (template language)',
   },
   {
+    key: 'company.legalName',
+    group: 'company',
+    kind: 'text',
+    labelAr: 'الاسم القانوني (بلغة القالب)',
+    labelEn: 'Legal name (template language)',
+  },
+  {
+    key: 'company.address',
+    group: 'company',
+    kind: 'text',
+    labelAr: 'عنوان الشركة (بلغة القالب)',
+    labelEn: 'Company address (template language)',
+  },
+  {
+    key: 'company.phone',
+    group: 'company',
+    kind: 'code',
+    labelAr: 'هاتف الشركة',
+    labelEn: 'Company phone',
+  },
+  {
+    key: 'company.email',
+    group: 'company',
+    kind: 'code',
+    labelAr: 'بريد الشركة',
+    labelEn: 'Company email',
+  },
+  {
+    key: 'company.website',
+    group: 'company',
+    kind: 'code',
+    labelAr: 'موقع الشركة',
+    labelEn: 'Company website',
+  },
+  {
+    key: 'company.taxNo',
+    group: 'company',
+    kind: 'code',
+    labelAr: 'الرقم الضريبي',
+    labelEn: 'Tax number',
+  },
+  {
+    key: 'company.registrationNo',
+    group: 'company',
+    kind: 'code',
+    labelAr: 'رقم السجل التجاري',
+    labelEn: 'Registration number',
+  },
+  {
+    key: 'company.logo',
+    group: 'company',
+    kind: 'image',
+    labelAr: 'شعار الشركة (بلغة القالب)',
+    labelEn: 'Company logo (template language)',
+  },
+  {
+    key: 'company.stamp',
+    group: 'company',
+    kind: 'image',
+    labelAr: 'ختم/توقيع الشركة',
+    labelEn: 'Company stamp / signature',
+  },
+  {
+    key: 'company.header',
+    group: 'company',
+    kind: 'html',
+    labelAr: 'الترويسة الكاملة (شعار وبيانات)',
+    labelEn: 'Full letterhead (logo and details)',
+  },
+  {
+    key: 'company.footer',
+    group: 'company',
+    kind: 'html',
+    labelAr: 'تذييل الشركة',
+    labelEn: 'Company footer',
+  },
+  {
     key: 'document.today',
     group: 'document',
     kind: 'date',
@@ -198,10 +276,15 @@ export const renderLetterBody = (html: string, values: Record<string, string | n
     if (raw === null || raw === undefined || raw === '') return '—';
     const meta = LETTER_VARIABLES.find((v) => v.key === key);
     // الصورة يولّدها الخادم فقط (data URL لـ PNG)؛ أي قيمة أخرى تُهمل
-    if (meta?.kind === 'image')
-      return /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(raw)
-        ? `<img src="${raw}" alt="QR" width="110" height="110" style="display:block">`
-        : '—';
+    if (meta?.kind === 'image') {
+      if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(raw)) return '—';
+      if (key === 'document.qr')
+        return `<img src="${raw}" alt="QR" width="110" height="110" style="display:block">`;
+      const h = key === 'company.logo' ? 70 : 110;
+      return `<img src="${raw}" alt="" style="max-height:${h}px;max-width:240px;display:inline-block">`;
+    }
+    // كتل HTML من الخادم (مهروبة عند البناء)؛ لا تُقبل من غيره
+    if (meta?.kind === 'html') return raw.startsWith('<div class="lh-') ? raw : '—';
     const safe = escapeHtml(raw);
     return meta && meta.kind !== 'text'
       ? `<span dir="ltr" style="unicode-bidi:isolate">${safe}</span>`
@@ -217,8 +300,16 @@ td, th { border: 1px solid #999; padding: 4px 8px; }
 `;
 
 /** الصفحة الكاملة المرسلة للتحويل لـ PDF. */
-export const wrapLetterHtml = (bodyHtml: string, language: LetterLanguage): string =>
-  `<!doctype html><html lang="${language}" dir="${language === 'ar' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><style>${BASE_CSS}</style></head><body>${bodyHtml}</body></html>`;
+export const wrapLetterHtml = (
+  bodyHtml: string,
+  language: LetterLanguage,
+  letterhead?: { header?: string; footer?: string },
+): string => {
+  const footer = letterhead?.footer
+    ? `<div style="position:fixed;bottom:0;left:0;right:0">${letterhead.footer}</div>`
+    : '';
+  return `<!doctype html><html lang="${language}" dir="${language === 'ar' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><style>${BASE_CSS}</style></head><body>${letterhead?.header ?? ''}${bodyHtml}${footer}</body></html>`;
+};
 
 // ───── مدخلات الـ API ─────
 const code = z
@@ -233,6 +324,8 @@ export const letterTemplateInput = z.object({
   nameEn: z.string().trim().max(200).nullish(),
   language: z.enum(LETTER_LANGUAGES),
   category: z.string().trim().min(1).max(40).default('certificate'),
+  /** تغليف الوثيقة بترويسة الشركة وتذييلها تلقائياً */
+  useLetterhead: z.boolean().default(true),
   bodyHtml: html,
 });
 export type LetterTemplateInput = z.infer<typeof letterTemplateInput>;
@@ -241,6 +334,7 @@ export const letterTemplateUpdate = z.object({
   nameAr: z.string().trim().min(1).max(200).optional(),
   nameEn: z.string().trim().max(200).nullish(),
   category: z.string().trim().min(1).max(40).optional(),
+  useLetterhead: z.boolean().optional(),
   isActive: z.boolean().optional(),
 });
 

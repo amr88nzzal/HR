@@ -1,3 +1,4 @@
+import { brandAr } from './brand.ar';
 import { loansAr } from './loans.ar';
 import { accountAr } from './account.ar';
 import { hrAr, hrFieldsAr, hrNavAr } from './hr.ar';
@@ -622,6 +623,8 @@ export const ar = {
     issuedAt: 'تاريخ الإصدار',
   },
   letters: {
+    useLetterhead: 'تغليف تلقائي بترويسة الشركة وتذييلها',
+    useLetterheadHint: 'عند الإيقاف ضع {{company.header}} و{{company.footer}} حيث تشاء',
     format: 'نوع القالب',
     formatHtml: 'صفحة HTML',
     formatDocx: 'ملف Word (DOCX)',
@@ -956,6 +959,7 @@ export const ar = {
   payroll: payrollAr,
   account: accountAr,
   loans: loansAr,
+  brand: brandAr,
   errors: {
     forbiddenTitle: 'غير مصرّح',
     forbidden: 'لا تملك صلاحية الوصول إلى هذه الصفحة',
