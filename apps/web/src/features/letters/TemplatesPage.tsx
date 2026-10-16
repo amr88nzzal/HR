@@ -8,6 +8,7 @@ import {
   Select,
   SegmentedControl,
   Stack,
+  Switch,
   Table,
   Text,
   Textarea,
@@ -46,6 +47,7 @@ const Editor = ({ id, onClose }: { id: string | null; onClose: () => void }) => 
   const [language, setLanguage] = useState<'ar' | 'en'>('ar');
   const [body, setBody] = useState(DEFAULT_BODY_AR);
   const [note, setNote] = useState('');
+  const [useLetterhead, setUseLetterhead] = useState(true);
   const [previewEmp, setPreviewEmp] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
@@ -70,6 +72,7 @@ const Editor = ({ id, onClose }: { id: string | null; onClose: () => void }) => 
     setNameAr(detail.data.nameAr);
     setNameEn(detail.data.nameEn ?? '');
     setLanguage(detail.data.language);
+    setUseLetterhead(detail.data.useLetterhead);
     setBody(active?.bodyHtml ?? '');
   }
   const refresh = async () => {
@@ -108,9 +111,10 @@ const Editor = ({ id, onClose }: { id: string | null; onClose: () => void }) => 
           nameAr,
           nameEn: nameEn || null,
           language,
+          useLetterhead,
           bodyHtml: body,
         });
-      await api.patch(`/letter-templates/${id}`, { nameAr, nameEn: nameEn || null });
+      await api.patch(`/letter-templates/${id}`, { nameAr, nameEn: nameEn || null, useLetterhead });
       return api.post(`/letter-templates/${id}/versions`, { bodyHtml: body, note: note || null });
     },
     onSuccess: async () => {
@@ -235,6 +239,14 @@ const Editor = ({ id, onClose }: { id: string | null; onClose: () => void }) => 
               styles={{ input: { fontFamily: 'monospace', fontSize: 13 } }}
               value={body}
               onChange={(e) => setBody(e.currentTarget.value)}
+            />
+          )}
+          {!isDocx && (
+            <Switch
+              label={t('letters.useLetterhead')}
+              description={t('letters.useLetterheadHint')}
+              checked={useLetterhead}
+              onChange={(e) => setUseLetterhead(e.currentTarget.checked)}
             />
           )}
           {id && (

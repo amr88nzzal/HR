@@ -3,6 +3,7 @@ export const payrollNavEn = {
   payrollGroup: 'Payroll',
   payrollSetup: 'Payroll setup',
   payrollPeriods: 'Payroll periods',
+  brand: 'Branding',
   payrollLoans: 'Loans & advances',
 };
 

@@ -43,6 +43,7 @@ import {
   createOvertimeRouter,
   mountAttendanceRoutes,
 } from './modules/attendance/index.js';
+import { createBrandRouter, createPublicBrandRouter } from './modules/brand/index.js';
 import { mountPayrollRoutes } from './modules/payroll/index.js';
 import { createLeaveRequestsRouter, mountLeaveRoutes } from './modules/leave/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
@@ -114,6 +115,15 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
     api.use('/integrations/telegram/webhook', createTelegramWebhookRouter(auth.db, { telegram }));
     // التحقق العام بلا مصادقة (قبل أي راوتر يفرضها)
     api.use('/public/verify', createPublicVerifyRouter(auth.db, auth.rateLimit !== false));
+    api.use(
+      '/public/brand',
+      createPublicBrandRouter(
+        auth.db,
+        { storage: auth.storage, crypto: auth.crypto },
+        auth.rateLimit !== false,
+        auth.settings.defaultCompanySlug,
+      ),
+    );
     api.use(createIdentityAdminRouter(auth.db, authenticate));
     mountOrgRoutes(api, auth.db, authenticate);
     mountLeaveRoutes(api, auth.db, authenticate);
@@ -159,6 +169,7 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
       '/issued-documents',
       createIssuedDocumentsRouter(auth.db, authenticate, files, auth.render, auth.publicUrl),
     );
+    api.use('/company-brand', createBrandRouter(auth.db, authenticate, files));
     mountPayrollRoutes(api, auth.db, authenticate);
     api.use('/attendance-corrections', createCorrectionsRouter(auth.db, authenticate, engine));
     api.use('/overtime-requests', createOvertimeRouter(auth.db, authenticate, engine));

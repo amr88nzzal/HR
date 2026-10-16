@@ -31,6 +31,8 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('system', 'integration', 'manage', 'إدارة قنوات الإشعار وتجربتها'),
   def('system', 'notification_template', 'read', 'عرض قوالب الإشعارات'),
   def('system', 'notification_template', 'update', 'تعديل قوالب الإشعارات وتجربتها'),
+  def('org', 'brand', 'read', 'عرض الهوية البصرية (الشعار والترويسة)'),
+  def('org', 'brand', 'update', 'تعديل الهوية البصرية (الشعار والترويسة)'),
   ...crud('org', 'department', 'الأقسام'),
   ...crud('org', 'job_title', 'المسميات الوظيفية'),
   ...crud('org', 'job_grade', 'الدرجات الوظيفية'),

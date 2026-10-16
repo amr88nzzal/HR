@@ -473,7 +473,7 @@ export type StoredFilesTable = {
   sizeBytes: ColumnType<string, number | string, number | string>;
   sha256: string;
   isEncrypted: Generated<boolean>;
-  purpose: 'document' | 'employee_photo' | 'issued_document' | 'letter_template';
+  purpose: 'document' | 'employee_photo' | 'issued_document' | 'letter_template' | 'brand';
   parentId: string | null;
   variant: string | null;
   createdBy: string | null;
@@ -927,6 +927,7 @@ export type LetterTemplatesTable = Versioned & {
   nameEn: string | null;
   language: 'ar' | 'en';
   format: Generated<'html' | 'docx'>;
+  useLetterhead: Generated<boolean>;
   category: Generated<string>;
   activeVersionId: string | null;
   isActive: Generated<boolean>;
@@ -1155,6 +1156,25 @@ export type PayslipLinesTable = {
   explain: ColumnType<Record<string, unknown>, string | undefined, string>;
   sortOrder: Generated<number>;
 };
+export type CompanyBrandTable = Versioned & {
+  companyId: string;
+  logoArFileId: string | null;
+  logoEnFileId: string | null;
+  logoDarkArFileId: string | null;
+  logoDarkEnFileId: string | null;
+  stampFileId: string | null;
+  legalNameAr: string | null;
+  legalNameEn: string | null;
+  addressAr: string | null;
+  addressEn: string | null;
+  footerAr: string | null;
+  footerEn: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  taxNo: string | null;
+  registrationNo: string | null;
+};
 export type LoansTable = Versioned & {
   id: Generated<string>;
   companyId: string;
@@ -1346,6 +1366,7 @@ export type Database = {
   payslips: PayslipsTable;
   payslipLines: PayslipLinesTable;
   payrollInputs: PayrollInputsTable;
+  companyBrand: CompanyBrandTable;
   loans: LoansTable;
   loanInstallments: LoanInstallmentsTable;
   payslipLoanItems: PayslipLoanItemsTable;

@@ -8,6 +8,7 @@ import {
   Title,
   useMantineColorScheme,
 } from '@mantine/core';
+import { BrandLogo } from '../components/BrandLogo';
 import { useDisclosure } from '@mantine/hooks';
 import {
   IconLanguage,
@@ -51,6 +52,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group wrap="nowrap">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="menu" />
+            <BrandLogo />
             <Title order={4}>{t('app.name')}</Title>
           </Group>
           <Group gap="xs" wrap="nowrap">

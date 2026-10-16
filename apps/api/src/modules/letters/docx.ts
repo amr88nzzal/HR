@@ -74,6 +74,12 @@ export const inspectDocx = (buf: Buffer): { variables: string[] } => {
           problems.push(
             'document.qr غير مدعوم في قوالب DOCX؛ استعمل document.number وdocument.verifyUrl',
           );
+        else if (
+          ['company.logo', 'company.stamp', 'company.header', 'company.footer'].includes(key)
+        )
+          problems.push(
+            `${key} غير مدعوم في قوالب DOCX؛ ضع الشعار في ترويسة Word نفسها واستعمل company.legalName وcompany.address`,
+          );
         else if (!LETTER_VARIABLE_KEYS.has(key)) problems.push(`متغير غير معروف: ${key}`);
         else used.add(key);
       }

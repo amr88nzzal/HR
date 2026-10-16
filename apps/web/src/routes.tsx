@@ -34,6 +34,7 @@ import { AdjustmentsPage } from './features/attendance/AdjustmentsPage';
 import { TemplatesPage } from './features/letters/TemplatesPage';
 import { IssuedPage } from './features/letters/IssuedPage';
 import { LoansPanel } from './features/payroll/LoansPanel';
+import { BrandPage } from './features/brand/BrandPage';
 import { PeriodPage } from './features/payroll/PeriodPage';
 import { PeriodsPage } from './features/payroll/PeriodsPage';
 import { SetupPage as PayrollSetupPage } from './features/payroll/SetupPage';
@@ -139,6 +140,7 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/users': () => <UsersPage />,
   '/admin/roles': () => <RolesPage />,
   '/admin/settings': () => <SettingsPage />,
+  '/admin/brand': () => <BrandPage />,
   '/admin/audit': () => <AuditPage />,
   '/admin/jobs': () => <JobsPage />,
   '/admin/channels': () => <ChannelsPage />,

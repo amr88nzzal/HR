@@ -46,6 +46,7 @@ export type ExtrasPart =
   | 'payroll'
   | 'payrollRuns'
   | 'loans'
+  | 'brand'
   | 'accounts';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
@@ -1716,6 +1717,43 @@ const seedLoans = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+// ───────────────────────── 14) الهوية البصرية (B) ─────────────────────────
+const seedBrand = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('companyBrand')
+    .select('companyId')
+    .where('companyId', '=', companyId)
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  // نصوص الترويسة فقط؛ الشعارات تُرفع من «الهوية البصرية» (لا ملفات مرفقة في البذر)
+  await trx
+    .insertInto('companyBrand')
+    .values({
+      companyId,
+      legalNameAr: `${DEMO_PREFIX} شركة المثال للتجارة`,
+      legalNameEn: `${DEMO_PREFIX} Example Trading Co.`,
+      addressAr: 'عمّان، الأردن',
+      addressEn: 'Amman, Jordan',
+      footerAr: 'هذه الوثيقة صادرة إلكترونياً ويمكن التحقق منها عبر رمز QR',
+      footerEn: 'This document is electronically issued and verifiable via the QR code',
+      phone: '+962 6 000 0000',
+      email: 'info@example.test',
+      website: 'https://example.test',
+      taxNo: '000000000',
+      registrationNo: '12345',
+    })
+    .execute();
+  // قوالب الشهادات التجريبية تستعمل الترويسة تلقائياً
+  await trx
+    .updateTable('letterTemplates')
+    .set({ useLetterhead: true })
+    .where('companyId', '=', companyId)
+    .where('code', 'in', ['DEMO-CERT-AR', 'DEMO-CERT-EN'])
+    .execute();
+  return undefined;
+};
+
 /**
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
@@ -1741,6 +1779,7 @@ export const seedDemoExtras = async (
     ['payrollRuns', (ctx) => seedPayrollRuns(ctx)],
     ['accounts', (ctx) => seedAccounts(ctx)],
     ['loans', (ctx) => seedLoans(ctx)],
+    ['brand', (ctx) => seedBrand(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);

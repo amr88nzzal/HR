@@ -5,6 +5,7 @@ export type TemplateRow = {
   nameEn: string | null;
   language: 'ar' | 'en';
   format: 'html' | 'docx';
+  useLetterhead: boolean;
   category: string;
   isActive: boolean;
   version: number;

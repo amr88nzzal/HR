@@ -3,6 +3,7 @@ export const payrollNavAr = {
   payrollGroup: 'الرواتب',
   payrollSetup: 'إعداد الرواتب',
   payrollPeriods: 'دورات الرواتب',
+  brand: 'الهوية البصرية',
   payrollLoans: 'قروض وسلف',
 };
 

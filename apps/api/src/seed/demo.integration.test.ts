@@ -95,6 +95,7 @@ describe('البيانات التجريبية', () => {
       'payrollRuns:done',
       'accounts:done',
       'loans:done',
+      'brand:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -206,6 +207,10 @@ describe('البيانات التجريبية', () => {
     expect(await n('payments', sql`kind = 'loan'`)).toBe(3);
     expect(await n('payslips', sql`loans_amount > 0`)).toBeGreaterThan(0);
     expect(await n('payslip_loan_items', sql`over_cap`)).toBeGreaterThan(0);
+
+    // الهوية البصرية: نصوص بلغتين وقالبا الشهادة يستعملان الترويسة
+    expect(await n('company_brand')).toBe(1);
+    expect(await n('letter_templates', sql`use_letterhead`)).toBe(2);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);

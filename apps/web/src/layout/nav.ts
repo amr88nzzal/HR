@@ -319,6 +319,12 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         permission: 'system.setting.read',
       },
       {
+        key: 'brand',
+        path: '/admin/brand',
+        icon: IconSettings,
+        permission: 'org.brand.read',
+      },
+      {
         key: 'externalSystems',
         path: '/admin/external-systems',
         icon: IconPlugConnected,
