@@ -1,6 +1,7 @@
 import { brandAr } from './brand.ar';
 import { loansAr } from './loans.ar';
 import { payslipsAr } from './payslips.ar';
+import { dashboardAr, reportsAr } from './reports.ar';
 import { accountAr } from './account.ar';
 import { hrAr, hrFieldsAr, hrNavAr } from './hr.ar';
 import { payrollAr, payrollNavAr } from './payroll.ar';
@@ -317,7 +318,7 @@ export const ar = {
       lte: 'أصغر أو يساوي',
     },
   },
-  dashboard: { welcome: 'مرحباً، {{name}}', empty: 'لا توجد أقسام متاحة لحسابك بعد' },
+  dashboard: dashboardAr,
   fields: {
     isPaid: 'مدفوعة',
     allowHalfDay: 'تسمح بنصف يوم',
@@ -382,6 +383,11 @@ export const ar = {
     all: 'الكل',
   },
   apiErrors: {
+    REPORT_TOO_LARGE: 'التقرير أكبر من الحد المسموح لهذه الصيغة؛ ضيّق المرشحات أو اختر CSV/Excel',
+    EXPORT_TOO_LARGE_FOR_DIRECT: 'التقرير كبير ويُصدَّر في الخلفية',
+    JOBS_UNAVAILABLE: 'طابور المهام غير متاح حالياً',
+    RENDER_NOT_CONFIGURED: 'خدمة تحويل PDF غير مهيّأة',
+    EXPIRED: 'انتهت صلاحية الملف؛ أعد التصدير',
     NO_FLOW: 'لا توجد سلسلة موافقة فعّالة لهذا النوع',
     NO_APPROVER: 'تعذّر تحديد معتمد (المدير غير معيَّن أو لا يوجد مستخدم مؤهل)',
     NOT_ASSIGNED: 'هذا الطلب ليس بانتظار إجرائك',
@@ -966,6 +972,7 @@ export const ar = {
   account: accountAr,
   loans: loansAr,
   payslips: payslipsAr,
+  reports: reportsAr,
   brand: brandAr,
   errors: {
     forbiddenTitle: 'غير مصرّح',

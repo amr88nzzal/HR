@@ -1,17 +1,6 @@
 import { Button, Center, Stack, Text, Title } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../auth/AuthContext';
-
-export const DashboardPage = () => {
-  const { t } = useTranslation();
-  const { me } = useAuth();
-  return (
-    <Stack>
-      <Title order={2}>{t('dashboard.welcome', { name: me?.displayName })}</Title>
-    </Stack>
-  );
-};
 
 export const ComingSoonPage = ({ titleKey }: { titleKey: string }) => {
   const { t } = useTranslation();

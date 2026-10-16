@@ -46,4 +46,6 @@ export const PERIODIC_JOBS: PeriodicJob[] = [
   // استحقاق الإجازات والترحيل والانتهاء؛ يومياً بعد منتصف الليل UTC ويعوّض الفائت
   { job: 'leave.daily', cron: '20 1 * * *' },
   { job: 'attendance.daily', cron: '40 1 * * *' },
+  // حذف ملفات التقارير المنتهية (الرابط المؤقت 24 ساعة)
+  { job: 'reports.cleanup', cron: '15 3 * * *' },
 ];

@@ -44,6 +44,8 @@ import {
   mountAttendanceRoutes,
 } from './modules/attendance/index.js';
 import { createBrandRouter, createPublicBrandRouter } from './modules/brand/index.js';
+import { createDashboardRouter } from './modules/dashboard/index.js';
+import { createReportsRouter } from './modules/reports/index.js';
 import { mountPayrollRoutes } from './modules/payroll/index.js';
 import { createLeaveRequestsRouter, mountLeaveRoutes } from './modules/leave/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
@@ -170,6 +172,11 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
       createIssuedDocumentsRouter(auth.db, authenticate, files, auth.render, auth.publicUrl),
     );
     api.use('/company-brand', createBrandRouter(auth.db, authenticate, files));
+    api.use('/dashboard', createDashboardRouter(auth.db, authenticate));
+    api.use(
+      '/reports',
+      createReportsRouter(auth.db, authenticate, { files, render: auth.render, jobs: auth.jobs }),
+    );
     mountPayrollRoutes(api, auth.db, authenticate, {
       notifier: createNotifier(auth.jobs),
       publicUrl: auth.publicUrl,

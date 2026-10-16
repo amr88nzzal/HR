@@ -96,6 +96,7 @@ describe('البيانات التجريبية', () => {
       'accounts:done',
       'loans:done',
       'payslips:done',
+      'reports:done',
       'brand:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
@@ -221,6 +222,9 @@ describe('البيانات التجريبية', () => {
         sql`period_id in (select id from payroll_periods where status = 'locked')`,
       ),
     ).toBeGreaterThan(0);
+
+    // تخطيطات التقارير: افتراضي لمستخدمين تجريبيين
+    expect(await n('report_layouts', sql`is_default and name like 'DEMO%'`)).toBeGreaterThan(0);
 
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);

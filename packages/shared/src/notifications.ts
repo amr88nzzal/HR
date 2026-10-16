@@ -115,6 +115,30 @@ export const NOTIFICATION_EVENTS: readonly NotificationEventDef[] = [
     },
   },
   {
+    key: 'reports.export_ready',
+    category: 'system',
+    variables: ['report', 'link'],
+    defaults: {
+      ar: {
+        subject: 'تقريرك جاهز للتنزيل',
+        body: 'اكتمل تصدير «{{report}}». حمّله من هنا (الرابط مؤقت): {{link}}',
+      },
+      en: {
+        subject: 'Your report is ready',
+        body: 'The export of “{{report}}” is complete. Download it here (temporary link): {{link}}',
+      },
+    },
+  },
+  {
+    key: 'reports.export_failed',
+    category: 'system',
+    variables: ['report', 'error'],
+    defaults: {
+      ar: { subject: 'تعذّر تصدير التقرير', body: 'فشل تصدير «{{report}}»: {{error}}' },
+      en: { subject: 'Report export failed', body: 'The export of “{{report}}” failed: {{error}}' },
+    },
+  },
+  {
     key: 'digest.daily',
     category: 'system',
     variables: ['user', 'summary'],

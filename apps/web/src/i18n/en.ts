@@ -1,6 +1,7 @@
 import { brandEn } from './brand.en';
 import { loansEn } from './loans.en';
 import { payslipsEn } from './payslips.en';
+import { dashboardEn, reportsEn } from './reports.en';
 import { accountEn } from './account.en';
 import type { Messages } from './ar';
 import { hrEn, hrFieldsEn, hrNavEn } from './hr.en';
@@ -324,10 +325,7 @@ export const en: Messages = {
       lte: 'at most',
     },
   },
-  dashboard: {
-    welcome: 'Welcome, {{name}}',
-    empty: 'No sections are available to your account yet',
-  },
+  dashboard: dashboardEn,
   fields: {
     isPaid: 'Paid',
     allowHalfDay: 'Allows half day',
@@ -392,6 +390,12 @@ export const en: Messages = {
     all: 'All',
   },
   apiErrors: {
+    REPORT_TOO_LARGE:
+      'The report exceeds the limit for this format; narrow the filters or use CSV/Excel',
+    EXPORT_TOO_LARGE_FOR_DIRECT: 'The report is large and is exported in the background',
+    JOBS_UNAVAILABLE: 'The job queue is unavailable right now',
+    RENDER_NOT_CONFIGURED: 'PDF rendering is not configured',
+    EXPIRED: 'The file has expired; export again',
     NO_FLOW: 'No active approval flow for this request type',
     NO_APPROVER: 'No approver could be determined (manager not set or no eligible user)',
     NOT_ASSIGNED: 'This request is not awaiting your action',
@@ -979,6 +983,7 @@ export const en: Messages = {
   account: accountEn,
   loans: loansEn,
   payslips: payslipsEn,
+  reports: reportsEn,
   brand: brandEn,
   errors: {
     forbiddenTitle: 'Not authorized',

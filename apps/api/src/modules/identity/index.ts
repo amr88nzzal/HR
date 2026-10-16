@@ -7,6 +7,7 @@ export {
   requirePermission,
   type AuthContext,
 } from './middleware.js';
+export { loadGrants } from './permissions.service.js';
 export type { AuthSettings } from './auth.service.js';
 export {
   seedDefaultRoles,
