@@ -73,3 +73,4 @@ export const mountEmployeesRoutes = (
 };
 
 export { employeeScope, assertEmployeeVisible } from './access.js';
+export { applyChange } from './employments.routes.js';

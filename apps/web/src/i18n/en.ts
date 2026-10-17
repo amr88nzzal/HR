@@ -912,6 +912,7 @@ export const en: Messages = {
       chatIdLink: 'Link',
     },
     categories: {
+      hr: 'Administrative actions',
       approvals: 'Approvals',
       archive: 'Archive',
       payroll: 'Payroll',

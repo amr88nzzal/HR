@@ -81,6 +81,26 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('payroll', 'loan', 'manage', 'تأجيل الأقساط وإلغاء السلف'),
   def('payroll', 'payment', 'read', 'عرض دفعات الرواتب والسلف'),
   def('payroll', 'payment', 'manage', 'تعليم الدفعات مدفوعة وتصديرها'),
+  ...crud('admin_actions', 'type', 'أنواع الإجراءات الإدارية'),
+  def(
+    'admin_actions',
+    'action',
+    'read',
+    'عرض الإجراءات الإدارية (تنبيهات وعقوبات ومكافآت وترقيات)',
+  ),
+  def(
+    'admin_actions',
+    'action',
+    'create',
+    'إنشاء إجراء إداري واعتماده مباشرة إن كان نوعه بلا موافقة',
+  ),
+  def(
+    'admin_actions',
+    'action',
+    'propose',
+    'اقتراح إجراء إداري لموظفي النطاق (يمرّ بالموافقة دائماً)',
+  ),
+  def('admin_actions', 'action', 'cancel', 'إلغاء إجراء إداري'),
   def('letters', 'document', 'read', 'عرض سجل الوثائق الصادرة وتنزيلها'),
   def('letters', 'document', 'issue', 'إصدار وثيقة لموظف'),
   def('letters', 'document', 'revoke', 'إبطال وثيقة صادرة'),
@@ -158,6 +178,7 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
         c === 'letters.document.issue' ||
         c === 'attendance.overtime.read_all') &&
       !c.startsWith('payroll.') &&
+      c !== 'admin_actions.action.read' &&
       c !== 'system.audit.read' &&
       c !== 'system.job.read' &&
       c !== 'system.integration.read' &&
@@ -177,6 +198,8 @@ export const DEFAULT_ROLES: readonly DefaultRole[] = [
       c === 'attendance.correction.submit' ||
       c === 'attendance.overtime.submit' ||
       c === 'approvals.request.submit' ||
+      c === 'admin_actions.type.read' ||
+      c === 'admin_actions.action.propose' ||
       c === 'employees.employee.read' ||
       c === 'employees.employment.read',
   },

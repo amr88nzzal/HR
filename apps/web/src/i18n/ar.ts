@@ -901,6 +901,7 @@ export const ar = {
       chatIdLink: 'ربط',
     },
     categories: {
+      hr: 'الإجراءات الإدارية',
       approvals: 'الموافقات',
       archive: 'الأرشيف',
       payroll: 'الرواتب',
