@@ -11,6 +11,7 @@ import {
 import { seedDefaultExternalSystems } from './modules/employees/external.routes.js';
 import { seedDemo } from './seed/demo.js';
 import { seedDemoExtras } from './seed/demo-extras.js';
+import { seedDemoHistory } from './seed/demo-history.js';
 import { createFieldCrypto } from './shared/crypto.js';
 
 /**
@@ -169,7 +170,8 @@ const main = async (): Promise<void> => {
       if (!crypto)
         console.log('  تنبيه: لا مفاتيح ENCRYPTION_*؛ ستُتخطى الحسابات البنكية والحقل الحساس');
       const extras = await seedDemoExtras(db, company.id, { crypto, password });
-      for (const e of extras)
+      const history = await seedDemoHistory(db, company.id);
+      for (const e of [...extras, ...history])
         console.log(
           `  [${e.status === 'done' ? 'تم' : 'تخطي'}] ${e.part}${e.note ? ` — ${e.note}` : ''}`,
         );

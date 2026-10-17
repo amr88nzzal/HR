@@ -8,6 +8,7 @@ import { sql } from 'kysely';
 import { createFieldCrypto } from '../shared/crypto.js';
 import { seedDemo } from './demo.js';
 import { seedDemoExtras } from './demo-extras.js';
+import { seedDemoHistory } from './demo-history.js';
 
 describe('البيانات التجريبية', () => {
   let pgx: TestPg;
@@ -229,5 +230,45 @@ describe('البيانات التجريبية', () => {
     const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);
     expect(await n('employee_addresses')).toBe(30);
+  });
+  it('طبقة التاريخ: ستة أشهر من الحضور والإجازات والرواتب، وتُضاف مرة واحدة', async () => {
+    const first = await seedDemoHistory(admin, companyId);
+    expect(first.map((p) => `${p.part}:${p.status}`)).toEqual([
+      'historyLeave:done',
+      'historyAttendance:done',
+      'historyPayroll:done',
+    ]);
+    const n = async (table: string, where = sql`true`) =>
+      Number(
+        (
+          await sql<{ n: string }>`select count(*)::text as n from ${sql.table(table)}
+            where company_id = ${companyId} and ${where}`.execute(admin)
+        ).rows[0]?.n,
+      );
+    // حضور يمتد قرابة ستة أشهر
+    const span = await sql<{
+      d: number;
+    }>`select (max(day_date) - min(day_date))::int as d from attendance_days
+      where company_id = ${companyId}`.execute(admin);
+    expect(span.rows[0]!.d).toBeGreaterThan(170);
+    expect(await n('attendance_days', sql`status = 'absent'`)).toBeGreaterThan(20);
+    // إجازات تاريخية بحالات معتمدة ومرفوضة
+    expect(await n('leave_requests', sql`reason like '%DEMO-HIST%' and status = 'approved'`)).toBe(
+      7,
+    );
+    expect(await n('leave_requests', sql`reason like '%DEMO-HIST%' and status = 'rejected'`)).toBe(
+      1,
+    );
+    // ستة أشهر رواتب: مسودة + خمس مقفلة، ودفعات مدفوعة ومعلّقة
+    expect(await n('payroll_periods')).toBe(6);
+    expect(await n('payroll_periods', sql`status = 'locked'`)).toBe(5);
+    expect(await n('payments', sql`kind = 'payslip' and status = 'paid'`)).toBeGreaterThan(0);
+    expect(await n('payments', sql`kind = 'payslip' and status = 'pending'`)).toBeGreaterThan(0);
+    // سلفة مسدَّدة بأقساطها الأربعة المخصومة
+    expect(await n('loans', sql`status = 'settled'`)).toBe(1);
+    expect(await n('loan_installments', sql`status = 'deducted'`)).toBe(4);
+
+    const again = await seedDemoHistory(admin, companyId);
+    expect(again.every((p) => p.status === 'skipped')).toBe(true);
   });
 });
