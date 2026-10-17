@@ -11,6 +11,7 @@ export const payrollNavAr = {
 
 export const payrollAr = {
   run: {
+    slipsTitle: 'كشف الرواتب',
     prorate: 'يتناسب مع أيام الخدمة',
     prorateHint: 'يُضرب المبلغ بنسبة أيام الخدمة في الشهر الجزئي (مباشرة/إنهاء خدمة)',
     newPeriod: 'دورة جديدة',

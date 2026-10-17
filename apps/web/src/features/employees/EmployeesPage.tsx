@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconDownload, IconPlus } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import { employeeInput } from '@hrms/shared';
 import { useState } from 'react';
@@ -23,7 +23,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { DataTable, type Column } from '../../components/DataTable';
 import { DynamicForm, type FieldDef } from '../../components/DynamicForm';
 import { errorMessage } from '../../lib/errors';
-import { exportCsv, exportXlsx, fetchAllRows, type ExportColumn } from '../../lib/export';
+import { fetchAllRows } from '../../lib/export';
 import {
   AccountResultModal,
   stateColor,
@@ -81,7 +81,7 @@ export const EmployeesPage = () => {
   const [branchId, setBranchId] = useState<string | null>(null);
   const [departmentId, setDepartmentId] = useState<string | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
-  const [exporting, setExporting] = useState(false);
+  const [sort, setSort] = useState<string | undefined>(undefined);
 
   const filters = {
     q: debounced || undefined,
@@ -89,7 +89,7 @@ export const EmployeesPage = () => {
     branchId: branchId ?? undefined,
     departmentId: departmentId ?? undefined,
   };
-  const list = useList('/employees', { page, pageSize: PAGE_SIZE, ...filters });
+  const list = useList('/employees', { page, pageSize: PAGE_SIZE, ...filters, sort });
   const qc = useQueryClient();
   const defaults = useQuery({
     queryKey: ['/settings', 'effective'],
@@ -115,6 +115,7 @@ export const EmployeesPage = () => {
       render: (r) => str(r['employeeNo']),
       exportValue: (r) => str(r['employeeNo']),
       ltr: true,
+      sortKey: 'employeeNo',
     },
     {
       key: 'name',
@@ -124,12 +125,14 @@ export const EmployeesPage = () => {
           ? str(r['fullNameEn']) || str(r['fullNameAr'])
           : str(r['fullNameAr']),
       exportValue: (r) => str(r['fullNameAr']),
+      sortKey: 'name',
     },
     {
       key: 'status',
       header: t('hr.emp.status'),
       render: (r) => <StatusBadge status={r['status']} />,
       exportValue: (r) => enumLabel(t, 'empStatus', r['status']),
+      sortKey: 'status',
     },
     ...(can('identity.user.read')
       ? [
@@ -168,24 +171,6 @@ export const EmployeesPage = () => {
     },
   ];
 
-  const doExport = async (kind: 'csv' | 'xlsx') => {
-    setExporting(true);
-    try {
-      const all = await fetchAllRows<Row>('/employees', filters);
-      const cols: ExportColumn<Row>[] = columns.map((c) => ({
-        header: c.header,
-        value: (r) => c.exportValue?.(r) ?? '',
-      }));
-      const name = t('nav.employees');
-      if (kind === 'csv') exportCsv(name, cols, all);
-      else await exportXlsx(name, cols, all, i18n.language === 'ar');
-    } catch (err) {
-      notifications.show({ color: 'red', message: errorMessage(err, t) });
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const create = async (values: Record<string, unknown>) => {
     setSaving(true);
     try {
@@ -220,17 +205,6 @@ export const EmployeesPage = () => {
       <Group justify="space-between">
         <Title order={2}>{t('hr.emp.title')}</Title>
         <Group>
-          <Button
-            variant="default"
-            leftSection={<IconDownload size={16} />}
-            loading={exporting}
-            onClick={() => void doExport('xlsx')}
-          >
-            {t('table.exportXlsx')}
-          </Button>
-          <Button variant="default" onClick={() => void doExport('csv')} loading={exporting}>
-            {t('table.exportCsv')}
-          </Button>
           {can('employees.employee.create') && (
             <Button
               leftSection={<IconPlus size={16} />}
@@ -297,6 +271,11 @@ export const EmployeesPage = () => {
         onRowClick={(row) =>
           void navigate({ to: '/employees/$employeeId', params: { employeeId: row.id } })
         }
+        tableId="employees"
+        title={t('nav.employees')}
+        sort={sort}
+        onSort={setSort}
+        fetchAll={() => fetchAllRows<Row>('/employees', { ...filters, sort })}
       />
       <Modal opened={opened} onClose={close} title={t('hr.emp.add')} centered size="lg">
         {opened && canAccount && acct && (

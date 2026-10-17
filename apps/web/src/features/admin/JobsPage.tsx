@@ -184,6 +184,7 @@ export const JobsPage = () => {
         />
       </Group>
       <DataTable
+        tableId="admin.jobs"
         columns={columns}
         rows={rows}
         loading={list.isLoading}

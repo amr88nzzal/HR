@@ -148,6 +148,7 @@ export const AuditPage = () => {
         />
       </Group>
       <DataTable
+        tableId="audit"
         columns={columns}
         rows={list.data?.data ?? []}
         loading={list.isLoading}

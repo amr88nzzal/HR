@@ -11,6 +11,7 @@ export const payrollNavEn = {
 
 export const payrollEn = {
   run: {
+    slipsTitle: 'Payroll sheet',
     prorate: 'Prorate by service days',
     prorateHint: 'Amount is multiplied by the service-day ratio in a partial month (joiner/leaver)',
     newPeriod: 'New period',

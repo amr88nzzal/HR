@@ -50,6 +50,10 @@ export const userListQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(200).default(25),
   q: z.string().trim().max(100).optional(),
   status: z.enum(['active', 'disabled']).optional(),
+  sort: z
+    .string()
+    .regex(/^-?[a-zA-Z]{1,40}$/)
+    .optional(),
 });
 
 export const roleInput = z.object({

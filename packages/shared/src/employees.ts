@@ -46,7 +46,16 @@ export const employeeListQuery = z.object({
   branchId: uuid.optional(),
   departmentId: uuid.optional(),
   sort: z
-    .enum(['employeeNo', '-employeeNo', 'name', '-name', 'createdAt', '-createdAt'])
+    .enum([
+      'employeeNo',
+      '-employeeNo',
+      'name',
+      '-name',
+      'createdAt',
+      '-createdAt',
+      'status',
+      '-status',
+    ])
     .default('employeeNo'),
 });
 

@@ -362,6 +362,12 @@ export const ar = {
     up: 'للأعلى',
   },
   table: {
+    columns: 'الأعمدة',
+    print: 'طباعة',
+    resetColumns: 'إعادة الترتيب الافتراضي',
+    sortBy: 'فرز حسب',
+    moveUp: 'تقديم',
+    moveDown: 'تأخير',
     search: 'بحث…',
     add: 'إضافة',
     edit: 'تعديل',

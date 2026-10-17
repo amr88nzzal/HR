@@ -45,6 +45,7 @@ import {
 } from './modules/attendance/index.js';
 import { createBrandRouter, createPublicBrandRouter } from './modules/brand/index.js';
 import { createDashboardRouter } from './modules/dashboard/index.js';
+import { createTablePrefsRouter } from './modules/table-prefs/index.js';
 import { createReportsRouter } from './modules/reports/index.js';
 import { mountPayrollRoutes } from './modules/payroll/index.js';
 import { createLeaveRequestsRouter, mountLeaveRoutes } from './modules/leave/index.js';
@@ -193,6 +194,7 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
     );
     api.use('/company-brand', createBrandRouter(auth.db, authenticate, files));
     api.use('/dashboard', createDashboardRouter(auth.db, authenticate));
+    api.use('/table-prefs', createTablePrefsRouter(auth.db, authenticate));
     api.use(
       '/reports',
       createReportsRouter(auth.db, authenticate, { files, render: auth.render, jobs: auth.jobs }),

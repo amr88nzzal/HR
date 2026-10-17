@@ -23,7 +23,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../lib/errors';
-import { downloadBlob } from '../../lib/export';
+import { DataTable, type Column } from '../../components/DataTable';
+import { downloadBlob, fetchAllRows } from '../../lib/export';
 import { statusColor } from './PeriodsPage';
 import { ComparePanel, type CompareRow } from './ComparePanel';
 import { PaymentsPanel } from './PaymentsPanel';
@@ -67,17 +68,88 @@ export const PeriodPage = () => {
     Number((slips.data?.meta as { total?: number } | undefined)?.total ?? 0);
   const [q, setQ] = useState('');
   const [manualOnly, setManualOnly] = useState(false);
+  const [sort, setSort] = useState<string | undefined>(undefined);
   const slips = useQuery({
-    queryKey: ['/payroll', 'slips', periodId, page, q, manualOnly],
+    queryKey: ['/payroll', 'slips', periodId, page, q, manualOnly, sort],
     queryFn: async () =>
       await api.get<SlipRow[]>(`${base}/payslips`, {
         page,
         pageSize: 50,
         q: q || undefined,
         manualOnly: manualOnly ? 'true' : undefined,
+        sort,
       }),
     enabled: can('payroll.payslip.read'),
   });
+  const money = (
+    key: string,
+    header: string,
+    v: (r: SlipRow) => string,
+    bold = false,
+  ): Column<SlipRow> => ({
+    key,
+    header,
+    ltr: true,
+    sortKey: key,
+    render: (r) =>
+      bold ? (
+        <Text fw={600} span>
+          {v(r)}
+        </Text>
+      ) : (
+        v(r)
+      ),
+    exportValue: (r) => Number(v(r)),
+  });
+  const slipColumns: Column<SlipRow>[] = [
+    {
+      key: 'name',
+      header: t('payroll.run.employee'),
+      sortKey: 'name',
+      render: (r) => `${r.employeeNo} · ${r.employeeName}`,
+      exportValue: (r) => `${r.employeeNo} · ${r.employeeName}`,
+    },
+    money('basic', t('payroll.run.basic'), (r) => r.basicAmount),
+    money('gross', t('payroll.run.gross'), (r) => r.grossAmount),
+    money('deductions', t('payroll.run.deductions'), (r) => r.deductionsAmount),
+    money('net', t('payroll.run.net'), (r) => r.netAmount, true),
+    money('loans', t('payroll.run.loans'), (r) => r.loansAmount),
+    money('payable', t('payroll.run.payable'), (r) => r.payableAmount, true),
+    {
+      key: 'flags',
+      header: t('payroll.run.status'),
+      render: (s) => (
+        <Group gap={4}>
+          {s.hasManual && (
+            <Badge color="orange" variant="light">
+              {t('payroll.run.manual')}
+            </Badge>
+          )}
+          {s.status === 'error' && <Badge color="red">{t('payroll.run.error')}</Badge>}
+          {s.warnings.includes('LOAN_OVER_CAP') && (
+            <Badge color="yellow" variant="light">
+              {t('loans.overCap')}
+            </Badge>
+          )}
+          {s.warnings.includes('NEGATIVE_NET') && (
+            <Badge color="red" variant="light">
+              {t('payroll.run.negativeNet')}
+            </Badge>
+          )}
+        </Group>
+      ),
+      exportValue: (s) =>
+        [
+          s.hasManual ? t('payroll.run.manual') : '',
+          s.status === 'error' ? t('payroll.run.error') : '',
+          s.warnings.includes('LOAN_OVER_CAP') ? t('loans.overCap') : '',
+          s.warnings.includes('NEGATIVE_NET') ? t('payroll.run.negativeNet') : '',
+        ]
+          .filter(Boolean)
+          .join('، '),
+    },
+  ];
+
   const compare = useQuery({
     queryKey: ['/payroll', 'compare', periodId, period.data?.calculatedAt],
     queryFn: async () =>
@@ -261,84 +333,27 @@ export const PeriodPage = () => {
                 }}
               />
             </Group>
-            <Table withTableBorder striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t('payroll.run.employee')}</Table.Th>
-                  <Table.Th>{t('payroll.run.basic')}</Table.Th>
-                  <Table.Th>{t('payroll.run.gross')}</Table.Th>
-                  <Table.Th>{t('payroll.run.deductions')}</Table.Th>
-                  <Table.Th>{t('payroll.run.net')}</Table.Th>
-                  <Table.Th>{t('payroll.run.loans')}</Table.Th>
-                  <Table.Th>{t('payroll.run.payable')}</Table.Th>
-                  <Table.Th />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {(slips.data?.data ?? []).map((s) => (
-                  <Table.Tr
-                    key={s.id}
-                    onClick={() => setSlipId(s.id)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <Table.Td>{`${s.employeeNo} · ${s.employeeName}`}</Table.Td>
-                    <Table.Td dir="ltr">{s.basicAmount}</Table.Td>
-                    <Table.Td dir="ltr">{s.grossAmount}</Table.Td>
-                    <Table.Td dir="ltr">{s.deductionsAmount}</Table.Td>
-                    <Table.Td dir="ltr" fw={600}>
-                      {s.netAmount}
-                    </Table.Td>
-                    <Table.Td dir="ltr">{s.loansAmount}</Table.Td>
-                    <Table.Td dir="ltr" fw={600}>
-                      {s.payableAmount}
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={4}>
-                        {s.hasManual && (
-                          <Badge color="orange" variant="light">
-                            {t('payroll.run.manual')}
-                          </Badge>
-                        )}
-                        {s.status === 'error' && (
-                          <Badge color="red">{t('payroll.run.error')}</Badge>
-                        )}
-                        {s.warnings.includes('LOAN_OVER_CAP') && (
-                          <Badge color="yellow" variant="light">
-                            {t('loans.overCap')}
-                          </Badge>
-                        )}
-                        {s.warnings.includes('NEGATIVE_NET') && (
-                          <Badge color="red" variant="light">
-                            {t('payroll.run.negativeNet')}
-                          </Badge>
-                        )}
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-            {total() > 50 && (
-              <Group justify="center">
-                <Button
-                  size="xs"
-                  variant="default"
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  ‹
-                </Button>
-                <Text size="sm">{page}</Text>
-                <Button
-                  size="xs"
-                  variant="default"
-                  disabled={page * 50 >= total()}
-                  onClick={() => setPage(page + 1)}
-                >
-                  ›
-                </Button>
-              </Group>
-            )}
+            <DataTable<SlipRow>
+              tableId="payroll.slips"
+              title={t('payroll.run.slipsTitle')}
+              columns={slipColumns}
+              rows={slips.data?.data ?? []}
+              loading={slips.isLoading}
+              page={page}
+              pageSize={50}
+              total={total()}
+              onPage={setPage}
+              onRowClick={(s) => setSlipId(s.id)}
+              sort={sort}
+              onSort={setSort}
+              fetchAll={() =>
+                fetchAllRows<SlipRow>(`${base}/payslips`, {
+                  q: q || undefined,
+                  manualOnly: manualOnly ? 'true' : undefined,
+                  sort,
+                })
+              }
+            />
           </Stack>
         </Tabs.Panel>
 

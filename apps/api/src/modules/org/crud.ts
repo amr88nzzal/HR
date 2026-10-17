@@ -5,6 +5,7 @@ import { listQuery, withVersion, type ApiEnvelope } from '@hrms/shared';
 import type { Db } from '../../db/index.js';
 import { withTenant, type Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
+import { parseSort } from '../../shared/sort.js';
 import { allowedBranchIds, requirePermission, type AuthContext } from '../identity/index.js';
 
 type GenericDb = Record<string, Record<string, unknown>>;
@@ -116,8 +117,15 @@ export const createCrudService = (cfg: CrudConfig) => {
         }
         return r as unknown as T;
       };
+      const sortable = Object.fromEntries(
+        [...cfg.searchColumns, ...(cfg.codeless ? [] : ['code']), cfg.orderBy, 'isActive'].map(
+          (c) => [c, c],
+        ),
+      );
+      const srt = parseSort(query.sort, sortable, cfg.orderBy);
       const rows = await apply(q)
-        .orderBy(cfg.orderBy)
+        .orderBy(srt.column, srt.desc ? 'desc' : 'asc')
+        .orderBy('id')
         .limit(query.pageSize)
         .offset((query.page - 1) * query.pageSize)
         .execute();

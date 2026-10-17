@@ -83,6 +83,7 @@ const AUTH_ONLY: RegExp[] = [
   /^get \/api\/v1\/approvals\/(inbox|inbox\/count|mine)$/,
   // لوحة المعلومات والتقارير: الأقسام والفهرس تُرشَّح بصلاحيات المستخدم داخلياً
   /^get \/api\/v1\/dashboard\/summary$/,
+  /^(get|put|delete) \/api\/v1\/table-prefs\/:tableId$/,
   /^get \/api\/v1\/reports\/(runs)?\/?$/,
   // سياسة تصحيح الحضور: يحتاجها نموذج الطلب لكل موظف
   /^get \/api\/v1\/attendance-corrections\/policy$/,

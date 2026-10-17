@@ -229,11 +229,13 @@ export const UsersPage = () => {
   const [rolesFor, setRolesFor] = useState<string | null>(null);
   const [resetFor, setResetFor] = useState<Row | null>(null);
 
+  const [sort, setSort] = useState<string | undefined>(undefined);
   const list = useList('/users', {
     page,
     pageSize: PAGE_SIZE,
     q: debounced || undefined,
     status: status ?? undefined,
+    sort,
   });
   const save = useSave('/users');
 
@@ -293,16 +295,29 @@ export const UsersPage = () => {
   };
 
   const columns: Column<Row>[] = [
-    { key: 'displayName', header: t('users.displayName'), render: (u) => String(u['displayName']) },
-    { key: 'email', header: t('users.email'), render: (u) => String(u['email']), ltr: true },
+    {
+      key: 'displayName',
+      header: t('users.displayName'),
+      render: (u) => String(u['displayName']),
+      sortKey: 'displayName',
+    },
+    {
+      key: 'email',
+      header: t('users.email'),
+      render: (u) => String(u['email']),
+      ltr: true,
+      sortKey: 'email',
+    },
     {
       key: 'username',
+      sortKey: 'username',
       header: t('users.username'),
       render: (u) => String(u['username'] ?? '—'),
       ltr: true,
     },
     {
       key: 'status',
+      sortKey: 'status',
       header: t('users.status'),
       render: (u) => (
         <Group gap={4}>
@@ -373,6 +388,10 @@ export const UsersPage = () => {
         pageSize={PAGE_SIZE}
         total={list.data?.meta?.total ?? 0}
         onPage={setPage}
+        tableId="users"
+        title={t('nav.users')}
+        sort={sort}
+        onSort={setSort}
         actions={(u) => (
           <>
             {can('identity.user.update') && (

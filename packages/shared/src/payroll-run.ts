@@ -79,4 +79,8 @@ export const payslipListQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(200).default(50),
   q: z.string().trim().max(100).optional(),
   manualOnly: z.enum(['true', 'false']).optional(),
+  sort: z
+    .string()
+    .regex(/^-?[a-zA-Z]{1,40}$/)
+    .optional(),
 });

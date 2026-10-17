@@ -14,6 +14,7 @@ import {
 import type { Db } from '../../db/index.js';
 import { withTenant, type Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
+import { parseSort } from '../../shared/sort.js';
 import { hasPermission, requirePermission, type AuthContext } from '../identity/index.js';
 import type { FieldCrypto } from '../../shared/crypto.js';
 import { employeeScope } from './access.js';
@@ -203,12 +204,16 @@ export const createEmployeesRouter = (
           });
           return b;
         };
-        const sortCol =
-          query.sort.replace('-', '') === 'name'
-            ? 'fullNameAr'
-            : query.sort.replace('-', '') === 'createdAt'
-              ? 'createdAt'
-              : 'employeeNo';
+        const sortCol = parseSort(
+          query.sort,
+          {
+            employeeNo: 'employeeNo',
+            name: 'fullNameAr',
+            createdAt: 'createdAt',
+            status: 'status',
+          },
+          'employeeNo',
+        ).column as 'employeeNo';
         const rows = await build()
           .select([...COLUMNS])
           .select([
