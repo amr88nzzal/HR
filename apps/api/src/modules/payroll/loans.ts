@@ -87,14 +87,25 @@ export const loadDueInstallments = async (
   return out;
 };
 
-/** تأجيل قسط: يُعلَّم مؤجلاً ويُلحَق قسط جديد بالمبلغ نفسه في الشهر التالي لآخر قسط في الجدول. */
+/**
+ * تأجيل قسط. بلا مبلغ = القسط كاملاً يُعلَّم مؤجلاً ويُلحَق قسط جديد بمبلغه.
+ * بمبلغ أقل = يبقى القسط مجدولاً بالباقي ويُلحَق قسط جديد بالجزء المؤجَّل.
+ * الشهر المستهدف افتراضياً بعد آخر قسط في الجدول، ويجب أن يلي شهر استحقاق القسط.
+ */
 export const deferInstallment = async (
   ctx: Ctx,
   installmentId: string,
-  opts: { reason: string; periodId?: string | null; system?: boolean },
+  opts: {
+    reason: string;
+    periodId?: string | null;
+    system?: boolean;
+    amount?: string | undefined;
+    target?: { year: number; month: number } | undefined;
+  },
 ): Promise<string> => {
   const { rows } = await sql<Row>`
-    select i.id, i.loan_id, i.amount::text as amount, i.status from loan_installments i
+    select i.id, i.loan_id, i.amount::text as amount, i.status, i.due_year, i.due_month
+      from loan_installments i
      where i.id = ${installmentId} and i.company_id = ${ctx.companyId} for update`.execute(ctx.trx);
   const inst = rows[0];
   if (!inst) throw new AppError('NOT_FOUND', 404, 'القسط غير موجود');
@@ -103,19 +114,46 @@ export const deferInstallment = async (
   const { rows: last } = await sql<Row>`
     select max(no) as no, max(due_year * 12 + due_month) as ym from loan_installments
      where loan_id = ${inst.loanId as string} and status <> 'cancelled'`.execute(ctx.trx);
-  const ym = Number(last[0]!.ym);
-  const next = ym + 1;
+  const dueYm = Number(inst.dueYear) * 12 + Number(inst.dueMonth);
+  // الترميز الداخلي ym = سنة*12+شهر؛ المستهدف يجب أن يلي شهر الاستحقاق
+  const next = opts.target ? opts.target.year * 12 + opts.target.month : Number(last[0]!.ym) + 1;
+  if (opts.target && next <= dueYm)
+    throw new AppError('INVALID_TARGET_MONTH', 400, 'شهر التأجيل يجب أن يلي شهر استحقاق القسط');
   const year = Math.floor((next - 1) / 12);
   const month = ((next - 1) % 12) + 1;
+
+  let deferred = inst.amount as string;
+  let partial = false;
+  if (opts.amount !== undefined) {
+    const { rows: cmp } = await sql<Row>`
+      select (${opts.amount}::numeric <= 0) as zero, (${opts.amount}::numeric > ${inst.amount as string}::numeric) as over,
+             (${opts.amount}::numeric < ${inst.amount as string}::numeric) as part`.execute(
+      ctx.trx,
+    );
+    if (cmp[0]!.zero || cmp[0]!.over)
+      throw new AppError(
+        'INVALID_DEFER_AMOUNT',
+        400,
+        'المبلغ المؤجَّل يجب أن يكون أكبر من صفر ولا يتجاوز القسط',
+      );
+    partial = Boolean(cmp[0]!.part);
+    if (partial) deferred = opts.amount;
+  }
   const { rows: tail } = await sql<{ id: string }>`
-    insert into loan_installments (company_id, loan_id, no, due_year, due_month, amount)
-    values (${ctx.companyId}, ${inst.loanId as string}, ${Number(last[0]!.no) + 1}, ${year}, ${month}, ${inst.amount as string})
+    insert into loan_installments (company_id, loan_id, no, due_year, due_month, amount, deferred_reason)
+    values (${ctx.companyId}, ${inst.loanId as string}, ${Number(last[0]!.no) + 1}, ${year}, ${month}, ${deferred},
+            ${partial ? opts.reason : null})
     returning id`.execute(ctx.trx);
-  await sql`
-    update loan_installments set status = 'deferred', deferred_reason = ${opts.reason},
-           system_deferred = ${opts.system ?? false}, period_id = ${opts.periodId ?? null},
-           moved_to_id = ${tail[0]!.id}
-     where id = ${installmentId}`.execute(ctx.trx);
+  if (partial) {
+    await sql`update loan_installments set amount = amount - ${deferred}::numeric
+               where id = ${installmentId}`.execute(ctx.trx);
+  } else {
+    await sql`
+      update loan_installments set status = 'deferred', deferred_reason = ${opts.reason},
+             system_deferred = ${opts.system ?? false}, period_id = ${opts.periodId ?? null},
+             moved_to_id = ${tail[0]!.id}
+       where id = ${installmentId}`.execute(ctx.trx);
+  }
   return tail[0]!.id;
 };
 

@@ -7,6 +7,7 @@ import {
   Modal,
   NativeSelect,
   NumberInput,
+  SegmentedControl,
   Stack,
   Table,
   Text,
@@ -154,12 +155,113 @@ const NewLoanModal = ({ employeeId, onClose }: { employeeId?: string; onClose: (
   );
 };
 
+const nextAfterLast = (list: { dueYear: number; dueMonth: number; status: string }[]) => {
+  const last = Math.max(
+    ...list.filter((i) => i.status !== 'cancelled').map((i) => i.dueYear * 12 + i.dueMonth - 1),
+  );
+  return ym(Math.floor((last + 1) / 12), ((last + 1) % 12) + 1);
+};
+
+/** تأجيل قسط: كامل أو جزء منه، إلى شهر يُحدَّد، بسبب إلزامي. */
+const DeferModal = ({
+  inst,
+  list,
+  onClose,
+}: {
+  inst: { id: string; amount: string; dueYear: number; dueMonth: number };
+  list: { dueYear: number; dueMonth: number; status: string }[];
+  onClose: () => void;
+}) => {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [mode, setMode] = useState<'full' | 'part'>('full');
+  const [amount, setAmount] = useState('');
+  const [target, setTarget] = useState(nextAfterLast(list));
+  const [reason, setReason] = useState('');
+  const full = Number(inst.amount);
+  const partOk =
+    mode === 'full' ||
+    (/^\d{1,14}(\.\d{1,4})?$/.test(amount) && Number(amount) > 0 && Number(amount) <= full);
+  const [ty, tm] = target.split('-').map(Number) as [number, number];
+  const targetOk = /^\d{4}-\d{2}$/.test(target) && ty * 12 + tm > inst.dueYear * 12 + inst.dueMonth;
+  const save = useMutation({
+    mutationFn: async () =>
+      api.post(`/payroll/loan-installments/${inst.id}/defer`, {
+        reason,
+        ...(mode === 'part' ? { amount } : {}),
+        targetYear: ty,
+        targetMonth: tm,
+      }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['/payroll'] });
+      onClose();
+    },
+    onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
+  });
+  return (
+    <Modal opened onClose={onClose} title={t('loans.deferTitle')}>
+      <Stack>
+        <Text size="sm" dir="ltr">{`${ym(inst.dueYear, inst.dueMonth)} · ${inst.amount}`}</Text>
+        <SegmentedControl
+          value={mode}
+          onChange={(v) => setMode(v as 'full' | 'part')}
+          data={[
+            { value: 'full', label: t('loans.deferFull') },
+            { value: 'part', label: t('loans.deferPart') },
+          ]}
+        />
+        {mode === 'part' && (
+          <TextInput
+            label={t('loans.deferAmount')}
+            description={`${t('loans.deferMax')}: ${inst.amount}`}
+            value={amount}
+            onChange={(e) => setAmount(e.currentTarget.value)}
+            error={amount && !partOk ? t('loans.deferAmountInvalid') : undefined}
+            dir="ltr"
+          />
+        )}
+        <TextInput
+          type="month"
+          label={t('loans.deferTo')}
+          value={target}
+          onChange={(e) => setTarget(e.currentTarget.value)}
+          error={!targetOk ? t('loans.deferToInvalid') : undefined}
+          dir="ltr"
+        />
+        <TextInput
+          label={t('loans.reasonRequired')}
+          value={reason}
+          onChange={(e) => setReason(e.currentTarget.value)}
+        />
+        <Group justify="flex-end">
+          <Button variant="default" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            loading={save.isPending}
+            disabled={!partOk || !targetOk || reason.trim().length < 2}
+            onClick={() => save.mutate()}
+          >
+            {t('loans.confirm')}
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+};
+
 const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
   const { t } = useTranslation();
   const { can } = useAuth();
   const qc = useQueryClient();
   const manage = can('payroll.loan.manage');
   const [reason, setReason] = useState<{ target: string; text: string } | null>(null);
+  const [defer, setDefer] = useState<{
+    id: string;
+    amount: string;
+    dueYear: number;
+    dueMonth: number;
+  } | null>(null);
   const [marking, setMarking] = useState<string[] | null>(null);
   const d = useQuery({
     queryKey: ['/payroll', 'loan', id],
@@ -242,7 +344,14 @@ const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
                         size="compact-xs"
                         variant="light"
                         color="orange"
-                        onClick={() => setReason({ target: i.id, text: '' })}
+                        onClick={() =>
+                          setDefer({
+                            id: i.id,
+                            amount: i.amount,
+                            dueYear: i.dueYear,
+                            dueMonth: i.dueMonth,
+                          })
+                        }
                       >
                         {t('loans.defer')}
                       </Button>
@@ -283,6 +392,9 @@ const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
             </Stack>
           )}
         </Stack>
+      )}
+      {defer && loan && (
+        <DeferModal inst={defer} list={loan.installments} onClose={() => setDefer(null)} />
       )}
       {marking && <MarkPaidModal ids={marking} onClose={() => setMarking(null)} />}
     </Drawer>

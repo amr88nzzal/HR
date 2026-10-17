@@ -53,7 +53,22 @@ export const loanListQuery = z.object({
 });
 
 export const loanCancelInput = z.object({ reason: z.string().trim().min(2).max(300) });
-export const installmentDeferInput = z.object({ reason: z.string().trim().min(2).max(300) });
+/** تأجيل قسط: كامل القسط أو جزء منه، إلى شهر يحدده المدير (افتراضياً بعد آخر قسط)، بسبب إلزامي. */
+export const installmentDeferInput = z
+  .object({
+    reason: z.string().trim().min(2).max(300),
+    /** المبلغ المؤجَّل؛ يُهمَل = القسط كاملاً */
+    amount: z
+      .string()
+      .regex(/^\d{1,14}(\.\d{1,4})?$/, 'مبلغ غير صالح')
+      .optional(),
+    targetYear: z.number().int().min(2000).max(2100).optional(),
+    targetMonth: z.number().int().min(1).max(12).optional(),
+  })
+  .refine((v) => (v.targetYear === undefined) === (v.targetMonth === undefined), {
+    message: 'حدّد السنة والشهر معاً',
+    path: ['targetMonth'],
+  });
 
 export const PAYMENT_METHODS = ['bank', 'cash', 'other'] as const;
 export const paymentMarkInput = z.object({
