@@ -201,7 +201,14 @@ export const createLoansRouter = (db: Db, authenticate: RequestHandler): Router 
       const b = installmentDeferInput.parse(req.body);
       const data = await run(req, async (ctx) => {
         await detachFromDrafts(ctx, [id]);
-        await deferInstallment(ctx, id, { reason: b.reason });
+        await deferInstallment(ctx, id, {
+          reason: b.reason,
+          amount: b.amount,
+          target:
+            b.targetYear !== undefined && b.targetMonth !== undefined
+              ? { year: b.targetYear, month: b.targetMonth }
+              : undefined,
+        });
         await redo(ctx, [id]);
         const { rows } =
           await sql<Row>`select loan_id from loan_installments where id = ${id}`.execute(ctx.trx);

@@ -324,4 +324,54 @@ describe('الرواتب 7c: السلف والأقساط والدفعات', () =
       (await post('admin', `/payroll/loan-installments/${a3}/defer`, { reason: 'اختبار' })).status,
     ).toBe(200);
   });
+  it('تأجيل جزئي إلى شهر محدد: يبقى الباقي ويُنشأ قسط بالجزء المؤجَّل، مع تحقق المبلغ والشهر', async () => {
+    const before = await loanDetail(loanA);
+    const inst = before.installments.find(
+      (i: { status: string; dueMonth: number }) => i.status === 'scheduled' && i.dueMonth === 4,
+    );
+    const id = inst.id as string;
+    const url = `/payroll/loan-installments/${id}/defer`;
+    const amount = Number(inst.amount);
+    const part = (amount / 2).toFixed(2);
+    // مبلغ يتجاوز القسط، وشهر لا يلي الاستحقاق، وشهر بلا سنة
+    expect((await post('admin', url, { reason: 'x1', amount: String(amount + 1) })).status).toBe(
+      400,
+    );
+    expect(
+      (await post('admin', url, { reason: 'x2', targetYear: 2026, targetMonth: 4 })).status,
+    ).toBe(400);
+    expect((await post('admin', url, { reason: 'x3', targetMonth: 9 })).status).toBe(400);
+    const r = await post('admin', url, {
+      reason: 'ظرف طارئ',
+      amount: part,
+      targetYear: 2026,
+      targetMonth: 9,
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    const after = await loanDetail(loanA);
+    const kept = after.installments.find((i: { id: string }) => i.id === id);
+    expect(kept.status).toBe('scheduled');
+    expect(Number(kept.amount)).toBeCloseTo(amount - Number(part), 2);
+    const moved = after.installments.find(
+      (i: { dueMonth: number; dueYear: number; status: string }) =>
+        i.dueYear === 2026 && i.dueMonth === 9 && i.status === 'scheduled',
+    );
+    expect(Number(moved.amount)).toBeCloseTo(Number(part), 2);
+    expect(moved.deferredReason).toBe('ظرف طارئ');
+    // تأجيل القسط كاملاً إلى شهر محدد
+    const full = await post('admin', url, {
+      reason: 'كامل',
+      targetYear: 2026,
+      targetMonth: 11,
+    });
+    expect(full.status, JSON.stringify(full.body)).toBe(200);
+    const end = await loanDetail(loanA);
+    expect(end.installments.find((i: { id: string }) => i.id === id).status).toBe('deferred');
+    expect(
+      end.installments.some(
+        (i: { dueMonth: number; dueYear: number; status: string }) =>
+          i.dueYear === 2026 && i.dueMonth === 11 && i.status === 'scheduled',
+      ),
+    ).toBe(true);
+  });
 });
