@@ -177,17 +177,19 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/approval-flows': () => <ApprovalFlowsPage />,
 };
 
-const sectionRoutes = NAV.flatMap((n) => (isGroup(n) ? n.items : [])).map((leaf) =>
-  createRoute({
-    getParentRoute: () => authRoute,
-    path: leaf.path,
-    component: function Section() {
-      const { can } = useAuth();
-      const Screen = screens[leaf.path];
-      if (!can(leaf.permission)) return <ForbiddenPage />;
-      return Screen ? <Screen /> : <ComingSoonPage titleKey={leaf.key} />;
-    },
-  }),
+/** عناصر القائمة المستقلة (بلا مجموعة) كقسائم راتبي والتقارير تحتاج مساراً أيضاً؛ الجذر `/` له indexRoute. */
+const sectionRoutes = NAV.flatMap((n) => (isGroup(n) ? n.items : n.path === '/' ? [] : [n])).map(
+  (leaf) =>
+    createRoute({
+      getParentRoute: () => authRoute,
+      path: leaf.path,
+      component: function Section() {
+        const { can } = useAuth();
+        const Screen = screens[leaf.path];
+        if (!can(leaf.permission)) return <ForbiddenPage />;
+        return Screen ? <Screen /> : <ComingSoonPage titleKey={leaf.key} />;
+      },
+    }),
 );
 
 /** بطاقة الموظف: مسار ديناميكي بالصلاحية نفسها لقائمة الموظفين */
