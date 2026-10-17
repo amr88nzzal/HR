@@ -304,6 +304,7 @@ export const RolesPage = () => {
         )}
       </Group>
       <DataTable
+        tableId="roles"
         columns={columns}
         rows={list.data?.data ?? []}
         loading={list.isLoading}

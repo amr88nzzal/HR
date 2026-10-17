@@ -94,6 +94,10 @@ export const departmentInput = z.object({
 export const listQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(25),
+  sort: z
+    .string()
+    .regex(/^-?[a-zA-Z]{1,40}$/)
+    .optional(),
   q: z.string().trim().max(100).optional(),
   isActive: z
     .enum(['true', 'false'])

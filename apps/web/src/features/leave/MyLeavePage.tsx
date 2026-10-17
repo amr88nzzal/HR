@@ -184,6 +184,7 @@ const RequestsTable = ({ mode }: { mode: 'me' | 'all' }) => {
   return (
     <>
       <DataTable
+        tableId="leave.mine"
         columns={columns}
         rows={list.data?.data ?? []}
         loading={list.isLoading}

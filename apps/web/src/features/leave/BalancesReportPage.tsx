@@ -145,6 +145,7 @@ export const BalancesReportPage = () => {
         />
       </Group>
       <DataTable
+        tableId="leave.report"
         columns={columns}
         rows={rows}
         loading={list.isLoading}

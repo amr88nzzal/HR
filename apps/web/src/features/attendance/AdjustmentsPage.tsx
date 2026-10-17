@@ -386,6 +386,7 @@ const CorrectionsTab = ({ all }: ListProps) => {
       )}
       {q.isError && <Alert color="red">{errorMessage(q.error, t)}</Alert>}
       <DataTable
+        tableId="attendance.requests"
         columns={columns}
         rows={q.data?.rows ?? []}
         loading={q.isLoading}
@@ -469,6 +470,7 @@ const OvertimeTab = ({ all }: ListProps) => {
       </Group>
       {q.isError && <Alert color="red">{errorMessage(q.error, t)}</Alert>}
       <DataTable
+        tableId="attendance.adjustments"
         columns={columns}
         rows={q.data?.rows ?? []}
         loading={q.isLoading}

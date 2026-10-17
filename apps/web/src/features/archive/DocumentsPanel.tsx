@@ -84,6 +84,7 @@ export const DocumentsPanel = ({
         )}
       </Group>
       <DataTable
+        tableId="archive.documents"
         columns={columns}
         rows={rows as never}
         loading={list.isLoading}

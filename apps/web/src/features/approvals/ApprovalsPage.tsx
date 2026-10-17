@@ -113,6 +113,7 @@ const RequestsTable = ({ mode }: { mode: 'inbox' | 'mine' | 'all' }) => {
   ];
   return (
     <DataTable
+      tableId="approvals"
       columns={columns}
       rows={list.data?.data ?? []}
       loading={list.isLoading}

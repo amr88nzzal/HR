@@ -220,6 +220,7 @@ const FieldsPanel = ({ typeId, canEdit }: { typeId: string; canEdit: boolean }) 
           </Group>
         </Group>
         <DataTable
+          tableId="archive.types"
           columns={columns}
           rows={all as never}
           loading={type.isLoading}

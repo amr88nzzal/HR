@@ -369,6 +369,12 @@ export const en: Messages = {
     up: 'Up',
   },
   table: {
+    columns: 'Columns',
+    print: 'Print',
+    resetColumns: 'Reset to default',
+    sortBy: 'Sort by',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
     search: 'Search…',
     add: 'Add',
     edit: 'Edit',

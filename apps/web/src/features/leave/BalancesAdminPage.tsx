@@ -212,6 +212,7 @@ export const BalancesAdminPage = () => {
           </Table>
           <Title order={4}>{t('leave.ledger')}</Title>
           <DataTable
+            tableId="leave.balances"
             columns={cols}
             rows={ledger.data?.data ?? []}
             loading={ledger.isLoading}

@@ -46,6 +46,7 @@ export const ResourcePage = ({ resourceKey }: { resourceKey: string }) => {
   const [editing, setEditing] = useState<Row | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
   const [exporting, setExporting] = useState(false);
+  const [sort, setSort] = useState<string | undefined>(undefined);
 
   const list = useList(
     def?.path ?? '/branches',
@@ -54,6 +55,7 @@ export const ResourcePage = ({ resourceKey }: { resourceKey: string }) => {
       pageSize: PAGE_SIZE,
       q: debounced || undefined,
       isActive: active ? active === 'true' : undefined,
+      sort,
     },
     !!def,
   );
@@ -75,7 +77,16 @@ export const ResourcePage = ({ resourceKey }: { resourceKey: string }) => {
     const hit = remoteRows[path]?.find((r) => r.id === id);
     return hit ? localName(hit, i18n.language) : '—';
   };
-  const columns = def.columns(t, i18n.language, lookup);
+  /** أعمدة يدعم الخادم فرزها في المراجع (القائمة البيضاء في crud.ts) */
+  const serverSort: Record<string, string> = {
+    code: 'code',
+    name: i18n.language === 'en' ? 'nameEn' : 'nameAr',
+    level: 'level',
+    isActive: 'isActive',
+  };
+  const columns = def
+    .columns(t, i18n.language, lookup)
+    .map((c) => ({ ...c, sortKey: serverSort[c.key] }));
   const stat = staticOptions(t);
 
   const fields: FieldDef[] = def.fields.map((f) => {
@@ -227,6 +238,11 @@ export const ResourcePage = ({ resourceKey }: { resourceKey: string }) => {
         pageSize={PAGE_SIZE}
         total={list.data?.meta?.total ?? 0}
         onPage={setPage}
+        tableId={`ref.${def.path.replace(/^\//, '')}`}
+        title={t(`nav.${def.navKey}`)}
+        sort={sort}
+        onSort={setSort}
+        hideExport
         actions={(row) => (
           <>
             {can(`${def.perm}.update`) && (

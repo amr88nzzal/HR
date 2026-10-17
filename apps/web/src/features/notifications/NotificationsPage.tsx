@@ -252,6 +252,7 @@ const Inbox = () => {
         </Button>
       </Group>
       <DataTable
+        tableId="notifications"
         columns={columns}
         rows={rows}
         loading={list.isLoading}

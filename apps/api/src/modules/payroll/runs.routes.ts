@@ -15,6 +15,7 @@ import {
 import type { Db } from '../../db/index.js';
 import type { Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
+import { parseSort } from '../../shared/sort.js';
 import { employeeScope } from '../employees/index.js';
 import type { Notifier } from '../../notifications/index.js';
 import { requirePermission } from '../identity/index.js';
@@ -39,6 +40,18 @@ const wrap =
 const notFound = () => new AppError('NOT_FOUND', 404, 'السجل غير موجود');
 const P = 'payroll.period';
 const SLIP = 'payroll.payslip';
+/** مفاتيح الفرز المسموحة لكشف الدورة ← التعبير الفعلي (قائمة بيضاء) */
+const SLIP_SORT: Record<string, string> = {
+  employeeNo: 'employees.employee_no',
+  name: 'employees.full_name_ar',
+  status: 's.status',
+  basic: 's.basic_amount',
+  gross: 's.gross_amount',
+  deductions: 's.deductions_amount',
+  net: 's.net_amount',
+  loans: 's.loans_amount',
+  payable: 's.payable_amount',
+};
 
 /** المجموعة الافتراضية الشهرية: تُنشأ عند الطلب */
 export const ensureDefaultGroup = async (ctx: Ctx): Promise<string> => {
@@ -466,6 +479,10 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler, deps: Run
           select count(*)::int as n from payslips s join employees on employees.id = s.employee_id where ${where}`.execute(
           ctx.trx,
         );
+        const slipSort = (() => {
+          const spec = parseSort(q.sort, SLIP_SORT, 'employeeNo');
+          return { expr: spec.column, desc: spec.desc };
+        })();
         const { rows } = await sql<Row>`
           select s.id, s.employee_id, employees.employee_no, employees.full_name_ar as employee_name, s.status,
                  s.basic_amount::text as basic_amount, s.gross_amount::text as gross_amount,
@@ -473,7 +490,7 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler, deps: Run
                  s.employer_amount::text as employer_amount, s.loans_amount::text as loans_amount,
                  s.payable_amount::text as payable_amount, s.has_manual, s.warnings, s.error
             from payslips s join employees on employees.id = s.employee_id
-           where ${where} order by employees.employee_no
+           where ${where} order by ${sql.raw(slipSort.expr)} ${sql.raw(slipSort.desc ? 'desc' : 'asc')}, employees.employee_no
            limit ${q.pageSize} offset ${(q.page - 1) * q.pageSize}`.execute(ctx.trx);
         return { rows, total: total.rows[0]!.n };
       });

@@ -13,6 +13,7 @@ import {
 import type { Db } from '../../db/index.js';
 import { withTenant, type Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
+import { parseSort } from '../../shared/sort.js';
 import { PERMISSION_CATALOG } from './catalog.js';
 import { requirePermission, type AuthContext } from './middleware.js';
 import { checkPasswordPolicy, hashPassword } from './password.js';
@@ -236,9 +237,21 @@ export const createIdentityAdminRouter = (db: Db, authenticate: RequestHandler):
           }
           return b;
         };
+        const userSort = parseSort(
+          q.sort,
+          {
+            displayName: 'displayName',
+            email: 'email',
+            username: 'username',
+            status: 'status',
+            lastLoginAt: 'lastLoginAt',
+          },
+          'displayName',
+        );
         const rows = await build()
           .selectAll()
-          .orderBy('displayName')
+          .orderBy(userSort.column as 'displayName', userSort.desc ? 'desc' : 'asc')
+          .orderBy('id')
           .limit(q.pageSize)
           .offset((q.page - 1) * q.pageSize)
           .execute();

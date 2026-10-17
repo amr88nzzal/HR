@@ -1185,6 +1185,13 @@ export type ReportLayoutsTable = {
   isDefault: Generated<boolean>;
   createdAt: Generated<Date>;
 };
+export type UserTablePrefsTable = {
+  companyId: string;
+  userId: string;
+  tableId: string;
+  prefs: unknown;
+  updatedAt: Generated<Date>;
+};
 export type CompanyBrandTable = Versioned & {
   companyId: string;
   logoArFileId: string | null;
@@ -1398,6 +1405,7 @@ export type Database = {
   companyBrand: CompanyBrandTable;
   reportRuns: ReportRunsTable;
   reportLayouts: ReportLayoutsTable;
+  userTablePrefs: UserTablePrefsTable;
   loans: LoansTable;
   loanInstallments: LoanInstallmentsTable;
   payslipLoanItems: PayslipLoanItemsTable;

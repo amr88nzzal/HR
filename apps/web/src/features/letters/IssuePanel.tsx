@@ -146,6 +146,7 @@ export const IssuePanel = ({ employeeId }: { employeeId?: string }) => {
       )}
       {list.isError && <Alert color="red">{errorMessage(list.error, t)}</Alert>}
       <DataTable
+        tableId="letters.issued"
         columns={columns}
         rows={list.data?.rows ?? []}
         loading={list.isLoading}
