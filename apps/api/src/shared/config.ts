@@ -34,6 +34,10 @@ const envSchema = z.object({
     (v) => (v === '' ? undefined : v),
     z.string().min(3).default('HRMS <no-reply@localhost>'),
   ),
+  /** DSN لـ GlitchTip/Sentry (اختياري): https://<key>@glitchtip.example.com/<project> */
+  SENTRY_DSN: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  /** اسم النسخة المنشورة (يظهر في البلاغات)؛ مثل git sha */
+  APP_RELEASE: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   /** الشركة الافتراضية عند غياب company في طلب الدخول (نشر الشركة الواحدة) */
   DEFAULT_COMPANY_SLUG: z.string().min(1).default('main'),
 });

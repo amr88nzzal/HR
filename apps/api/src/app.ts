@@ -49,12 +49,17 @@ import { createReportsRouter } from './modules/reports/index.js';
 import { mountPayrollRoutes } from './modules/payroll/index.js';
 import { createLeaveRequestsRouter, mountLeaveRoutes } from './modules/leave/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
+import type { ErrorReporter } from './shared/error-reporter.js';
 import { requestIdMiddleware } from './shared/logging.js';
 
 export type AppDeps = {
   logger: Logger;
   /** فحص جاهزية القاعدة (يرمي عند الفشل)؛ غير موجود = متخطّى */
   checkDb?: () => Promise<void>;
+  /** فحوص إضافية للجاهزية: الحرجة تُسقط الجاهزية (503)، وغير الحرجة تُظهر degraded فقط */
+  checks?: { name: string; critical: boolean; run: () => Promise<void> }[];
+  /** مُبلِّغ الأخطاء (GlitchTip)؛ غيابه = لا إبلاغ */
+  reporter?: ErrorReporter;
   /** المصادقة: تتطلب اتصال قاعدة وإعدادات JWT */
   auth?: {
     db: Db;
@@ -77,7 +82,7 @@ export type AppDeps = {
   };
 };
 
-export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
+export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps): Express => {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // خطوة وسيطة واحدة موثوقة: بوابة nginx التي تضبط X-Forwarded-For
@@ -89,22 +94,37 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
   });
 
   app.get('/health/ready', async (_req, res) => {
-    let db: 'up' | 'down' | 'skipped' = 'skipped';
+    const out: Record<string, 'up' | 'down' | 'skipped'> = { database: 'skipped' };
+    let critical = false;
+    let degraded = false;
     if (checkDb) {
       try {
         await checkDb();
-        db = 'up';
+        out['database'] = 'up';
       } catch (err) {
-        db = 'down';
+        out['database'] = 'down';
+        critical = true;
         logger.error({ err }, 'database readiness check failed');
       }
     }
-    const health: Health = {
-      status: db === 'down' ? 'degraded' : 'ok',
-      checks: { database: db },
-    };
+    for (const c of checks ?? []) {
+      try {
+        await Promise.race([
+          c.run(),
+          new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000)),
+        ]);
+        out[c.name] = 'up';
+      } catch (err) {
+        out[c.name] = 'down';
+        if (c.critical) critical = true;
+        else degraded = true;
+        logger.warn({ err, check: c.name }, 'readiness check failed');
+      }
+    }
+    const health: Health = { status: critical || degraded ? 'degraded' : 'ok', checks: out };
     const body: ApiEnvelope<Health> = { data: health };
-    res.status(health.status === 'ok' ? 200 : 503).json(body);
+    // 503 فقط للحرج (قاعدة/تخزين)؛ تعطّل render أو العامل لا يُخرج الخدمة من الموازنة
+    res.status(critical ? 503 : 200).json(body);
   });
 
   if (auth) {
@@ -189,6 +209,6 @@ export const createApp = ({ logger, checkDb, auth }: AppDeps): Express => {
   }
 
   app.use(notFoundHandler);
-  app.use(createErrorHandler(logger));
+  app.use(createErrorHandler(logger, reporter));
   return app;
 };

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import type { Ctx } from '../../db/tenant.js';
@@ -147,7 +148,10 @@ export const fetchPage = async (
   return rows.map((r) => shape(cols, r));
 };
 
-/** يمرّ على كل الصفوف على دفعات (لا يُحمَّل الكل في الذاكرة) */
+/**
+ * يمرّ على كل الصفوف على دفعات عبر مؤشر خادم (cursor) داخل معاملة الطلب:
+ * الاستعلام يُنفَّذ والفرز مرة واحدة (لا إعادة تنفيذ لكل دفعة كما في OFFSET فيتربّع الزمن).
+ */
 export const iterateRows = async function* (
   ctx: Ctx,
   auth: AuthContext,
@@ -156,9 +160,18 @@ export const iterateRows = async function* (
   cols: ReportColumn[],
   batch = 1000,
 ): AsyncGenerator<Row[]> {
-  for (let offset = 0; ; offset += batch) {
-    const rows = await fetchPage(ctx, auth, def, f, cols, batch, offset);
-    if (rows.length) yield rows;
-    if (rows.length < batch) return;
+  const name = sql.id(`rep_${randomUUID().replace(/-/g, '')}`);
+  await sql`declare ${name} no scroll cursor for
+    select * from (${baseQuery(def, auth, f)}) r order by ${sql.raw(def.orderBy)}`.execute(ctx.trx);
+  try {
+    for (;;) {
+      const { rows } = await sql<Row>`fetch forward ${sql.lit(batch)} from ${name}`.execute(
+        ctx.trx,
+      );
+      if (rows.length) yield rows.map((r) => shape(cols, r));
+      if (rows.length < batch) return;
+    }
+  } finally {
+    await sql`close ${name}`.execute(ctx.trx);
   }
 };

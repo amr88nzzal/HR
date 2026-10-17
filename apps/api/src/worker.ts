@@ -11,12 +11,29 @@ import {
 import { createFieldCrypto } from './shared/crypto.js';
 import { createLocalStorage } from './shared/storage.js';
 import { startWorkers } from './jobs/runtime.js';
+import { createErrorReporter } from './shared/error-reporter.js';
 import { loadConfig } from './shared/config.js';
 import { createLogger } from './shared/logging.js';
 
 /** عملية العمّال المستقلة: تنفّذ الطوابير وتجدول المهام الدورية. */
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
+
+const reporter = createErrorReporter({
+  dsn: config.SENTRY_DSN,
+  release: config.APP_RELEASE,
+  environment: config.NODE_ENV,
+  service: 'worker',
+});
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'uncaught exception');
+  reporter.capture(err);
+  setTimeout(() => process.exit(1), 500).unref();
+});
+process.on('unhandledRejection', (err) => {
+  logger.error({ err }, 'unhandled rejection');
+  reporter.capture(err);
+});
 
 if (!config.DATABASE_URL || !config.DATABASE_ADMIN_URL) {
   throw new Error('DATABASE_URL و DATABASE_ADMIN_URL مطلوبان لعملية العمّال');
@@ -47,7 +64,10 @@ const boss = new PgBoss({
   supervise: true,
   schedule: true,
 });
-boss.on('error', (err) => logger.error({ err }, 'pg-boss error'));
+boss.on('error', (err) => {
+  logger.error({ err }, 'pg-boss error');
+  reporter.capture(err);
+});
 
 await boss.start();
 await startWorkers({
