@@ -46,6 +46,11 @@ import {
 import { createBrandRouter, createPublicBrandRouter } from './modules/brand/index.js';
 import { createDashboardRouter } from './modules/dashboard/index.js';
 import { createTablePrefsRouter } from './modules/table-prefs/index.js';
+import {
+  createAdminActionsRouter,
+  createAdminActionTypesRouter,
+  createMyAdminActionsRouter,
+} from './modules/admin-actions/index.js';
 import { createReportsRouter } from './modules/reports/index.js';
 import { mountPayrollRoutes } from './modules/payroll/index.js';
 import { createLeaveRequestsRouter, mountLeaveRoutes } from './modules/leave/index.js';
@@ -207,6 +212,12 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
     });
     api.use('/attendance-corrections', createCorrectionsRouter(auth.db, authenticate, engine));
     api.use('/overtime-requests', createOvertimeRouter(auth.db, authenticate, engine));
+    api.use('/admin-action-types', createAdminActionTypesRouter(auth.db, authenticate));
+    api.use(
+      '/admin-actions',
+      createAdminActionsRouter(auth.db, authenticate, engine, createNotifier(auth.jobs)),
+    );
+    api.use('/me/admin-actions', createMyAdminActionsRouter(auth.db, authenticate));
     app.use('/api/v1', api);
   }
 

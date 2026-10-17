@@ -70,6 +70,75 @@ const setComponents = async (ctx: Ctx, salaryId: string, comps: CompInput) => {
       .execute();
 };
 
+/** يضيف راتباً جديداً بخط زمني (ينهي السابق قبل تاريخ سريانه بيوم)؛ التحقق من الرؤية على المستدعي. */
+export const addSalary = async (
+  ctx: Ctx,
+  employeeId: string,
+  b: z.infer<typeof employeeSalaryInput>,
+): Promise<Record<string, unknown>> => {
+  // قفل صف الموظف لتسلسل الإضافات المتزامنة
+  await ctx.trx
+    .selectFrom('employees')
+    .select('id')
+    .where('id', '=', employeeId)
+    .forUpdate()
+    .execute();
+  if (b.structureId) {
+    const st = await ctx.trx
+      .selectFrom('salaryStructures')
+      .select(['currency', 'isActive'])
+      .where('id', '=', b.structureId)
+      .executeTakeFirst();
+    if (!st) throw new AppError('INVALID_REFERENCE', 400, 'الهيكل غير موجود');
+    if (!st.isActive) throw new AppError('STRUCTURE_INACTIVE', 409, 'الهيكل معطّل');
+    if (st.currency && st.currency !== b.currency)
+      throw new AppError('CURRENCY_MISMATCH', 400, `عملة الهيكل ${st.currency} تخالف عملة الراتب`);
+  }
+  const cur = await ctx.trx
+    .selectFrom('currencies')
+    .select('id')
+    .where('companyId', '=', ctx.companyId)
+    .where('code', '=', b.currency)
+    .executeTakeFirst();
+  if (!cur) throw new AppError('INVALID_REFERENCE', 400, 'العملة غير معرّفة في الشركة');
+  const last = await ctx.trx
+    .selectFrom('employeeSalaries')
+    .select(['id', 'validFrom', 'validTo'])
+    .where('employeeId', '=', employeeId)
+    .orderBy('validFrom', 'desc')
+    .limit(1)
+    .executeTakeFirst();
+  if (last) {
+    const from = String(last.validFrom).slice(0, 10);
+    if (b.validFrom <= from)
+      throw new AppError('SALARY_DATE_ORDER', 409, 'تاريخ السريان يجب أن يلي تاريخ آخر راتب مسجّل');
+    if (last.validTo === null)
+      await ctx.trx
+        .updateTable('employeeSalaries')
+        .set({ validTo: sql`${b.validFrom}::date - 1`, version: sql`version + 1` })
+        .where('id', '=', last.id)
+        .execute();
+    else if (String(last.validTo).slice(0, 10) >= b.validFrom)
+      throw new AppError('SALARY_OVERLAP', 409, 'يتداخل مع راتب سابق');
+  }
+  const row = await ctx.trx
+    .insertInto('employeeSalaries')
+    .values({
+      companyId: ctx.companyId,
+      employeeId,
+      structureId: b.structureId ?? null,
+      currency: b.currency,
+      basicAmount: b.basicAmount,
+      validFrom: b.validFrom,
+      note: b.note ?? null,
+      createdBy: ctx.userId ?? null,
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  await setComponents(ctx, row.id, b.components);
+  return (await loadRows(ctx, employeeId, row.id))[0] as Record<string, unknown>;
+};
+
 /** رواتب الموظف بخط زمني: كل راتب جديد يُنهي السابق قبل تاريخ سريانه بيوم. */
 export const createSalariesRouter = (db: Db, authenticate: RequestHandler): Router => {
   const router = Router({ mergeParams: true });
@@ -99,75 +168,7 @@ export const createSalariesRouter = (db: Db, authenticate: RequestHandler): Rout
       const auth = req.auth as NonNullable<Request['auth']>;
       const data = await run(req, async (ctx) => {
         await assertEmployeeVisible(ctx, auth, employeeId, MANAGE);
-        // قفل صف الموظف لتسلسل الإضافات المتزامنة
-        await ctx.trx
-          .selectFrom('employees')
-          .select('id')
-          .where('id', '=', employeeId)
-          .forUpdate()
-          .execute();
-        if (b.structureId) {
-          const st = await ctx.trx
-            .selectFrom('salaryStructures')
-            .select(['currency', 'isActive'])
-            .where('id', '=', b.structureId)
-            .executeTakeFirst();
-          if (!st) throw new AppError('INVALID_REFERENCE', 400, 'الهيكل غير موجود');
-          if (!st.isActive) throw new AppError('STRUCTURE_INACTIVE', 409, 'الهيكل معطّل');
-          if (st.currency && st.currency !== b.currency)
-            throw new AppError(
-              'CURRENCY_MISMATCH',
-              400,
-              `عملة الهيكل ${st.currency} تخالف عملة الراتب`,
-            );
-        }
-        const cur = await ctx.trx
-          .selectFrom('currencies')
-          .select('id')
-          .where('companyId', '=', ctx.companyId)
-          .where('code', '=', b.currency)
-          .executeTakeFirst();
-        if (!cur) throw new AppError('INVALID_REFERENCE', 400, 'العملة غير معرّفة في الشركة');
-        const last = await ctx.trx
-          .selectFrom('employeeSalaries')
-          .select(['id', 'validFrom', 'validTo'])
-          .where('employeeId', '=', employeeId)
-          .orderBy('validFrom', 'desc')
-          .limit(1)
-          .executeTakeFirst();
-        if (last) {
-          const from = String(last.validFrom).slice(0, 10);
-          if (b.validFrom <= from)
-            throw new AppError(
-              'SALARY_DATE_ORDER',
-              409,
-              'تاريخ السريان يجب أن يلي تاريخ آخر راتب مسجّل',
-            );
-          if (last.validTo === null)
-            await ctx.trx
-              .updateTable('employeeSalaries')
-              .set({ validTo: sql`${b.validFrom}::date - 1`, version: sql`version + 1` })
-              .where('id', '=', last.id)
-              .execute();
-          else if (String(last.validTo).slice(0, 10) >= b.validFrom)
-            throw new AppError('SALARY_OVERLAP', 409, 'يتداخل مع راتب سابق');
-        }
-        const row = await ctx.trx
-          .insertInto('employeeSalaries')
-          .values({
-            companyId: ctx.companyId,
-            employeeId,
-            structureId: b.structureId ?? null,
-            currency: b.currency,
-            basicAmount: b.basicAmount,
-            validFrom: b.validFrom,
-            note: b.note ?? null,
-            createdBy: ctx.userId ?? null,
-          })
-          .returning('id')
-          .executeTakeFirstOrThrow();
-        await setComponents(ctx, row.id, b.components);
-        return (await loadRows(ctx, employeeId, row.id))[0];
+        return addSalary(ctx, employeeId, b);
       });
       res.status(201).json({ data });
     }),

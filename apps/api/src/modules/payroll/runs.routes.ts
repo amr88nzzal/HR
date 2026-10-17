@@ -15,6 +15,7 @@ import {
 import type { Db } from '../../db/index.js';
 import type { Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
+import { applyAdminActionsOnLock, revertAdminActionsOnReopen } from './admin-feed.js';
 import { parseSort } from '../../shared/sort.js';
 import { employeeScope } from '../employees/index.js';
 import type { Notifier } from '../../notifications/index.js';
@@ -365,6 +366,7 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler, deps: Run
     await sql`update payroll_periods set status = 'locked', locked_by = ${ctx.userId}, locked_at = now(),
                      version = version + 1 where id = ${p.id}`.execute(ctx.trx);
     await applyLoansOnLock(ctx, p.id);
+    await applyAdminActionsOnLock(ctx, p);
     // إشعار الموظفين بنشر قسائمهم (لمن لديه حساب)؛ فشل الإشعار لا يمنع القفل
     const { rows } = await sql<{ userId: string; name: string }>`
       select e.user_id, e.full_name_ar as name from payslips s join employees e on e.id = s.employee_id
@@ -402,7 +404,10 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler, deps: Run
         'في الدورة دفعات مُعلَّمة مدفوعة؛ ألغِ تعليمها أولاً',
       );
     await sql`delete from payments where period_id = ${p.id} and kind = 'payslip'`.execute(ctx.trx);
-    if (p.status === 'locked') await revertLoansOnReopen(ctx, p.id);
+    if (p.status === 'locked') {
+      await revertLoansOnReopen(ctx, p.id);
+      await revertAdminActionsOnReopen(ctx, p.id);
+    }
     await sql`update payroll_periods set status = 'draft', reopen_reason = ${b.reason}, approved_by = null,
                      approved_at = null, locked_by = null, locked_at = null, version = version + 1
                where id = ${p.id}`.execute(ctx.trx);

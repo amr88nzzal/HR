@@ -45,4 +45,5 @@ export const mountPayrollRoutes = (
 };
 
 export { makeRun } from './setup.routes.js';
+export { addSalary } from './salaries.routes.js';
 export { companyLang } from './payslip-doc.js';

@@ -51,6 +51,8 @@ export type EngineInput = {
     nameEn: string | null;
     kind: CompDef['kind'];
     amount: string;
+    /** بند آلي (مثل الإجراءات الإدارية): يُعاد توليده في كل احتساب ولا يُعدّ يدوياً */
+    auto?: { explain: Record<string, unknown> };
   }[];
   basicNameAr?: string;
   basicNameEn?: string;
@@ -241,9 +243,9 @@ export const computePayslip = (input: EngineInput): EngineResult => {
       kind: a.kind,
       amount: fix(amount),
       autoAmount: null,
-      isManual: true,
-      isAdded: true,
-      explain: { type: 'added' },
+      isManual: !a.auto,
+      isAdded: !a.auto,
+      explain: a.auto?.explain ?? { type: 'added' },
       sortOrder: 1000 + i,
     });
   });

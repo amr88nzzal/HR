@@ -9,6 +9,7 @@ export type NotificationLocale = (typeof NOTIFICATION_LOCALES)[number];
 export const NOTIFICATION_CATEGORIES = [
   { key: 'approvals', mandatory: false },
   { key: 'archive', mandatory: false },
+  { key: 'hr', mandatory: true },
   { key: 'payroll', mandatory: false },
   { key: 'system', mandatory: false },
 ] as const;
@@ -96,6 +97,21 @@ export const NOTIFICATION_EVENTS: readonly NotificationEventDef[] = [
       en: {
         subject: 'Document due soon',
         body: 'The document "{{documentType}}" for {{owner}} is due on {{dueDate}}.',
+      },
+    },
+  },
+  {
+    key: 'admin_action.issued',
+    category: 'hr',
+    variables: ['name', 'title'],
+    defaults: {
+      ar: {
+        subject: 'إجراء إداري جديد في سجلك',
+        body: 'مرحباً {{name}}، صدر بحقك إجراء إداري: «{{title}}». راجع سجلك الإداري وأقرّ بالاستلام.',
+      },
+      en: {
+        subject: 'New administrative action on your record',
+        body: 'Hello {{name}}, an administrative action was recorded for you: "{{title}}". Please review it and acknowledge receipt.',
       },
     },
   },

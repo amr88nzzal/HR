@@ -1185,6 +1185,56 @@ export type ReportLayoutsTable = {
   isDefault: Generated<boolean>;
   createdAt: Generated<Date>;
 };
+export type AdminActionTypesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  category:
+    | 'notice'
+    | 'warning'
+    | 'penalty'
+    | 'reward_cash'
+    | 'reward_moral'
+    | 'commendation'
+    | 'promotion'
+    | 'other';
+  payrollEffect: Generated<'none' | 'deduction' | 'bonus'>;
+  requiresApproval: Generated<boolean>;
+  requiresAcknowledgment: Generated<boolean>;
+  letterTemplateCode: string | null;
+  escalationTypeId: string | null;
+  escalationCount: number | null;
+  escalationWindowDays: number | null;
+  isActive: Generated<boolean>;
+};
+export type AdminActionsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  typeId: string;
+  status: Generated<'draft' | 'pending' | 'approved' | 'rejected' | 'cancelled'>;
+  title: string;
+  description: string | null;
+  actionDate: DateReq;
+  effectiveDate: DateReq;
+  amount: string | null;
+  currency: string | null;
+  payrollYear: number | null;
+  payrollMonth: number | null;
+  appliedPeriodId: string | null;
+  promotion: unknown;
+  employmentChangeId: string | null;
+  salaryId: string | null;
+  approvalRequestId: string | null;
+  issuedDocumentId: string | null;
+  acknowledgedAt: Date | null;
+  acknowledgedBy: string | null;
+  cancelReason: string | null;
+  decidedAt: Date | null;
+  createdBy: string;
+};
 export type UserTablePrefsTable = {
   companyId: string;
   userId: string;
@@ -1406,6 +1456,8 @@ export type Database = {
   reportRuns: ReportRunsTable;
   reportLayouts: ReportLayoutsTable;
   userTablePrefs: UserTablePrefsTable;
+  adminActionTypes: AdminActionTypesTable;
+  adminActions: AdminActionsTable;
   loans: LoansTable;
   loanInstallments: LoanInstallmentsTable;
   payslipLoanItems: PayslipLoanItemsTable;

@@ -2,12 +2,14 @@ import { sql } from 'kysely';
 import { FormulaError, num, type RateBracket } from '@hrms/shared';
 import type { Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
+import { loadAdminLines } from './admin-feed.js';
 import {
   computePayslip,
   EngineError,
   type BaseDef,
   type CompDef,
   type EmpComp,
+  type EngineInput,
   type EngineResult,
   type Line,
   type TableDef,
@@ -359,6 +361,7 @@ export const buildPayslip = (
   vars: { vars: Vars; overridden: string[] },
   comps: EmpComp[],
   old: OldLine[],
+  admin: { added: EngineInput['added']; warnings: string[] } = { added: [], warnings: [] },
 ): Built => {
   const dim = monthRange(p.year, p.month).daysInMonth;
   const serviceDays = Math.round((ms(e.serviceEnd) - ms(e.serviceStart)) / DAY) + 1;
@@ -392,8 +395,10 @@ export const buildPayslip = (
           nameEn: o.nameEn,
           kind: o.kind,
           amount: o.amount,
-        })),
+        }))
+        .concat(admin.added),
     });
+    for (const w of admin.warnings) if (!result.warnings.includes(w)) result.warnings.push(w);
     return {
       employee: e,
       status: 'calculated',
@@ -429,10 +434,15 @@ export const buildAll = async (
 ): Promise<{ built: Built[]; eligible: Eligible[] }> => {
   const data = await loadCalcData(ctx);
   const eligible = await loadEligible(ctx, p, employeeIds);
-  const [vars, comps, old] = await Promise.all([
+  const [vars, comps, old, adminLines] = await Promise.all([
     loadVariables(ctx, p, eligible),
     loadEmployeeComps(ctx, data, eligible),
     loadOldLines(ctx, p.id, employeeIds),
+    loadAdminLines(
+      ctx,
+      p,
+      eligible.map((e) => e.employeeId),
+    ),
   ]);
   const built = eligible.map((e) =>
     buildPayslip(
@@ -442,6 +452,7 @@ export const buildAll = async (
       vars.get(e.employeeId) ?? { vars: {}, overridden: [] },
       comps.get(e.employeeId) ?? [],
       old.get(e.employeeId) ?? [],
+      adminLines.get(e.employeeId),
     ),
   );
   // الأقساط: تُوزَّع على الصافي بعد الاحتساب (عمود مستقل، ولا تدخل في الصافي)

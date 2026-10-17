@@ -84,6 +84,9 @@ const AUTH_ONLY: RegExp[] = [
   // لوحة المعلومات والتقارير: الأقسام والفهرس تُرشَّح بصلاحيات المستخدم داخلياً
   /^get \/api\/v1\/dashboard\/summary$/,
   /^(get|put|delete) \/api\/v1\/table-prefs\/:tableId$/,
+  /^(get|post) \/api\/v1\/me\/admin-actions(\/|\/:id\/acknowledge)?$/,
+  // سجلاتي الإدارية: للموظف المرتبط بحسابه فقط (الاستعلام مقيّد بحسابه في الخادم)
+  /^(get|post) \/api\/v1\/me\/admin-actions(\/:id\/acknowledge)?$/,
   /^get \/api\/v1\/reports\/(runs)?\/?$/,
   // سياسة تصحيح الحضور: يحتاجها نموذج الطلب لكل موظف
   /^get \/api\/v1\/attendance-corrections\/policy$/,
