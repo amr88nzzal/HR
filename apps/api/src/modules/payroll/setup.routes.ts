@@ -113,7 +113,7 @@ export const createPayrollSetupRouter = (db: Db, authenticate: RequestHandler): 
   const run = makeRun(db);
   router.use(authenticate);
 
-  router.get('/variables', (_req, res) => {
+  router.get('/variables', requirePermission('payroll.component.read'), (_req, res) => {
     res.json({ data: PAYROLL_VARIABLES });
   });
 

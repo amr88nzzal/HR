@@ -122,7 +122,7 @@ export const createLetterTemplatesRouter = (
   const run = makeRun(db);
   router.use(authenticate);
 
-  router.get('/variables', (_req, res) => {
+  router.get('/variables', requirePermission('letters.template.read'), (_req, res) => {
     res.json({ data: LETTER_VARIABLES });
   });
 

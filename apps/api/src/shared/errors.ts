@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import type { Logger } from 'pino';
 import { ZodError } from 'zod';
+import type { ErrorReporter } from './error-reporter.js';
 import type { ApiErrorBody } from '@hrms/shared';
 
 export class AppError extends Error {
@@ -41,7 +42,7 @@ export const notFoundHandler: RequestHandler = (req, _res, next) => {
 };
 
 export const createErrorHandler =
-  (logger: Logger): ErrorRequestHandler =>
+  (logger: Logger, reporter?: ErrorReporter): ErrorRequestHandler =>
   (err, req, res, _next) => {
     const requestId = req.requestId ?? 'unknown';
     let status = 500;
@@ -69,7 +70,10 @@ export const createErrorHandler =
       if (mapped) ({ status, code, message } = mapped);
     }
 
-    if (status >= 500) logger.error({ err, requestId }, 'unhandled error');
+    if (status >= 500) {
+      logger.error({ err, requestId }, 'unhandled error');
+      reporter?.capture(err, { requestId, method: req.method, path: req.path });
+    }
 
     const body: ApiErrorBody = { error: { code, status, message, details, requestId } };
     res.status(status).json(body);

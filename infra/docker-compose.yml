@@ -73,6 +73,9 @@ services:
       RENDER_URL: http://render:3100
       # العنوان العام للنظام: يُبنى منه رابط التحقق في رمز QR (بدونه تصدر الوثائق بلا QR)
       PUBLIC_URL: ${PUBLIC_URL:-}
+      # بلاغات الأخطاء إلى GlitchTip (اختياري)؛ لا يُرسل جسم الطلب ولا بيانات شخصية
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      APP_RELEASE: ${APP_RELEASE:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       DEFAULT_COMPANY_SLUG: ${DEFAULT_COMPANY_SLUG:-main}
       # بريد احتياطي إن لم يُضبط من شاشة قنوات الإشعار (يُستعمل أيضاً لاختبار الإرسال)
@@ -106,6 +109,9 @@ services:
       STORAGE_DIR: /data/files
       # رابط الموقع في إشعارات التقارير الكبيرة
       PUBLIC_URL: ${PUBLIC_URL:-}
+      # بلاغات الأخطاء إلى GlitchTip (اختياري)؛ لا يُرسل جسم الطلب ولا بيانات شخصية
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      APP_RELEASE: ${APP_RELEASE:-}
       # SMTP عام لإرسال البريد (اختياري): smtp://user:pass@host:587 ؛ بدونه تُعلَّم الرسائل skipped
       SMTP_URL: ${SMTP_URL:-}
       MAIL_FROM: ${MAIL_FROM:-HRMS <no-reply@localhost>}
@@ -118,6 +124,39 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    networks: [internal]
+
+  # نسخ احتياطي مشفّر يومي + تحقق استعادة أسبوعي (يُفعَّل بـ: --profile backup). انظر docs/RUNBOOK.md
+  backup:
+    profiles: [backup]
+    build:
+      context: ..
+      dockerfile: infra/backup/Dockerfile
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_DIR: /backups
+      FILES_DIR: /data/files
+      BACKUP_PASSPHRASE_FILE: /run/backup_passphrase
+      BACKUP_HOUR_UTC: ${BACKUP_HOUR_UTC:-02}
+      KEEP_DAILY: ${KEEP_DAILY:-7}
+      KEEP_WEEKLY: ${KEEP_WEEKLY:-4}
+      KEEP_MONTHLY: ${KEEP_MONTHLY:-6}
+      # وجهة خارج السيرفر (rclone)، مثل b2:hrms-backups؛ إعداد rclone في المجلد المركّب أدناه
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-}
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+    volumes:
+      - backups:/backups
+      # ملف العبارة (مسار مطلق في .env: BACKUP_PASSPHRASE_FILE)
+      - ${BACKUP_PASSPHRASE_FILE:-/etc/hrms/backup.passphrase}:/run/backup_passphrase:ro
+      - filesdata:/data/files:ro
+      - ${RCLONE_CONFIG_DIR:-/etc/hrms/rclone}:/config/rclone:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks: [internal]
 
   gateway:
@@ -133,5 +172,6 @@ services:
 volumes:
   pgdata:
   filesdata:
+  backups:
 networks:
   internal:

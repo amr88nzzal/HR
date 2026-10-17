@@ -91,3 +91,11 @@ DATABASE_URL=... pnpm --filter @hrms/api migrate up     # أو down
 ```
 
 في Docker تعمل خدمة `migrate` تلقائياً قبل الـ API. اختبار التكامل (يتطلب Docker): `pnpm --filter @hrms/api test:integration`.
+
+## التصلّب والنسخ الاحتياطي والمراقبة
+
+تفاصيل التشغيل في [`docs/RUNBOOK.md`](docs/RUNBOOK.md) ودليل المستخدم في [`docs/USER-GUIDE.md`](docs/USER-GUIDE.md).
+
+- **نسخ احتياطي:** `docker compose -f infra/docker-compose.yml --env-file .env --profile backup up -d backup` (يتطلب `BACKUP_PASSPHRASE_FILE`؛ انظر `.env.example`).
+- **مراقبة:** `SENTRY_DSN` (GlitchTip/Sentry) و`APP_RELEASE`؛ `/health/ready` للفحص الخارجي.
+- **اختبارات الأمان والأداء:** `security.integration.test.ts` و`perf.integration.test.ts` ضمن اختبارات التكامل.

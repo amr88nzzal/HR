@@ -32,6 +32,46 @@ describe('health', () => {
   });
 });
 
+describe('health: فحوص إضافية', () => {
+  const ok = async () => undefined;
+  const bad = async () => {
+    throw new Error('down');
+  };
+  it('فحص حرج فاشل (التخزين) = 503', async () => {
+    const app = createApp({
+      logger,
+      checkDb: ok,
+      checks: [{ name: 'storage', critical: true, run: bad }],
+    });
+    const res = await request(app).get('/health/ready');
+    expect(res.status).toBe(503);
+    expect(res.body.data.checks).toMatchObject({ database: 'up', storage: 'down' });
+  });
+  it('فحص غير حرج فاشل (render/worker) = 200 مع degraded', async () => {
+    const app = createApp({
+      logger,
+      checkDb: ok,
+      checks: [
+        { name: 'storage', critical: true, run: ok },
+        { name: 'render', critical: false, run: bad },
+      ],
+    });
+    const res = await request(app).get('/health/ready');
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('degraded');
+    expect(res.body.data.checks.render).toBe('down');
+  });
+  it('كل الفحوص سليمة = ok', async () => {
+    const app = createApp({
+      logger,
+      checkDb: ok,
+      checks: [{ name: 'render', critical: false, run: ok }],
+    });
+    const res = await request(app).get('/health/ready');
+    expect(res.body.data).toEqual({ status: 'ok', checks: { database: 'up', render: 'up' } });
+  });
+});
+
 describe('errors', () => {
   it('مسار مجهول يرجع شكل الخطأ الموحّد', async () => {
     const res = await request(createApp({ logger })).get('/nope');
