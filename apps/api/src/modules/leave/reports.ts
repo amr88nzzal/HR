@@ -13,8 +13,8 @@ const and = (parts: RawBuilder<unknown>[]): RawBuilder<unknown> =>
 export type CalendarQuery = {
   from: string;
   to: string;
-  departmentId?: string | undefined;
-  branchId?: string | undefined;
+  departmentId?: string[] | undefined;
+  branchId?: string[] | undefined;
 };
 
 export type CalendarRequest = {
@@ -48,8 +48,8 @@ export const calendarData = async (
     sql`r.start_date <= ${q.to}::date`,
     sql`r.end_date >= ${q.from}::date`,
   ];
-  if (q.departmentId) where.push(sql`cur.department_id = ${q.departmentId}`);
-  if (q.branchId) where.push(sql`cur.branch_id = ${q.branchId}`);
+  if (q.departmentId?.length) where.push(sql`cur.department_id = any(${q.departmentId}::uuid[])`);
+  if (q.branchId?.length) where.push(sql`cur.branch_id = any(${q.branchId}::uuid[])`);
   if (!scope.all) {
     where.push(
       scope.employeeId
@@ -83,9 +83,9 @@ export const calendarData = async (
 };
 
 export type ReportQuery = {
-  leaveTypeId?: string | undefined;
-  departmentId?: string | undefined;
-  branchId?: string | undefined;
+  leaveTypeId?: string[] | undefined;
+  departmentId?: string[] | undefined;
+  branchId?: string[] | undefined;
   q?: string | undefined;
   page: number;
   pageSize: number;
@@ -113,9 +113,9 @@ export const balanceReport = async (ctx: Ctx, q: ReportQuery) => {
     sql`e.status <> 'terminated'`,
     sql`t.is_active and t.is_paid`,
   ];
-  if (q.leaveTypeId) where.push(sql`t.id = ${q.leaveTypeId}`);
-  if (q.departmentId) where.push(sql`cur.department_id = ${q.departmentId}`);
-  if (q.branchId) where.push(sql`cur.branch_id = ${q.branchId}`);
+  if (q.leaveTypeId?.length) where.push(sql`t.id = any(${q.leaveTypeId}::uuid[])`);
+  if (q.departmentId?.length) where.push(sql`cur.department_id = any(${q.departmentId}::uuid[])`);
+  if (q.branchId?.length) where.push(sql`cur.branch_id = any(${q.branchId}::uuid[])`);
   if (q.q) {
     const like = `%${q.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
     where.push(sql`(e.full_name_ar ilike ${like} or e.employee_no ilike ${like})`);

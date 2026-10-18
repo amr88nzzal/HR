@@ -22,6 +22,7 @@ import { useList, type Row } from '../../api/hooks';
 import { useAuth } from '../../auth/AuthContext';
 import { DataTable, type Column } from '../../components/DataTable';
 import { DynamicForm, type FieldDef } from '../../components/DynamicForm';
+import { csv, MultiFilter } from '../../components/MultiFilter';
 import { errorMessage } from '../../lib/errors';
 import { fetchAllRows } from '../../lib/export';
 import {
@@ -77,17 +78,21 @@ export const EmployeesPage = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [debounced] = useDebouncedValue(search, 300);
-  const [status, setStatus] = useState<string | null>(null);
-  const [branchId, setBranchId] = useState<string | null>(null);
-  const [departmentId, setDepartmentId] = useState<string | null>(null);
+  const [status, setStatus] = useState<string[]>([]);
+  const [branchId, setBranchId] = useState<string[]>([]);
+  const [departmentId, setDepartmentId] = useState<string[]>([]);
+  const [jobTitleId, setJobTitleId] = useState<string[]>([]);
+  const [account, setAccount] = useState<string[]>([]);
   const [opened, { open, close }] = useDisclosure(false);
   const [sort, setSort] = useState<string | undefined>(undefined);
 
   const filters = {
     q: debounced || undefined,
-    status: status ?? undefined,
-    branchId: branchId ?? undefined,
-    departmentId: departmentId ?? undefined,
+    status: csv(status),
+    branchId: csv(branchId),
+    departmentId: csv(departmentId),
+    jobTitleId: csv(jobTitleId),
+    account: csv(account),
   };
   const list = useList('/employees', { page, pageSize: PAGE_SIZE, ...filters, sort });
   const qc = useQueryClient();
@@ -148,6 +153,7 @@ export const EmployeesPage = () => {
               );
             },
             exportValue: (r: Row) => t(`account.states.${str(r['accountStatus']) || 'none'}`),
+            sortKey: 'account',
           } satisfies Column<Row>,
         ]
       : []),
@@ -156,18 +162,21 @@ export const EmployeesPage = () => {
       header: t('hr.emp.branch'),
       render: (r) => lookups.branches.name(r['currentBranchId']),
       exportValue: (r) => lookups.branches.name(r['currentBranchId']),
+      sortKey: 'branch',
     },
     {
       key: 'department',
       header: t('hr.emp.department'),
       render: (r) => lookups.departments.name(r['currentDepartmentId']),
       exportValue: (r) => lookups.departments.name(r['currentDepartmentId']),
+      sortKey: 'department',
     },
     {
       key: 'jobTitle',
       header: t('hr.emp.jobTitle'),
       render: (r) => lookups.jobTitles.name(r['currentJobTitleId']),
       exportValue: (r) => lookups.jobTitles.name(r['currentJobTitleId']),
+      sortKey: 'jobTitle',
     },
   ];
 
@@ -229,34 +238,45 @@ export const EmployeesPage = () => {
           onChange={(e) => reset(setSearch)(e.currentTarget.value)}
           w={340}
         />
-        <Select
+        <MultiFilter
           placeholder={t('hr.emp.status')}
-          clearable
           value={status}
           onChange={reset(setStatus)}
           data={enumOptions(t, 'empStatus', ['active', 'suspended', 'terminated'])}
-          w={170}
         />
         {lookups.branches.rows.length > 0 && (
-          <Select
+          <MultiFilter
             placeholder={t('hr.emp.branch')}
-            clearable
-            searchable
             value={branchId}
             onChange={reset(setBranchId)}
             data={lookups.branches.options}
-            w={180}
           />
         )}
         {lookups.departments.rows.length > 0 && (
-          <Select
+          <MultiFilter
             placeholder={t('hr.emp.department')}
-            clearable
-            searchable
             value={departmentId}
             onChange={reset(setDepartmentId)}
             data={lookups.departments.options}
-            w={200}
+          />
+        )}
+        {lookups.jobTitles.rows.length > 0 && (
+          <MultiFilter
+            placeholder={t('hr.emp.jobTitle')}
+            value={jobTitleId}
+            onChange={reset(setJobTitleId)}
+            data={lookups.jobTitles.options}
+          />
+        )}
+        {can('identity.user.read') && (
+          <MultiFilter
+            placeholder={t('account.column')}
+            value={account}
+            onChange={reset(setAccount)}
+            data={(['none', 'invited', 'active', 'disabled'] as const).map((st) => ({
+              value: st,
+              label: t(`account.states.${st}`),
+            }))}
           />
         )}
       </Group>

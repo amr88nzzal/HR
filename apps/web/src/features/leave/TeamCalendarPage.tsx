@@ -1,10 +1,10 @@
+import { csv, MultiFilter } from '../../components/MultiFilter';
 import {
   ActionIcon,
   Badge,
   Box,
   Group,
   Paper,
-  Select,
   SimpleGrid,
   Stack,
   Text,
@@ -26,7 +26,7 @@ export const TeamCalendarPage = () => {
   const { t, i18n } = useTranslation();
   const now = new Date();
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() });
-  const [deptId, setDeptId] = useState<string | null>(null);
+  const [deptId, setDeptId] = useState<string[]>([]);
   const depts = useList<{ id: string; nameAr: string; nameEn: string | null }>('/departments', {
     pageSize: 200,
   });
@@ -40,7 +40,7 @@ export const TeamCalendarPage = () => {
         await api.get<CalendarData>('/leave-requests/calendar', {
           from,
           to,
-          departmentId: deptId ?? undefined,
+          departmentId: csv(deptId),
         })
       ).data,
   });
@@ -63,9 +63,8 @@ export const TeamCalendarPage = () => {
     <Stack>
       <Group justify="space-between">
         <Title order={2}>{t('nav.leaveCalendar')}</Title>
-        <Select
+        <MultiFilter
           placeholder={t('leave.allDepartments')}
-          clearable
           w={220}
           data={(depts.data?.data ?? []).map((d) => ({
             value: d.id,

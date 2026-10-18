@@ -98,6 +98,24 @@ describe('DataTable: الفرز', () => {
   });
 });
 
+describe('DataTable: فرز مختلط (خادم + محلي)', () => {
+  it('عمود بلا مفتاح خادم يُفرز محلياً حين تكون كل الصفوف محمّلة، ولا يستدعي onSort', async () => {
+    const onSort = vi.fn();
+    const cols = [{ ...columns[0]!, sortKey: 'name' }, columns[1]!]; // الصافي بلا sortKey
+    mount({ columns: cols, onSort, total: rows.length });
+    await userEvent.click(screen.getByRole('button', { name: /الصافي/ }));
+    expect(order()).toEqual(['سامر', 'ليث', 'باسل']);
+    expect(onSort).not.toHaveBeenCalled();
+  });
+
+  it('عمود بلا مفتاح خادم لا يُفرز إن كانت الصفوف جزءاً من الكل (لا فرز مضلِّل)', () => {
+    const cols = [{ ...columns[0]!, sortKey: 'name' }, columns[1]!];
+    mount({ columns: cols, onSort: vi.fn(), total: 100 });
+    expect(screen.getByRole('button', { name: /الاسم/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /الصافي/ })).toBeNull();
+  });
+});
+
 describe('DataTable: الأعمدة', () => {
   it('إخفاء عمود من القائمة يحفظ التفضيل ويزيل العمود', async () => {
     mount();

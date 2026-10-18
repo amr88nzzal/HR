@@ -34,6 +34,7 @@ import {
   printHtml,
   type ColPref,
 } from '../lib/tableTools';
+import { loadPrintHeader } from '../lib/printHeader';
 import { useTablePrefs } from '../lib/useTablePrefs';
 
 export type Column<T> = {
@@ -117,31 +118,41 @@ export const DataTable = <T extends { id: string }>({
   const cell = (c: Column<T>, row: T): string | number | boolean | null =>
     c.exportValue ? c.exportValue(row) : nodeText(c.render(row));
 
-  const sorted = useMemo(() => {
-    if (mode !== 'client' || !local) return rows;
+  /** كل الصفوف محمّلة: يمكن فرز أي عمود محلياً حتى بلا مفتاح فرز في الخادم */
+  const complete = rows.length >= total;
+  const isLocal = (c: Column<T>) => mode === 'client' || (mode === 'server' && !c.sortKey);
+  const applyLocal = (list: T[]): T[] => {
+    if (!local) return list;
     const col = columns.find((c) => c.key === local.key);
-    if (!col) return rows;
+    if (!col) return list;
     const dir = local.desc ? -1 : 1;
-    return [...rows].sort((a, b) => dir * compareValues(cell(col, a), cell(col, b), i18n.language));
-  }, [rows, local, mode, columns, i18n.language]);
+    return [...list].sort((a, b) => dir * compareValues(cell(col, a), cell(col, b), i18n.language));
+  };
+  const sorted = useMemo(() => applyLocal(rows), [rows, local, columns, i18n.language]);
 
   const sortable = (c: Column<T>) =>
-    mode === 'server' ? !!c.sortKey : mode === 'client' ? c.sortable !== false : false;
+    mode === 'none'
+      ? false
+      : c.sortKey && mode === 'server'
+        ? true
+        : complete && c.sortable !== false;
   const current = (c: Column<T>): 'asc' | 'desc' | null => {
-    if (mode === 'server') {
+    if (!isLocal(c)) {
       if (!sort || !c.sortKey) return null;
       const desc = sort.startsWith('-');
       return (desc ? sort.slice(1) : sort) === c.sortKey ? (desc ? 'desc' : 'asc') : null;
     }
     return local?.key === c.key ? (local.desc ? 'desc' : 'asc') : null;
   };
-  /** تبديل: تصاعدي ← تنازلي ← بلا فرز */
+  /** تبديل: تصاعدي ← تنازلي ← بلا فرز (فرز الخادم والمحلي لا يجتمعان) */
   const toggle = (c: Column<T>) => {
     const cur = current(c);
-    if (mode === 'server') {
+    if (!isLocal(c)) {
+      setLocal(null);
       onSort?.(cur === null ? c.sortKey : cur === 'asc' ? `-${c.sortKey}` : undefined);
       onPage(1);
-    } else
+    } else {
+      if (mode === 'server' && sort) onSort?.(undefined);
       setLocal(
         cur === null
           ? { key: c.key, desc: false }
@@ -149,13 +160,14 @@ export const DataTable = <T extends { id: string }>({
             ? { key: c.key, desc: true }
             : null,
       );
+    }
   };
 
   const exportCols = (): ExportColumn<T>[] =>
     visible.map((c) => ({ header: c.header, value: (r: T) => cell(c, r) }));
   const fileName =
     title ?? document.querySelector('h2, h1')?.textContent?.trim() ?? tableId ?? 'table';
-  const dataset = async (): Promise<T[]> => (fetchAll ? fetchAll() : sorted);
+  const dataset = async (): Promise<T[]> => (fetchAll ? applyLocal(await fetchAll()) : sorted);
   const run = async (fn: () => Promise<void> | void) => {
     setBusy(true);
     try {
@@ -166,13 +178,13 @@ export const DataTable = <T extends { id: string }>({
   };
   const doPrint = () =>
     run(async () => {
-      const data = await dataset();
+      const [data, header] = await Promise.all([dataset(), loadPrintHeader(i18n.language)]);
       const cols = exportCols();
       const html = printHtml(
         title ?? fileName,
         cols.map((c) => c.header),
         data.map((r) => cols.map((c) => String(c.value(r) ?? ''))),
-        { rtl: i18n.language === 'ar', date: new Date().toLocaleString(i18n.language) },
+        { rtl: i18n.language === 'ar', date: new Date().toLocaleString(i18n.language), header },
       );
       const w = window.open('', '_blank');
       if (!w) return;

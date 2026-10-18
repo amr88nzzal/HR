@@ -1,3 +1,4 @@
+import { csv, MultiFilter } from '../../components/MultiFilter';
 import {
   Alert,
   Badge,
@@ -122,8 +123,8 @@ export const DailyBoardPage = () => {
   const fmt = useFormat();
   const qc = useQueryClient();
   const [date, setDate] = useState(today());
-  const [deptId, setDeptId] = useState<string | null>(null);
-  const [branchId, setBranchId] = useState<string | null>(null);
+  const [deptId, setDeptId] = useState<string[]>([]);
+  const [branchId, setBranchId] = useState<string[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [editing, setEditing] = useState<DailyRow | null>(null);
   const depts = useList<{ id: string; nameAr: string; nameEn: string | null }>('/departments', {
@@ -140,8 +141,8 @@ export const DailyBoardPage = () => {
       (
         await api.get<DailyData>('/attendance/daily', {
           date,
-          departmentId: deptId ?? undefined,
-          branchId: branchId ?? undefined,
+          departmentId: csv(deptId),
+          branchId: csv(branchId),
         })
       ).data,
   });
@@ -198,10 +199,9 @@ export const DailyBoardPage = () => {
           onChange={(e) => setDate(e.currentTarget.value)}
           w={170}
         />
-        <Select
+        <MultiFilter
           label={t('attendance.department')}
           placeholder={t('attendance.allDepartments')}
-          clearable
           w={200}
           data={(depts.data?.data ?? []).map((d) => ({
             value: d.id,
@@ -210,10 +210,9 @@ export const DailyBoardPage = () => {
           value={deptId}
           onChange={setDeptId}
         />
-        <Select
+        <MultiFilter
           label={t('attendance.branch')}
           placeholder={t('attendance.allBranches')}
-          clearable
           w={200}
           data={(branches.data?.data ?? []).map((d) => ({
             value: d.id,

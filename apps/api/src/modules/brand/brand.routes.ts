@@ -116,6 +116,31 @@ export const createBrandRouter = (db: Db, authenticate: RequestHandler, deps: Fi
     }),
   );
 
+  /** ترويسة الطباعة (اسم الشركة وبيانات التواصل) لأي مستخدم مسجّل؛ بلا أرقام ضريبية أو تسجيل. */
+  router.get(
+    '/print-header',
+    wrap(async (req, res) => {
+      const data = await run(req, async (ctx) => {
+        const b = await loadBrand(ctx);
+        const c = await ctx.trx
+          .selectFrom('companies')
+          .select(['nameAr', 'nameEn'])
+          .where('id', '=', ctx.companyId)
+          .executeTakeFirstOrThrow();
+        return {
+          nameAr: b?.legalNameAr ?? c.nameAr,
+          nameEn: b?.legalNameEn ?? c.nameEn ?? c.nameAr,
+          addressAr: b?.addressAr ?? null,
+          addressEn: b?.addressEn ?? null,
+          phone: b?.phone ?? null,
+          email: b?.email ?? null,
+          website: b?.website ?? null,
+        };
+      });
+      res.json({ data });
+    }),
+  );
+
   router.get(
     '/',
     requirePermission(READ),

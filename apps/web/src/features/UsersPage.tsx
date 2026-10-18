@@ -31,6 +31,7 @@ import { roleAssignmentInput, userCreateInput, userUpdateInput } from '@hrms/sha
 import { api } from '../api/client';
 import { useList, useOne, useSave, type Row } from '../api/hooks';
 import { useAuth } from '../auth/AuthContext';
+import { csv, MultiFilter } from '../components/MultiFilter';
 import { DataTable, type Column } from '../components/DataTable';
 import { DynamicForm, type FieldDef } from '../components/DynamicForm';
 import { errorMessage } from '../lib/errors';
@@ -223,7 +224,7 @@ export const UsersPage = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [debounced] = useDebouncedValue(search, 300);
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<string[]>([]);
   const [editing, setEditing] = useState<Row | null>(null);
   const [formOpen, form] = useDisclosure(false);
   const [rolesFor, setRolesFor] = useState<string | null>(null);
@@ -234,7 +235,7 @@ export const UsersPage = () => {
     page,
     pageSize: PAGE_SIZE,
     q: debounced || undefined,
-    status: status ?? undefined,
+    status: csv(status),
     sort,
   });
   const save = useSave('/users');
@@ -339,6 +340,7 @@ export const UsersPage = () => {
     },
     {
       key: 'lastLoginAt',
+      sortKey: 'lastLoginAt',
       header: t('users.lastLogin'),
       render: (u) =>
         u['lastLoginAt'] ? new Date(String(u['lastLoginAt'])).toLocaleString(i18n.language) : '—',
@@ -368,16 +370,15 @@ export const UsersPage = () => {
           onChange={(e) => (setSearch(e.currentTarget.value), setPage(1))}
           w={260}
         />
-        <Select
+        <MultiFilter
           value={status}
           onChange={(v) => (setStatus(v), setPage(1))}
-          placeholder={t('table.all')}
-          clearable
+          placeholder={t('users.status')}
           data={[
             { value: 'active', label: t('table.active') },
             { value: 'disabled', label: t('table.inactive') },
           ]}
-          w={160}
+          w={200}
         />
       </Group>
       <DataTable

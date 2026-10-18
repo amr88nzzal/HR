@@ -224,7 +224,7 @@ export const createIdentityAdminRouter = (db: Db, authenticate: RequestHandler):
       const out = await run(req, async (ctx) => {
         const build = () => {
           let b = ctx.trx.selectFrom('users');
-          if (q.status) b = b.where('status', '=', q.status);
+          if (q.status?.length) b = b.where('status', 'in', q.status);
           if (q.q) {
             const like = `%${q.q.replace(/[%_\\]/g, '\\$&')}%`;
             b = b.where((eb) =>

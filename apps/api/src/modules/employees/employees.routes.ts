@@ -14,7 +14,6 @@ import {
 import type { Db } from '../../db/index.js';
 import { withTenant, type Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
-import { parseSort } from '../../shared/sort.js';
 import { hasPermission, requirePermission, type AuthContext } from '../identity/index.js';
 import type { FieldCrypto } from '../../shared/crypto.js';
 import { employeeScope } from './access.js';
@@ -132,6 +131,18 @@ const currentValue = (column: string) =>
        and (cur.valid_to is null or cur.valid_to >= company_today(employees.company_id))
      limit 1)`;
 
+/** حالة حساب الموظف (none/invited/active/disabled) كتعبير SQL يُعاد استعماله في الفلتر والفرز والعرض. */
+const accountState = sql<string>`case
+  when employees.user_id is null then 'none'
+  else coalesce((select case when u.status = 'disabled' then 'disabled'
+                             when u.last_login_at is null and u.must_change_password then 'invited' else 'active' end
+                   from users u where u.id = employees.user_id), 'none') end`;
+/** اسم الفرع/القسم/المسمى الحالي للفرز الأبجدي */
+const currentName = (table: 'branches' | 'departments' | 'job_titles', column: string) =>
+  sql<
+    string | null
+  >`(select t.name_ar from ${sql.table(table)} t where t.id = ${currentValue(column)})`;
+
 const audit = (ctx: Ctx, entityId: string, action: string, changes: unknown) =>
   ctx.trx
     .insertInto('auditLogs')
@@ -187,11 +198,23 @@ export const createEmployeesRouter = (
         const build = () => {
           let b = ctx.trx.selectFrom('employees');
           if (scope) b = b.where(scope);
-          if (query.status) b = b.where('status', '=', query.status);
-          if (query.branchId)
-            b = b.where(currentEmployment(sql<boolean>`cur.branch_id = ${query.branchId}`));
-          if (query.departmentId)
-            b = b.where(currentEmployment(sql<boolean>`cur.department_id = ${query.departmentId}`));
+          if (query.status?.length) b = b.where('status', 'in', query.status);
+          if (query.branchId?.length)
+            b = b.where(
+              currentEmployment(sql<boolean>`cur.branch_id = any(${query.branchId}::uuid[])`),
+            );
+          if (query.departmentId?.length)
+            b = b.where(
+              currentEmployment(
+                sql<boolean>`cur.department_id = any(${query.departmentId}::uuid[])`,
+              ),
+            );
+          if (query.jobTitleId?.length)
+            b = b.where(
+              currentEmployment(sql<boolean>`cur.job_title_id = any(${query.jobTitleId}::uuid[])`),
+            );
+          if (query.account?.length)
+            b = b.where(sql<boolean>`${accountState} = any(${query.account}::text[])`);
           // كل كلمة بحث: تطابق الاسم/الرقم الوظيفي أو بداية قيمة مرجع خارجي (رقم محاسبة، كود بصمة…)
           tokens.forEach((t, i) => {
             const esc = (v: string) => v.replace(/[%_\\]/g, '\\$&');
@@ -204,16 +227,17 @@ export const createEmployeesRouter = (
           });
           return b;
         };
-        const sortCol = parseSort(
-          query.sort,
-          {
-            employeeNo: 'employeeNo',
-            name: 'fullNameAr',
-            createdAt: 'createdAt',
-            status: 'status',
-          },
-          'employeeNo',
-        ).column as 'employeeNo';
+        const sortKey = query.sort.replace(/^-/, '');
+        const sortExpr = {
+          employeeNo: sql`employees.employee_no`,
+          name: sql`employees.full_name_ar`,
+          createdAt: sql`employees.created_at`,
+          status: sql`employees.status`,
+          account: accountState,
+          branch: currentName('branches', 'branch_id'),
+          department: currentName('departments', 'department_id'),
+          jobTitle: currentName('job_titles', 'job_title_id'),
+        }[sortKey as 'employeeNo'];
         const rows = await build()
           .select([...COLUMNS])
           .select([
@@ -221,15 +245,9 @@ export const createEmployeesRouter = (
             currentValue('department_id').as('currentDepartmentId'),
             currentValue('job_title_id').as('currentJobTitleId'),
             currentValue('manager_employee_id').as('currentManagerEmployeeId'),
-            sql<string>`case
-              when employees.user_id is null then 'none'
-              else coalesce((select case when u.status = 'disabled' then 'disabled'
-                                         when u.last_login_at is null and u.must_change_password then 'invited' else 'active' end
-                               from users u where u.id = employees.user_id), 'none') end`.as(
-              'accountStatus',
-            ),
+            accountState.as('accountStatus'),
           ])
-          .orderBy(sortCol, query.sort.startsWith('-') ? 'desc' : 'asc')
+          .orderBy(sortExpr, query.sort.startsWith('-') ? 'desc' : 'asc')
           .orderBy('id')
           .limit(query.pageSize)
           .offset((query.page - 1) * query.pageSize)

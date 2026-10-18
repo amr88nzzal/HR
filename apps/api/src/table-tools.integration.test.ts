@@ -188,4 +188,12 @@ describe('أدوات الجداول: الفرز من الخادم وتفضيلا
     });
     expect((await request(api).get('/api/v1/table-prefs/employees')).status).toBe(401);
   });
+
+  it('ترويسة الطباعة: اسم الشركة لأي مستخدم موثَّق، ومرفوضة بلا توكن', async () => {
+    const r = await get('hr', '/company-brand/print-header');
+    expect(r.status).toBe(200);
+    expect(r.body.data.nameAr).toBe('شركة أكمي');
+    expect(r.body.data).not.toHaveProperty('taxNo');
+    expect((await request(api).get('/api/v1/company-brand/print-header')).status).toBe(401);
+  });
 });
