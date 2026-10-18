@@ -235,6 +235,19 @@ const TelegramCard = () => {
     onSuccess: () => notifications.show({ color: 'green', message: t('channels.testSent') }),
     onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
   });
+  type HookInfo = {
+    expectedUrl: string | null;
+    registeredUrl: string | null;
+    matches: boolean;
+    pendingUpdates: number;
+    lastErrorAt: string | null;
+    lastErrorMessage: string | null;
+  };
+  // فحص ما يراه تلغرام عن الـ webhook / what Telegram reports about the webhook
+  const hook = useMutation({
+    mutationFn: async () => (await api.get<HookInfo>('/integrations/telegram/webhook-info')).data,
+    onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
+  });
   const unlink = useMutation({
     mutationFn: async (userId: string) => api.del(`/integrations/telegram/links/${userId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['/integrations/telegram/links'] }),
@@ -310,7 +323,43 @@ const TelegramCard = () => {
             >
               {t('channels.telegram.testMine')}
             </Button>
+            <Button
+              variant="default"
+              loading={hook.isPending}
+              disabled={!q.data?.hasToken}
+              onClick={() => hook.mutate()}
+            >
+              {t('channels.telegram.checkWebhook')}
+            </Button>
           </Group>
+        )}
+        {hook.data && (
+          <Alert
+            variant="light"
+            color={hook.data.matches && !hook.data.lastErrorMessage ? 'green' : 'orange'}
+            title={
+              hook.data.matches
+                ? t('channels.telegram.hookOk')
+                : t('channels.telegram.hookMismatch')
+            }
+          >
+            <Stack gap={2}>
+              <Text size="sm" dir="ltr">
+                {t('channels.telegram.hookExpected')}: {hook.data.expectedUrl ?? '—'}
+              </Text>
+              <Text size="sm" dir="ltr">
+                {t('channels.telegram.hookRegistered')}: {hook.data.registeredUrl ?? '—'}
+              </Text>
+              <Text size="sm">
+                {t('channels.telegram.hookPending')}: {hook.data.pendingUpdates}
+              </Text>
+              {hook.data.lastErrorMessage && (
+                <Text size="sm" c="red" dir="ltr">
+                  {t('channels.telegram.hookLastError')}: {hook.data.lastErrorMessage}
+                </Text>
+              )}
+            </Stack>
+          </Alert>
         )}
         {canManage && (
           <Alert variant="light" title={t('channels.telegram.manualTitle')}>

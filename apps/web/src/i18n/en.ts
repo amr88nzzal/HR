@@ -183,6 +183,13 @@ export const en: Messages = {
       publicUrlHint:
         'Optional. Leave empty to link accounts by chat id. If set (e.g. https://hr.example.com) users get the automatic Link Telegram button.',
       testMine: 'Test message to my account',
+      checkWebhook: 'Check webhook',
+      hookOk: 'Webhook is registered and matches',
+      hookMismatch: 'Webhook missing or does not match',
+      hookExpected: 'Expected URL',
+      hookRegistered: 'URL registered at Telegram',
+      hookPending: 'Pending updates',
+      hookLastError: 'Last error at Telegram',
       linked: 'Linked accounts',
       noLinks: 'No linked accounts yet',
       unlink: 'Unlink',

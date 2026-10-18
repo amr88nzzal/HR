@@ -140,7 +140,10 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
     const telegramApi = auth.telegramApi ?? createTelegramApi();
     const telegram = createTelegramProvider({ crypto: auth.crypto, api: telegramApi });
     // قبل أي راوتر يفرض المصادقة على كل المسارات
-    api.use('/integrations/telegram/webhook', createTelegramWebhookRouter(auth.db, { telegram }));
+    api.use(
+      '/integrations/telegram/webhook',
+      createTelegramWebhookRouter(auth.db, { telegram, logger }),
+    );
     // التحقق العام بلا مصادقة (قبل أي راوتر يفرضها)
     api.use('/public/verify', createPublicVerifyRouter(auth.db, auth.rateLimit !== false));
     api.use(

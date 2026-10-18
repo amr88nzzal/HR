@@ -176,6 +176,13 @@ export const ar = {
       publicUrlHint:
         'اختياري. إن تركته فارغاً فاربط الحسابات بـ chat id. وإن أدخلته (مثل https://hr.example.com) يظهر زر «ربط تلغرام» التلقائي للمستخدمين.',
       testMine: 'رسالة تجريبية لحسابي',
+      checkWebhook: 'فحص الـ webhook',
+      hookOk: 'الـ webhook مسجّل ويطابق العنوان',
+      hookMismatch: 'الـ webhook غير مطابق أو غير مسجّل',
+      hookExpected: 'العنوان المتوقع',
+      hookRegistered: 'العنوان المسجّل عند تلغرام',
+      hookPending: 'تحديثات معلّقة',
+      hookLastError: 'آخر خطأ عند تلغرام',
       linked: 'الحسابات المربوطة',
       noLinks: 'لا توجد حسابات مربوطة بعد',
       unlink: 'فك الربط',
