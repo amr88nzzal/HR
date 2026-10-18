@@ -14,6 +14,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -396,7 +397,20 @@ const CorrectionsTab = ({ all }: ListProps) => {
         onPage={setPage}
         actions={(r) =>
           r.status === 'pending' ? (
-            <Button size="xs" variant="subtle" color="red" onClick={() => withdraw.mutate(r.id)}>
+            <Button
+              size="xs"
+              variant="subtle"
+              color="red"
+              onClick={() =>
+                modals.openConfirmModal({
+                  title: t('common.withdrawConfirmTitle'),
+                  children: <Text size="sm">{t('common.withdrawConfirmBody')}</Text>,
+                  labels: { confirm: t('common.withdrawConfirmYes'), cancel: t('common.cancel') },
+                  confirmProps: { color: 'red' },
+                  onConfirm: () => withdraw.mutate(r.id),
+                })
+              }
+            >
               {t('adjust.withdraw')}
             </Button>
           ) : null
@@ -480,7 +494,20 @@ const OvertimeTab = ({ all }: ListProps) => {
         onPage={setPage}
         actions={(r) =>
           r.status === 'pending' ? (
-            <Button size="xs" variant="subtle" color="red" onClick={() => withdraw.mutate(r.id)}>
+            <Button
+              size="xs"
+              variant="subtle"
+              color="red"
+              onClick={() =>
+                modals.openConfirmModal({
+                  title: t('common.withdrawConfirmTitle'),
+                  children: <Text size="sm">{t('common.withdrawConfirmBody')}</Text>,
+                  labels: { confirm: t('common.withdrawConfirmYes'), cancel: t('common.cancel') },
+                  confirmProps: { color: 'red' },
+                  onConfirm: () => withdraw.mutate(r.id),
+                })
+              }
+            >
               {t('adjust.withdraw')}
             </Button>
           ) : null

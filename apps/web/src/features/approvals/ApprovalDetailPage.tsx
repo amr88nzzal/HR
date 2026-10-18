@@ -13,6 +13,7 @@ import {
   Timeline,
   Title,
 } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
@@ -121,7 +122,19 @@ export const ApprovalDetailPage = () => {
       )}
       {d.canWithdraw && (
         <Group>
-          <Button variant="default" loading={withdraw.isPending} onClick={() => withdraw.mutate()}>
+          <Button
+            variant="default"
+            loading={withdraw.isPending}
+            onClick={() =>
+              modals.openConfirmModal({
+                title: t('common.withdrawConfirmTitle'),
+                children: <Text size="sm">{t('common.withdrawConfirmBody')}</Text>,
+                labels: { confirm: t('common.withdrawConfirmYes'), cancel: t('common.cancel') },
+                confirmProps: { color: 'red' },
+                onConfirm: () => withdraw.mutate(),
+              })
+            }
+          >
             {t('approvals.detail.withdraw')}
           </Button>
         </Group>
