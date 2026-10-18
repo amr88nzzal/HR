@@ -204,7 +204,7 @@ export type AdjustInput = {
   reason: string;
   date?: string;
   expiresOn?: string | null;
-  userId: string;
+  userId: string | null;
 };
 
 /** تعديل يدوي: موجب = دفعة جديدة، سالب = خصم FIFO (بلا حد للرصيد السالب). */

@@ -29,6 +29,7 @@ import {
   type Period,
 } from './calc.js';
 import { applyLoansOnLock, revertLoansOnReopen } from './loans.js';
+import { applyShortfallOnLock, revertShortfallOnReopen } from './shortfall.js';
 import { makeRun } from './setup.routes.js';
 
 type Row = Record<string, unknown>;
@@ -367,6 +368,7 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler, deps: Run
                      version = version + 1 where id = ${p.id}`.execute(ctx.trx);
     await applyLoansOnLock(ctx, p.id);
     await applyAdminActionsOnLock(ctx, p);
+    await applyShortfallOnLock(ctx, p);
     // إشعار الموظفين بنشر قسائمهم (لمن لديه حساب)؛ فشل الإشعار لا يمنع القفل
     const { rows } = await sql<{ userId: string; name: string }>`
       select e.user_id, e.full_name_ar as name from payslips s join employees e on e.id = s.employee_id
@@ -407,6 +409,7 @@ export const createRunsRouter = (db: Db, authenticate: RequestHandler, deps: Run
     if (p.status === 'locked') {
       await revertLoansOnReopen(ctx, p.id);
       await revertAdminActionsOnReopen(ctx, p.id);
+      await revertShortfallOnReopen(ctx, p);
     }
     await sql`update payroll_periods set status = 'draft', reopen_reason = ${b.reason}, approved_by = null,
                      approved_at = null, locked_by = null, locked_at = null, version = version + 1

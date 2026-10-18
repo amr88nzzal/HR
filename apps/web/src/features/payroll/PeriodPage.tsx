@@ -39,6 +39,8 @@ const KEYS = [
   'unpaid_leave_days',
   'overtime_hours',
   'late_minutes',
+  'early_leave_minutes',
+  'shortfall_minutes',
 ] as const;
 
 type Sim = {
