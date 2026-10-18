@@ -1,4 +1,5 @@
 import { MantineProvider } from '@mantine/core';
+import { ModalsProvider } from '@mantine/modals';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -50,7 +51,9 @@ const wrap = () =>
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <MantineProvider>
-        <AdjustmentsPage all={false} />
+        <ModalsProvider>
+          <AdjustmentsPage all={false} />
+        </ModalsProvider>
       </MantineProvider>
     </QueryClientProvider>,
   );
@@ -65,6 +68,9 @@ describe('طلبات تعديل الحضور', () => {
     wrap();
     expect(await screen.findByText('نسيت البصمة')).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'سحب' }));
+    // تأكيد قبل التنفيذ: لا طلب قبل الضغط على «نعم»
+    expect(state.posts).toHaveLength(0);
+    await userEvent.click(await screen.findByRole('button', { name: 'نعم، اسحب الطلب' }));
     await waitFor(() =>
       expect(state.posts).toContainEqual({ path: '/attendance-corrections/c1/withdraw', body: {} }),
     );

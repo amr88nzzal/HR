@@ -12,6 +12,10 @@ export const en: Messages = {
   common: {
     save: 'Save',
     cancel: 'Cancel',
+    withdrawConfirmTitle: 'Withdraw request',
+    withdrawConfirmBody:
+      'The request will be withdrawn immediately and this cannot be undone. Continue?',
+    withdrawConfirmYes: 'Yes, withdraw',
     logout: 'Sign out',
     language: 'العربية',
     theme: 'Toggle theme',

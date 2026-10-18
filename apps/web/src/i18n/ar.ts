@@ -11,6 +11,9 @@ export const ar = {
   common: {
     save: 'حفظ',
     cancel: 'إلغاء',
+    withdrawConfirmTitle: 'سحب الطلب',
+    withdrawConfirmBody: 'سيُسحب الطلب فوراً ولا يمكن التراجع عن ذلك. هل تريد المتابعة؟',
+    withdrawConfirmYes: 'نعم، اسحب الطلب',
     logout: 'تسجيل الخروج',
     language: 'English',
     theme: 'تبديل المظهر',
