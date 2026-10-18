@@ -32,6 +32,7 @@ type Call = { method: string; token: string; params: Record<string, unknown> };
 /** Bot API وهمي يسجّل الاستدعاءات. */
 const startFakeTelegram = async () => {
   const calls: Call[] = [];
+  const state = { failSend: false, webhookUrl: '' };
   const server = http.createServer((req, res) => {
     let raw = '';
     req.on('data', (c) => (raw += c));
@@ -44,14 +45,25 @@ const startFakeTelegram = async () => {
         return;
       }
       calls.push({ method: m[2] as string, token: m[1] as string, params });
-      const result = m[2] === 'getMe' ? { username: 'hrms_test_bot' } : true;
+      if (m[2] === 'setWebhook') state.webhookUrl = String(params['url']);
+      if (m[2] === 'sendMessage' && state.failSend) {
+        res.writeHead(403, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, description: 'Forbidden: bot was blocked' }));
+        return;
+      }
+      const result =
+        m[2] === 'getMe'
+          ? { username: 'hrms_test_bot' }
+          : m[2] === 'getWebhookInfo'
+            ? { url: state.webhookUrl, pending_update_count: 2, last_error_message: 'boom' }
+            : true;
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ ok: true, result }));
     });
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  return { base, calls, stop: () => new Promise<void>((r) => server.close(() => r())) };
+  return { base, calls, state, stop: () => new Promise<void>((r) => server.close(() => r())) };
 };
 
 describe('قنوات الإشعار: تلغرام', () => {
@@ -240,6 +252,36 @@ describe('قنوات الإشعار: تلغرام', () => {
     await webhook(startMsg('مرحبا', 999));
     expect(sentTexts().at(-1)).toContain('ربط تلغرام');
     expect((await get('admin', '/integrations/telegram/me')).body.data.linked).toBe(false);
+  });
+
+  it('فشل إرسال الرد لا يلغي الربط، وتشخيص الـ webhook يطابق العنوان المسجّل', async () => {
+    const r = await post('admin', '/integrations/telegram/me/link-code');
+    tg.state.failSend = true;
+    try {
+      expect((await webhook(startMsg(`/start ${r.body.data.code}`, 4242))).status).toBe(200);
+    } finally {
+      tg.state.failSend = false;
+    }
+    const links = await admin
+      .selectFrom('telegramLinks')
+      .select('chatId')
+      .where('userId', '=', userIds['admin'] as string)
+      .execute();
+    expect(links).toEqual([{ chatId: '4242' }]);
+    await admin
+      .deleteFrom('telegramLinks')
+      .where('userId', '=', userIds['admin'] as string)
+      .execute();
+
+    const info = await get('admin', '/integrations/telegram/webhook-info');
+    expect(info.status, JSON.stringify(info.body)).toBe(200);
+    expect(info.body.data).toMatchObject({
+      matches: true,
+      pendingUpdates: 2,
+      lastErrorMessage: 'boom',
+      expectedUrl: `https://hr.example.test/api/v1/integrations/telegram/webhook/${acme}`,
+    });
+    expect((await get('emp', '/integrations/telegram/webhook-info')).status).toBe(403);
   });
 
   it('الإشعار يُسلَّم عبر مهمة تلغرام لمن ربط حسابه فقط ويحترم التفضيلات', async () => {

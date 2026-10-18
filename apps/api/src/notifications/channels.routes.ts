@@ -1,4 +1,5 @@
 import { Router, type Request, type RequestHandler } from 'express';
+import type { Logger } from 'pino';
 import {
   emailSettingsInput,
   emailTestInput,
@@ -15,6 +16,7 @@ import { requirePermission } from '../modules/identity/index.js';
 import {
   createLinkCode,
   handleTelegramUpdate,
+  telegramWebhookInfo,
   readEmailSettings,
   readTelegramSettings,
   saveEmailSettings,
@@ -193,6 +195,21 @@ export const createChannelsRouter = (
     },
   );
 
+  router.get(
+    '/telegram/webhook-info',
+    requirePermission('system.integration.manage'),
+    async (req, res, next) => {
+      try {
+        const data = await run(req, (ctx) =>
+          telegramWebhookInfo(ctx, opts.crypto, opts.telegramApi),
+        );
+        res.json({ data });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
   router.post(
     '/telegram/test',
     requirePermission('system.integration.manage'),
@@ -276,7 +293,7 @@ export const createChannelsRouter = (
  */
 export const createTelegramWebhookRouter = (
   db: Db,
-  opts: { telegram: TelegramProvider },
+  opts: { telegram: TelegramProvider; logger?: Logger },
 ): Router => {
   const router = Router();
   router.post('/:companyId', async (req, res) => {
@@ -284,15 +301,32 @@ export const createTelegramWebhookRouter = (
     if (!/^[0-9a-f-]{36}$/i.test(companyId)) return void res.status(404).end();
     try {
       const header = req.header('x-telegram-bot-api-secret-token');
-      await withTenant(db, { companyId, requestId: req.requestId }, async (ctx) => {
+      // المعاملة تثبّت الربط أولاً؛ والرد يُرسَل بعد التثبيت وفشله لا يلغي الربط
+      // The transaction commits the link first; the reply is sent after commit and cannot undo it.
+      const out = await withTenant(db, { companyId, requestId: req.requestId }, async (ctx) => {
         if (!(await verifyWebhookSecret(ctx, header))) throw new AppError('FORBIDDEN', 403, 'x');
         const sender = await opts.telegram(ctx);
-        if (sender) await handleTelegramUpdate(ctx, sender, req.body);
+        if (!sender) return null;
+        const reply = await handleTelegramUpdate(ctx, req.body);
+        return reply ? { sender, reply } : null;
       });
+      if (out) {
+        try {
+          await out.sender.send(out.reply.chatId, out.reply.text);
+        } catch (err) {
+          opts.logger?.warn({ err, companyId }, 'telegram webhook: reply failed (link kept)');
+        }
+      }
       res.json({ ok: true });
     } catch (err) {
-      // لا نكشف سبب الرفض؛ وأخطاء المعالجة لا تُعاد لتلغرام كي لا يكرّر الإرسال
-      res.status(err instanceof AppError && err.status === 403 ? 403 : 200).json({ ok: false });
+      const forbidden = err instanceof AppError && err.status === 403;
+      // لا نكشف سبب الرفض لتلغرام، لكنه يُسجَّل للتشخيص (سرّ غير مطابق أو القناة معطّلة)
+      // The reason is not exposed to Telegram but is logged for diagnosis.
+      if (forbidden)
+        opts.logger?.warn({ companyId }, 'telegram webhook rejected: secret mismatch or disabled');
+      else opts.logger?.error({ err, companyId }, 'telegram webhook: processing failed');
+      // أخطاء المعالجة لا تُعاد لتلغرام كي لا يكرّر الإرسال
+      res.status(forbidden ? 403 : 200).json({ ok: false });
     }
   });
 

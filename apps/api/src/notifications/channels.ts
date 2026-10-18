@@ -293,24 +293,31 @@ export const createLinkCode = async (ctx: Ctx, userId: string) => {
   };
 };
 
-/** يعالج تحديث تلغرام الوارد (webhook): `/start CODE` يربط حساب المستخدم. */
+export type TelegramReply = { chatId: string; text: string };
+
+/**
+ * يعالج تحديث تلغرام الوارد (webhook): `/start CODE` يربط حساب المستخدم.
+ * يعيد الرد المطلوب إرساله ولا يرسله: يُرسَل بعد تثبيت المعاملة كي لا يُلغى الربط إن فشل الإرسال.
+ * Handles an incoming Telegram update and RETURNS the reply; the caller sends it after the
+ * transaction commits so a failed reply can never roll back the link.
+ */
 export const handleTelegramUpdate = async (
   ctx: Ctx,
-  sender: TelegramSender,
   update: unknown,
-): Promise<void> => {
+): Promise<TelegramReply | null> => {
   const msg = (
     update as { message?: { text?: string; chat?: { id?: number }; from?: { username?: string } } }
   ).message;
   const chatId = msg?.chat?.id;
   const text = msg?.text?.trim();
-  if (chatId === undefined || !text) return;
+  if (chatId === undefined || !text) return null;
   const chat = String(chatId);
   const m = /^\/start(?:@\w+)?\s+([A-Za-z0-9]{6,16})$/.exec(text);
-  if (!m) {
-    await sender.send(chat, 'لربط حسابك افتح «الإشعارات» في النظام واضغط «ربط تلغرام».');
-    return;
-  }
+  if (!m)
+    return {
+      chatId: chat,
+      text: 'لربط حسابك افتح «الإشعارات» في النظام واضغط «ربط تلغرام».',
+    };
   const row = await ctx.trx
     .selectFrom('telegramLinkCodes')
     .select(['id', 'userId'])
@@ -318,11 +325,10 @@ export const handleTelegramUpdate = async (
     .where('code', '=', (m[1] as string).toUpperCase())
     .where('expiresAt', '>', new Date())
     .executeTakeFirst();
-  if (!row) {
-    await sender.send(chat, 'رمز الربط غير صالح أو منتهٍ. أنشئ رمزاً جديداً من النظام.');
-    return;
-  }
+  if (!row)
+    return { chatId: chat, text: 'رمز الربط غير صالح أو منتهٍ. أنشئ رمزاً جديداً من النظام.' };
   // حساب تلغرام واحد لكل مستخدم، ومستخدم واحد لكل محادثة
+  // One Telegram account per user and one user per chat.
   await ctx.trx
     .deleteFrom('telegramLinks')
     .where('companyId', '=', ctx.companyId)
@@ -338,7 +344,47 @@ export const handleTelegramUpdate = async (
     })
     .execute();
   await ctx.trx.deleteFrom('telegramLinkCodes').where('id', '=', row.id).execute();
-  await sender.send(chat, 'تم ربط حسابك بنظام شؤون الموظفين ✅ ستصلك الإشعارات هنا.');
+  return { chatId: chat, text: 'تم ربط حسابك بنظام شؤون الموظفين ✅ ستصلك الإشعارات هنا.' };
+};
+
+/**
+ * حالة الـ webhook عند تلغرام (getWebhookInfo) مقارنةً بالعنوان المتوقع: لتشخيص عدم وصول التحديثات.
+ * Webhook state as Telegram sees it, compared with the expected URL, for diagnosing missing updates.
+ */
+export const telegramWebhookInfo = async (
+  ctx: Ctx,
+  crypto: FieldCrypto | undefined,
+  api: TelegramApi,
+) => {
+  const row = await loadTelegram(ctx);
+  if (!row?.secretEnc || !crypto)
+    throw new AppError('TELEGRAM_NOT_CONFIGURED', 409, 'قناة تلغرام غير مضبوطة');
+  const token = crypto.decrypt(row.secretEnc, AAD);
+  const expectedUrl = row.config.publicUrl
+    ? telegramWebhookUrl(row.config.publicUrl, ctx.companyId)
+    : null;
+  try {
+    const info = await api.call<{
+      url?: string;
+      pending_update_count?: number;
+      last_error_date?: number;
+      last_error_message?: string;
+    }>(token, 'getWebhookInfo');
+    return {
+      enabled: row.enabled,
+      expectedUrl,
+      registeredUrl: info.url || null,
+      matches: !!expectedUrl && info.url === expectedUrl,
+      pendingUpdates: info.pending_update_count ?? 0,
+      lastErrorAt: info.last_error_date
+        ? new Date(info.last_error_date * 1000).toISOString()
+        : null,
+      lastErrorMessage: info.last_error_message ?? null,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new AppError('TELEGRAM_API_FAILED', 502, `تعذّر الاتصال بتلغرام: ${msg.slice(0, 300)}`);
+  }
 };
 
 export const verifyWebhookSecret = async (ctx: Ctx, header: string | undefined) => {
