@@ -5,6 +5,7 @@ import {
   attendanceClearOverrideInput,
   attendanceOverrideInput,
   attendanceRangeQuery,
+  csvList,
   attendanceRecomputeInput,
   punchBulkInput,
   punchInput,
@@ -325,15 +326,16 @@ export const createAttendanceRouter = (db: Db, authenticate: RequestHandler): Ro
       const q = z
         .object({
           date: isoDate,
-          departmentId: uuid.optional(),
-          branchId: uuid.optional(),
+          departmentId: csvList(uuid),
+          branchId: csvList(uuid),
           status: z.string().max(20).optional(),
         })
         .parse(req.query);
       const data = await run(req, async (ctx) => {
         const filters = [sql`e.company_id = ${ctx.companyId}`, sql`e.status <> 'terminated'`];
-        if (q.departmentId) filters.push(sql`cur.department_id = ${q.departmentId}`);
-        if (q.branchId) filters.push(sql`cur.branch_id = ${q.branchId}`);
+        if (q.departmentId?.length)
+          filters.push(sql`cur.department_id = any(${q.departmentId}::uuid[])`);
+        if (q.branchId?.length) filters.push(sql`cur.branch_id = any(${q.branchId}::uuid[])`);
         const where = sql.join(filters, sql` and `);
         const base = sql`from employees e
           left join employments cur on cur.employee_id = e.id

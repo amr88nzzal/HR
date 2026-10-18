@@ -38,24 +38,39 @@ export const employeeInput = z.object({
 });
 export const employeeUpdateInput = withVersion(employeeInput.omit({ employeeNo: true }).shape);
 
+/**
+ * قيم متعددة في معامل واحد مفصولة بفواصل (`?branchId=a,b`)؛ القيمة الواحدة تُقبل كما كانت.
+ * تُستعمل لفلاتر القوائم متعددة الاختيار.
+ */
+export const csvList = <T extends z.ZodTypeAny>(item: T, max = 50) =>
+  z.preprocess(
+    (v) => (typeof v === 'string' ? (v === '' ? undefined : v.split(',').filter(Boolean)) : v),
+    z.array(item).max(max).optional(),
+  );
+
+export const EMPLOYEE_ACCOUNT_STATES = ['none', 'invited', 'active', 'disabled'] as const;
+const EMPLOYEE_SORT_KEYS = [
+  'employeeNo',
+  'name',
+  'createdAt',
+  'status',
+  'account',
+  'branch',
+  'department',
+  'jobTitle',
+] as const;
+
 export const employeeListQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(25),
   q: z.string().trim().max(100).optional(),
-  status: employeeStatusEnum.optional(),
-  branchId: uuid.optional(),
-  departmentId: uuid.optional(),
+  status: csvList(employeeStatusEnum),
+  branchId: csvList(uuid),
+  departmentId: csvList(uuid),
+  jobTitleId: csvList(uuid),
+  account: csvList(z.enum(EMPLOYEE_ACCOUNT_STATES)),
   sort: z
-    .enum([
-      'employeeNo',
-      '-employeeNo',
-      'name',
-      '-name',
-      'createdAt',
-      '-createdAt',
-      'status',
-      '-status',
-    ])
+    .enum(EMPLOYEE_SORT_KEYS.flatMap((k) => [k, `-${k}`]) as [string, ...string[]])
     .default('employeeNo'),
 });
 

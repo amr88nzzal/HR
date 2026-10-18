@@ -1,6 +1,6 @@
 import { Router, type Request, type RequestHandler } from 'express';
 import { z } from 'zod';
-import type { ApiEnvelope } from '@hrms/shared';
+import { csvList, type ApiEnvelope } from '@hrms/shared';
 import type { Db } from '../../db/index.js';
 import { withTenant, type Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
@@ -34,9 +34,9 @@ const ledgerQuery = z.object({
 });
 
 const reportQuery = z.object({
-  leaveTypeId: uuid.optional(),
-  departmentId: uuid.optional(),
-  branchId: uuid.optional(),
+  leaveTypeId: csvList(uuid),
+  departmentId: csvList(uuid),
+  branchId: csvList(uuid),
   q: z.string().trim().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(500).default(50),

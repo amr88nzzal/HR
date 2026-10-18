@@ -1,4 +1,5 @@
-import { Button, Group, Menu, Select, Stack, TextInput, Title } from '@mantine/core';
+import { csv, MultiFilter } from '../../components/MultiFilter';
+import { Button, Group, Menu, Stack, TextInput, Title } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconDownload } from '@tabler/icons-react';
@@ -30,16 +31,16 @@ const PAGE_SIZE = 25;
 export const BalancesReportPage = () => {
   const { t, i18n } = useTranslation();
   const [page, setPage] = useState(1);
-  const [typeId, setTypeId] = useState<string | null>(null);
-  const [deptId, setDeptId] = useState<string | null>(null);
+  const [typeId, setTypeId] = useState<string[]>([]);
+  const [deptId, setDeptId] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [debounced] = useDebouncedValue(search, 300);
   const [exporting, setExporting] = useState(false);
   const types = useList<LeaveTypeRow>('/leave-types', { pageSize: 200 });
   const depts = useList<Named>('/departments', { pageSize: 200 });
   const query = {
-    leaveTypeId: typeId ?? undefined,
-    departmentId: deptId ?? undefined,
+    leaveTypeId: csv(typeId),
+    departmentId: csv(deptId),
     q: debounced || undefined,
   };
   const list = useList<ReportRow>('/leave-balances/report', {
@@ -116,9 +117,8 @@ export const BalancesReportPage = () => {
             setPage(1);
           }}
         />
-        <Select
+        <MultiFilter
           placeholder={t('leave.allTypes')}
-          clearable
           w={200}
           data={(types.data?.data ?? [])
             .filter((x) => x.isPaid)
@@ -129,9 +129,8 @@ export const BalancesReportPage = () => {
             setPage(1);
           }}
         />
-        <Select
+        <MultiFilter
           placeholder={t('leave.allDepartments')}
-          clearable
           w={200}
           data={(depts.data?.data ?? []).map((d) => ({
             value: d.id,

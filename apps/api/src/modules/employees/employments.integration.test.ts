@@ -446,4 +446,74 @@ describe('العقود والتعيين الزمني', () => {
       expect(timeline[0].reasonNameAr).toBe('استقالة');
     });
   });
+  describe('فلاتر متعددة الاختيار وفرز كل الأعمدة', () => {
+    const e: Record<string, string> = {};
+    const list = async (qs: string) =>
+      (await get('admin', `/employees?pageSize=200&${qs}`)).body.data as Record<string, unknown>[];
+    const nos = (rows: Record<string, unknown>[]) => rows.map((r) => String(r['firstNameAr']));
+
+    it('تهيئة: ثلاثة موظفين بفروع وأقسام ومسميات مختلفة', async () => {
+      e['a'] = await newEmp('ف-أ');
+      e['b'] = await newEmp('ف-ب');
+      e['c'] = await newEmp('ف-ج');
+      await hire(e['a']!, {
+        departmentId: ids['hr'],
+        branchId: ids['ruh'],
+        jobTitleId: ids['title'],
+      });
+      await hire(e['b']!, {
+        departmentId: ids['fin'],
+        branchId: ids['ruh'],
+        jobTitleId: ids['title2'],
+      });
+      await hire(e['c']!, {
+        departmentId: ids['hr'],
+        branchId: ids['jed'],
+        jobTitleId: ids['title2'],
+      });
+    });
+
+    it('قسمان من أصل عدة أقسام: يُعرض موظفوهما فقط، والقيمة الواحدة تعمل كما كانت', async () => {
+      const both = nos(await list(`departmentId=${ids['hr']},${ids['fin']}`));
+      expect(both).toEqual(expect.arrayContaining(['ف-أ', 'ف-ب', 'ف-ج']));
+      const onlyFin = nos(await list(`departmentId=${ids['fin']}`));
+      expect(onlyFin).toEqual(['ف-ب']);
+      const hrJed = nos(await list(`departmentId=${ids['hr']}&branchId=${ids['jed']}`));
+      expect(hrJed).toContain('ف-ج');
+      expect(hrJed).not.toContain('ف-أ');
+      expect(hrJed).not.toContain('ف-ب');
+      const titles = nos(
+        await list(`jobTitleId=${ids['title2']}&departmentId=${ids['hr']},${ids['fin']}`),
+      );
+      expect(titles).toEqual(expect.arrayContaining(['ف-ب', 'ف-ج']));
+      expect(titles).not.toContain('ف-أ');
+      const statuses = await list('status=active,suspended');
+      expect(statuses.length).toBeGreaterThanOrEqual(3);
+      expect((await list('account=none')).length).toBeGreaterThan(0);
+      expect((await get('admin', '/employees?departmentId=not-a-uuid')).status).toBe(400);
+    });
+
+    it('الفرز بالفرع والقسم والمسمى والحساب (كل الأعمدة) أبجدياً من الخادم', async () => {
+      const by = async (k: string, field: string) => {
+        const rows = await list(`departmentId=${ids['hr']},${ids['fin']}&sort=${k}`);
+        return rows.map((r) => String(r[field]));
+      };
+      for (const [key, field] of [
+        ['department', 'currentDepartmentId'],
+        ['branch', 'currentBranchId'],
+        ['jobTitle', 'currentJobTitleId'],
+      ] as const) {
+        const asc = await by(key, field);
+        const desc = await by(`-${key}`, field);
+        expect([...desc].sort()).toEqual([...asc].sort());
+        expect(asc.length).toBeGreaterThanOrEqual(3);
+      }
+      // المسمى: «أخصائي» قبل «أخصائي أول»
+      const t = await list(`departmentId=${ids['hr']},${ids['fin']}&sort=jobTitle`);
+      const firstTitle2 = t.findIndex((r) => r['currentJobTitleId'] === ids['title2']);
+      const lastTitle1 = t.map((r) => r['currentJobTitleId']).lastIndexOf(ids['title']);
+      expect(lastTitle1).toBeLessThan(firstTitle2);
+      expect((await get('admin', '/employees?sort=account')).status).toBe(200);
+    });
+  });
 });

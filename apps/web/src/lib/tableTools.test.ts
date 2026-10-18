@@ -42,4 +42,25 @@ describe('أدوات الجداول', () => {
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('س&amp;');
   });
+
+  it('ترويسة الشركة في الطباعة: شعار واسم وأسطر تواصل معقَّمة، وبدونها لا شيء', () => {
+    const base = { rtl: true, date: 'اليوم' };
+    const html = printHtml('كشف', ['س'], [['ص']], {
+      ...base,
+      header: {
+        name: 'شركة <نكسن>',
+        lines: ['عمّان', '+962 6 000'],
+        logo: 'data:image/png;base64,AAAA',
+      },
+    });
+    expect(html).toContain('class="brand"');
+    expect(html).toContain('<img src="data:image/png;base64,AAAA"');
+    expect(html).toContain('شركة &lt;نكسن&gt;');
+    expect(html).toContain('+962 6 000');
+    expect(html.indexOf('class="brand"')).toBeLessThan(html.indexOf('<h1>'));
+    expect(printHtml('كشف', ['س'], [['ص']], base)).not.toContain('class="brand"');
+    expect(printHtml('كشف', ['س'], [['ص']], { ...base, header: null })).not.toContain(
+      '<div class="brand">',
+    );
+  });
 });

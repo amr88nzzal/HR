@@ -1,6 +1,11 @@
 import { Router, type Request, type RequestHandler } from 'express';
 import { z } from 'zod';
-import { leaveOverrideInput, leaveRequestInput, leaveRequestListQuery } from '@hrms/shared';
+import {
+  csvList,
+  leaveOverrideInput,
+  leaveRequestInput,
+  leaveRequestListQuery,
+} from '@hrms/shared';
 import type { Db } from '../../db/index.js';
 import { withTenant, type Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
@@ -15,8 +20,8 @@ const calendarQuery = z
   .object({
     from: isoDate,
     to: isoDate,
-    departmentId: uuid.optional(),
-    branchId: uuid.optional(),
+    departmentId: csvList(uuid),
+    branchId: csvList(uuid),
   })
   .refine((v) => v.to >= v.from, { message: 'تاريخ النهاية قبل البداية', path: ['to'] })
   .refine((v) => Date.parse(v.to) - Date.parse(v.from) <= 62 * 86_400_000, {

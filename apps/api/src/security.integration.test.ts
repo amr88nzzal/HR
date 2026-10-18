@@ -83,6 +83,8 @@ const AUTH_ONLY: RegExp[] = [
   /^get \/api\/v1\/approvals\/(inbox|inbox\/count|mine)$/,
   // لوحة المعلومات والتقارير: الأقسام والفهرس تُرشَّح بصلاحيات المستخدم داخلياً
   /^get \/api\/v1\/dashboard\/summary$/,
+  // ترويسة الطباعة: اسم الشركة وبيانات التواصل لأي مستخدم مسجّل
+  /^get \/api\/v1\/company-brand\/print-header$/,
   /^(get|put|delete) \/api\/v1\/table-prefs\/:tableId$/,
   /^(get|post) \/api\/v1\/me\/admin-actions(\/|\/:id\/acknowledge)?$/,
   // سجلاتي الإدارية: للموظف المرتبط بحسابه فقط (الاستعلام مقيّد بحسابه في الخادم)

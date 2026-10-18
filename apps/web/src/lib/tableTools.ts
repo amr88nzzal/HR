@@ -50,19 +50,30 @@ const esc = (s: string) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
   );
 
+/** ترويسة الشركة في أعلى صفحة الطباعة: شعار (data URL) واسم وأسطر تواصل */
+export type PrintHeader = { name: string; lines: string[]; logo?: string | null };
+
+const headerHtml = (h: PrintHeader | null | undefined): string =>
+  h
+    ? `<div class="brand">${h.logo ? `<img src="${esc(h.logo)}" alt="">` : ''}<div><div class="bn">${esc(h.name)}</div>${h.lines
+        .filter(Boolean)
+        .map((l) => `<div class="bl">${esc(l)}</div>`)
+        .join('')}</div></div>`
+    : '';
+
 /** صفحة HTML للطباعة (اتجاه RTL، ترويسة بالعنوان والتاريخ) */
 export const printHtml = (
   title: string,
   headers: string[],
   rows: string[][],
-  opts: { rtl: boolean; date: string },
+  opts: { rtl: boolean; date: string; header?: PrintHeader | null },
 ): string =>
   `<!doctype html><html dir="${opts.rtl ? 'rtl' : 'ltr'}" lang="${opts.rtl ? 'ar' : 'en'}"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
 body{font-family:system-ui,'Segoe UI',Tahoma,sans-serif;margin:24px;color:#111}
 h1{font-size:18px;margin:0 0 4px}.meta{color:#666;font-size:12px;margin-bottom:12px}
 table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #bbb;padding:4px 6px;text-align:start;vertical-align:top}
-th{background:#eee}tr:nth-child(even) td{background:#fafafa}thead{display:table-header-group}tr{page-break-inside:avoid}
-@page{margin:12mm}</style></head><body><h1>${esc(title)}</h1><div class="meta">${esc(opts.date)} · ${rows.length}</div>
+th{background:#eee}.brand{display:flex;align-items:center;gap:14px;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:14px}.brand img{max-height:64px;max-width:200px;object-fit:contain}.bn{font-size:17px;font-weight:700}.bl{font-size:11px;color:#444}tr:nth-child(even) td{background:#fafafa}thead{display:table-header-group}tr{page-break-inside:avoid}
+@page{margin:12mm}</style></head><body>${headerHtml(opts.header)}<h1>${esc(title)}</h1><div class="meta">${esc(opts.date)} · ${rows.length}</div>
 <table><thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows
     .map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`)
     .join('')}</tbody></table></body></html>`;
