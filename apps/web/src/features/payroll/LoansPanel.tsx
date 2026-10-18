@@ -18,13 +18,13 @@ import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { buildSchedule } from '@hrms/shared';
+import { buildSchedule, planDefer } from '@hrms/shared';
 import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../lib/errors';
 import { EmployeeSelect } from '../employees/EmployeeSelect';
 import { useLookup } from '../employees/shared';
-import type { LoanDetail, LoanRow } from './loans-types';
+import type { Installment, LoanDetail, LoanRow } from './loans-types';
 import { MarkPaidModal } from './MarkPaidModal';
 
 const statusColor = { active: 'blue', settled: 'teal', cancelled: 'gray' } as const;
@@ -155,42 +155,61 @@ const NewLoanModal = ({ employeeId, onClose }: { employeeId?: string; onClose: (
   );
 };
 
-const nextAfterLast = (list: { dueYear: number; dueMonth: number; status: string }[]) => {
-  const last = Math.max(
-    ...list.filter((i) => i.status !== 'cancelled').map((i) => i.dueYear * 12 + i.dueMonth - 1),
-  );
-  return ym(Math.floor((last + 1) / 12), ((last + 1) % 12) + 1);
-};
+const nextMonth = (y: number, m: number) => ym(y + Math.floor(m / 12), (m % 12) + 1);
 
-/** تأجيل قسط: كامل أو جزء منه، إلى شهر يُحدَّد، بسبب إلزامي. */
+/** تأجيل قسط: كامل أو جزء، إلى شهر/أقساط جديدة أو توزيع على المتبقي، مع جدول معاينة. */
 const DeferModal = ({
   inst,
   list,
   onClose,
 }: {
   inst: { id: string; amount: string; dueYear: number; dueMonth: number };
-  list: { dueYear: number; dueMonth: number; status: string }[];
+  list: Installment[];
   onClose: () => void;
 }) => {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const [mode, setMode] = useState<'full' | 'part'>('full');
+  const [part, setPart] = useState(false);
   const [amount, setAmount] = useState('');
-  const [target, setTarget] = useState(nextAfterLast(list));
+  const [mode, setMode] = useState<'next' | 'month' | 'remaining'>('next');
+  const [target, setTarget] = useState(nextMonth(inst.dueYear, inst.dueMonth));
+  const [count, setCount] = useState<number | ''>('');
   const [reason, setReason] = useState('');
-  const full = Number(inst.amount);
-  const partOk =
-    mode === 'full' ||
-    (/^\d{1,14}(\.\d{1,4})?$/.test(amount) && Number(amount) > 0 && Number(amount) <= full);
-  const [ty, tm] = target.split('-').map(Number) as [number, number];
-  const targetOk = /^\d{4}-\d{2}$/.test(target) && ty * 12 + tm > inst.dueYear * 12 + inst.dueMonth;
+  const remaining = list
+    .filter(
+      (i) =>
+        i.status === 'scheduled' &&
+        i.id !== inst.id &&
+        i.dueYear * 12 + i.dueMonth > inst.dueYear * 12 + inst.dueMonth,
+    )
+    .map((i) => ({ id: i.id, year: i.dueYear, month: i.dueMonth, amount: i.amount }));
+  const amountOk = !part || /^\d{1,14}(\.\d{1,4})?$/.test(amount);
+  const [ty, tm] =
+    mode === 'next'
+      ? ([inst.dueMonth === 12 ? inst.dueYear + 1 : inst.dueYear, (inst.dueMonth % 12) + 1] as [
+          number,
+          number,
+        ])
+      : (target.split('-').map(Number) as [number, number]);
+  const plan = planDefer({
+    amount: inst.amount,
+    deferAmount: part && amountOk ? amount : undefined,
+    dueYear: inst.dueYear,
+    dueMonth: inst.dueMonth,
+    mode: mode === 'remaining' ? 'remaining' : 'month',
+    targetYear: ty,
+    targetMonth: tm,
+    count: mode === 'next' ? 1 : count === '' ? undefined : count,
+    remaining,
+  });
   const save = useMutation({
     mutationFn: async () =>
       api.post(`/payroll/loan-installments/${inst.id}/defer`, {
         reason,
-        ...(mode === 'part' ? { amount } : {}),
-        targetYear: ty,
-        targetMonth: tm,
+        ...(part ? { amount } : {}),
+        mode: mode === 'remaining' ? 'remaining' : 'month',
+        ...(count !== '' && mode !== 'next' ? { count } : {}),
+        ...(mode !== 'remaining' ? { targetYear: ty, targetMonth: tm } : {}),
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['/payroll'] });
@@ -199,35 +218,109 @@ const DeferModal = ({
     onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
   });
   return (
-    <Modal opened onClose={onClose} title={t('loans.deferTitle')}>
+    <Modal opened onClose={onClose} title={t('loans.deferTitle')} size="lg">
       <Stack>
         <Text size="sm" dir="ltr">{`${ym(inst.dueYear, inst.dueMonth)} · ${inst.amount}`}</Text>
         <SegmentedControl
-          value={mode}
-          onChange={(v) => setMode(v as 'full' | 'part')}
+          value={part ? 'part' : 'full'}
+          onChange={(v) => setPart(v === 'part')}
           data={[
             { value: 'full', label: t('loans.deferFull') },
             { value: 'part', label: t('loans.deferPart') },
           ]}
         />
-        {mode === 'part' && (
+        {part && (
           <TextInput
             label={t('loans.deferAmount')}
             description={`${t('loans.deferMax')}: ${inst.amount}`}
             value={amount}
             onChange={(e) => setAmount(e.currentTarget.value)}
-            error={amount && !partOk ? t('loans.deferAmountInvalid') : undefined}
+            error={
+              amount && (!amountOk || (!plan.ok && plan.code === 'INVALID_DEFER_AMOUNT'))
+                ? t('loans.deferAmountInvalid')
+                : undefined
+            }
             dir="ltr"
           />
         )}
-        <TextInput
-          type="month"
-          label={t('loans.deferTo')}
-          value={target}
-          onChange={(e) => setTarget(e.currentTarget.value)}
-          error={!targetOk ? t('loans.deferToInvalid') : undefined}
-          dir="ltr"
+        <NativeSelect
+          label={t('loans.deferHow')}
+          value={mode}
+          onChange={(e) => setMode(e.currentTarget.value as 'next' | 'month' | 'remaining')}
+          data={[
+            { value: 'next', label: t('loans.deferNext') },
+            { value: 'month', label: t('loans.deferNewInstallments') },
+            { value: 'remaining', label: t('loans.deferRemaining') },
+          ]}
         />
+        {mode === 'month' && (
+          <Group grow align="flex-start">
+            <TextInput
+              type="month"
+              label={t('loans.deferTo')}
+              value={target}
+              onChange={(e) => setTarget(e.currentTarget.value)}
+              dir="ltr"
+            />
+            <NumberInput
+              label={t('loans.deferCountNew')}
+              min={1}
+              max={60}
+              allowDecimal={false}
+              placeholder="1"
+              value={count}
+              onChange={(v) => setCount(v === '' ? '' : Number(v))}
+            />
+          </Group>
+        )}
+        {mode === 'remaining' && (
+          <NumberInput
+            label={t('loans.deferCountRemaining')}
+            description={`${t('loans.deferRemainingAvailable')}: ${remaining.length}`}
+            min={1}
+            max={Math.max(remaining.length, 1)}
+            allowDecimal={false}
+            placeholder={String(remaining.length)}
+            value={count}
+            onChange={(v) => setCount(v === '' ? '' : Number(v))}
+          />
+        )}
+        {plan.ok ? (
+          <Table withTableBorder striped>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t('payroll.run.month')}</Table.Th>
+                <Table.Th>{t('loans.deferSchedAdd')}</Table.Th>
+                <Table.Th>{t('loans.deferSchedTotal')}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {!plan.full && (
+                <Table.Tr>
+                  <Table.Td dir="ltr">{ym(inst.dueYear, inst.dueMonth)}</Table.Td>
+                  <Table.Td dir="ltr">{`−${(Number(inst.amount) - Number(plan.keep)).toFixed(4)}`}</Table.Td>
+                  <Table.Td dir="ltr">{plan.keep}</Table.Td>
+                </Table.Tr>
+              )}
+              {plan.full && (
+                <Table.Tr>
+                  <Table.Td dir="ltr">{ym(inst.dueYear, inst.dueMonth)}</Table.Td>
+                  <Table.Td dir="ltr">{`−${inst.amount}`}</Table.Td>
+                  <Table.Td dir="ltr">0.0000</Table.Td>
+                </Table.Tr>
+              )}
+              {plan.rows.map((r, idx) => (
+                <Table.Tr key={`${r.id ?? 'new'}-${idx}`}>
+                  <Table.Td dir="ltr">{ym(r.year, r.month)}</Table.Td>
+                  <Table.Td dir="ltr">{`+${r.add}`}</Table.Td>
+                  <Table.Td dir="ltr">{r.total}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        ) : (
+          <Alert color="orange">{t(`loans.deferErr.${plan.code}`)}</Alert>
+        )}
         <TextInput
           label={t('loans.reasonRequired')}
           value={reason}
@@ -239,7 +332,7 @@ const DeferModal = ({
           </Button>
           <Button
             loading={save.isPending}
-            disabled={!partOk || !targetOk || reason.trim().length < 2}
+            disabled={!plan.ok || reason.trim().length < 2}
             onClick={() => save.mutate()}
           >
             {t('loans.confirm')}
