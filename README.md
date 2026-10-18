@@ -2,7 +2,7 @@
 
 مونوريبو (pnpm): `apps/api` (Express 5 + TypeScript)، `apps/web` (Vite + React)، `packages/shared` (أنواع ومخططات Zod مشتركة)، `infra/` (Docker وNginx).
 
-- **التصميم والمعايير والخطة:** `docs/DESIGN.md` · `docs/CONVENTIONS.md` · `docs/PLAN.md` (تُحدَّث عند انتهاء كل مرحلة).
+- **التصميم والمعايير والخطة:** `docs/DESIGN.md` · `docs/CONVENTIONS.md` · `docs/PLAN.md` (تُحدَّث عند انتهاء كل مرحلة). **للمطوّر الجديد ابدأ بـ** `docs/ARCHITECTURE.md`.
 - **النموذج الأولي القديم:** `reference/prototype/` (للرجوع فقط؛ لا يُشغَّل ولا يُبنى عليه).
 
 ## التطوير
