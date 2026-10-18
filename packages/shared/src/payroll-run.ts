@@ -43,6 +43,8 @@ export const PAYROLL_INPUT_KEYS = [
   'unpaid_leave_days',
   'overtime_hours',
   'late_minutes',
+  'early_leave_minutes',
+  'shortfall_minutes',
 ] as const;
 export const periodInputsPut = z.object({
   items: z

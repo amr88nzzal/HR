@@ -4,6 +4,12 @@ import type { Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
 import { loadAdminLines } from './admin-feed.js';
 import {
+  evaluateShortfall,
+  persistShortfall,
+  shortfallLine,
+  type ShortfallEval,
+} from './shortfall.js';
+import {
   computePayslip,
   EngineError,
   type BaseDef,
@@ -178,6 +184,8 @@ const VAR_KEYS = [
   'unpaid_leave_days',
   'overtime_hours',
   'late_minutes',
+  'early_leave_minutes',
+  'shortfall_minutes',
 ] as const;
 
 /** المتغيرات الآلية من الحضور والإجازات، ثم تجاوزات payroll_inputs. */
@@ -194,6 +202,7 @@ export const loadVariables = async (
            count(*) filter (where coalesce(override_status, status) = 'present') as worked,
            count(*) filter (where coalesce(override_status, status) = 'absent') as absent,
            coalesce(sum(late_minutes), 0) as late,
+           coalesce(sum(early_leave_minutes), 0) as early,
            coalesce(sum(overtime_minutes), 0) as ot
       from attendance_days
      where company_id = ${ctx.companyId} and employee_id = any(${ids}::uuid[])
@@ -229,6 +238,8 @@ export const loadVariables = async (
         .div(60)
         .toFixed(4),
       late_minutes: String(a?.late ?? 0),
+      early_leave_minutes: String(a?.early ?? 0),
+      shortfall_minutes: String(Number(a?.late ?? 0) + Number(a?.early ?? 0)),
     };
     const overridden: string[] = [];
     for (const k of VAR_KEYS) {
@@ -238,6 +249,11 @@ export const loadVariables = async (
         overridden.push(k);
       }
     }
+    // النقص المجمَّع يتبع تجاوز التأخير/المغادرة ما لم يُتجاوَز هو نفسه
+    if (!overridden.includes('shortfall_minutes'))
+      vars['shortfall_minutes'] = String(
+        Number(vars['late_minutes'] ?? 0) + Number(vars['early_leave_minutes'] ?? 0),
+      );
     out.set(e.employeeId, { vars, overridden });
   }
   return out;
@@ -352,6 +368,7 @@ export type Built = {
   loanItems: LoanItem[];
   loansAmount: string;
   payableAmount: string;
+  shortfall?: ShortfallEval;
 };
 
 export const buildPayslip = (
@@ -434,7 +451,7 @@ export const buildAll = async (
 ): Promise<{ built: Built[]; eligible: Eligible[] }> => {
   const data = await loadCalcData(ctx);
   const eligible = await loadEligible(ctx, p, employeeIds);
-  const [vars, comps, old, adminLines] = await Promise.all([
+  const [vars, comps, old, adminLines, shortfalls] = await Promise.all([
     loadVariables(ctx, p, eligible),
     loadEmployeeComps(ctx, data, eligible),
     loadOldLines(ctx, p.id, employeeIds),
@@ -443,18 +460,28 @@ export const buildAll = async (
       p,
       eligible.map((e) => e.employeeId),
     ),
+    evaluateShortfall(
+      ctx,
+      p,
+      eligible.map((e) => e.employeeId),
+    ),
   ]);
-  const built = eligible.map((e) =>
-    buildPayslip(
+  const built = eligible.map((e) => {
+    const ev = shortfalls.get(e.employeeId);
+    const sf = shortfallLine(e.basic, ev);
+    const admin = adminLines.get(e.employeeId) ?? { added: [], warnings: [] };
+    const b = buildPayslip(
       p,
       data,
       e,
       vars.get(e.employeeId) ?? { vars: {}, overridden: [] },
       comps.get(e.employeeId) ?? [],
       old.get(e.employeeId) ?? [],
-      adminLines.get(e.employeeId),
-    ),
-  );
+      { added: [...admin.added, ...sf.added], warnings: [...admin.warnings, ...sf.warnings] },
+    );
+    if (ev) b.shortfall = ev;
+    return b;
+  });
   // الأقساط: تُوزَّع على الصافي بعد الاحتساب (عمود مستقل، ولا تدخل في الصافي)
   const [due, cap] = await Promise.all([
     loadDueInstallments(
@@ -502,6 +529,12 @@ export const persistPayslip = async (ctx: Ctx, p: Period, b: Built): Promise<str
   const id = rows[0]!.id;
   await sql`delete from payslip_lines where payslip_id = ${id}`.execute(ctx.trx);
   await sql`delete from payslip_loan_items where payslip_id = ${id}`.execute(ctx.trx);
+  await persistShortfall(
+    ctx,
+    id,
+    b.employee.employeeId,
+    b.status === 'calculated' ? b.shortfall : undefined,
+  );
   for (const it of b.loanItems)
     await sql`insert into payslip_loan_items (company_id, payslip_id, installment_id, amount, over_cap)
               values (${ctx.companyId}, ${id}, ${it.installmentId}, ${it.amount}, ${it.overCap})`.execute(

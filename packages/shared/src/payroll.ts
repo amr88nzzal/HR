@@ -27,6 +27,16 @@ export const PAYROLL_VARIABLES = [
   { key: 'unpaid_leave_days', labelAr: 'أيام الإجازة بلا راتب', labelEn: 'Unpaid leave days' },
   { key: 'overtime_hours', labelAr: 'ساعات العمل الإضافي', labelEn: 'Overtime hours' },
   { key: 'late_minutes', labelAr: 'دقائق التأخير', labelEn: 'Late minutes' },
+  {
+    key: 'early_leave_minutes',
+    labelAr: 'دقائق المغادرة المبكرة',
+    labelEn: 'Early-leave minutes',
+  },
+  {
+    key: 'shortfall_minutes',
+    labelAr: 'دقائق نقص الدوام (تأخير + مغادرة مبكرة)',
+    labelEn: 'Shortfall minutes (late + early)',
+  },
 ] as const;
 export const PAYROLL_VARIABLE_KEYS: ReadonlySet<string> = new Set(
   PAYROLL_VARIABLES.map((v) => v.key),

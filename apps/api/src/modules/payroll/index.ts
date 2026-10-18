@@ -6,6 +6,7 @@ import { createLoansRouter } from './loans.routes.js';
 import type { PdfDeps } from './payslip-pdf.routes.js';
 import { createMyPayslipsRouter, createPayslipPdfRouter } from './payslip-pdf.routes.js';
 import { createRunsRouter, type RunsDeps } from './runs.routes.js';
+import { createShortfallRouter } from './shortfall.routes.js';
 import { createSalariesRouter } from './salaries.routes.js';
 import { createPayrollSetupRouter } from './setup.routes.js';
 
@@ -37,6 +38,7 @@ export const mountPayrollRoutes = (
   api.use('/payroll', createPayslipPdfRouter(db, authenticate, deps));
   api.use('/me/payslips', createMyPayslipsRouter(db, authenticate, deps));
   api.use('/payroll', createRunsRouter(db, authenticate, deps));
+  api.use('/payroll/shortfall', createShortfallRouter(db, authenticate));
   api.use('/payroll', createLoansRouter(db, authenticate));
   for (const [path, cfg] of Object.entries(CRUDS))
     api.use(`/payroll/${path}`, createCrudRouter(db, cfg, authenticate));

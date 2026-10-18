@@ -1242,6 +1242,46 @@ export type UserTablePrefsTable = {
   prefs: unknown;
   updatedAt: Generated<Date>;
 };
+export type ShortfallPoliciesTable = Versioned & {
+  companyId: string;
+  isEnabled: Generated<boolean>;
+  method: Generated<'minutes' | 'tiers'>;
+  countLate: Generated<boolean>;
+  countEarly: Generated<boolean>;
+  monthlyFreeMinutes: Generated<number>;
+  minutesPerDay: Generated<number>;
+  tiers: Generated<unknown>;
+  defaultTarget: Generated<'salary' | 'leave'>;
+  leaveTypeId: string | null;
+  suggestActionAfter: number | null;
+};
+export type ShortfallDecisionsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  employeeId: string;
+  year: number;
+  month: number;
+  target: 'salary' | 'leave' | 'split' | 'waive';
+  leaveDays: string | null;
+  reason: string;
+  decidedBy: string | null;
+};
+export type PayslipShortfallsTable = {
+  payslipId: string;
+  companyId: string;
+  employeeId: string;
+  leaveTypeId: string | null;
+  lateMinutes: Generated<number>;
+  earlyMinutes: Generated<number>;
+  occurrences: Generated<number>;
+  chargeableMinutes: Generated<number>;
+  daysDue: Generated<string>;
+  daysLeave: Generated<string>;
+  daysSalary: Generated<string>;
+  target: string;
+  appliedAt: Date | null;
+  createdAt: Generated<Date>;
+};
 export type CompanyBrandTable = Versioned & {
   companyId: string;
   logoArFileId: string | null;
@@ -1458,6 +1498,9 @@ export type Database = {
   userTablePrefs: UserTablePrefsTable;
   adminActionTypes: AdminActionTypesTable;
   adminActions: AdminActionsTable;
+  shortfallPolicies: ShortfallPoliciesTable;
+  shortfallDecisions: ShortfallDecisionsTable;
+  payslipShortfalls: PayslipShortfallsTable;
   loans: LoansTable;
   loanInstallments: LoanInstallmentsTable;
   payslipLoanItems: PayslipLoanItemsTable;
