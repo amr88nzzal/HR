@@ -374,4 +374,63 @@ describe('الرواتب 7c: السلف والأقساط والدفعات', () =
       ),
     ).toBe(true);
   });
+  it('تأجيل بالتوزيع: على المتبقي كله، وعلى عدد محدد، وعلى أقساط جديدة من الشهر القادم', async () => {
+    const loan = await newLoan('1000', 4, 6);
+    const get = async () =>
+      (await loanDetail(loan)).installments as {
+        id: string;
+        status: string;
+        amount: string;
+        dueMonth: number;
+      }[];
+    const url = (id: string) => `/payroll/loan-installments/${id}/defer`;
+    // 1) القسط الأول كاملاً يُوزَّع على الثلاثة المتبقية
+    let list = await get();
+    let r = await post('admin', url(list[0]!.id), { reason: 'توزيع', mode: 'remaining' });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    list = await get();
+    expect(list[0]!.status).toBe('deferred');
+    const total = list
+      .filter((x) => x.status === 'scheduled')
+      .reduce((t, x) => t + Number(x.amount), 0);
+    expect(total).toBeCloseTo(1000, 2);
+    expect(list.filter((x) => x.status === 'scheduled')).toHaveLength(3);
+    // 2) جزء من القسط الثاني على قسطين فقط من المتبقي
+    const second = list.find((x) => x.status === 'scheduled')!;
+    r = await post('admin', url(second.id), {
+      reason: 'جزء',
+      mode: 'remaining',
+      amount: '100',
+      count: 2,
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    list = await get();
+    expect(list.find((x) => x.id === second.id)!.status).toBe('scheduled');
+    expect(Number(list.find((x) => x.id === second.id)!.amount)).toBeCloseTo(
+      Number(second.amount) - 100,
+      2,
+    );
+    // عدد أكبر من المتبقي
+    expect(
+      (await post('admin', url(second.id), { reason: 'x', mode: 'remaining', count: 9 })).status,
+    ).toBe(400);
+    // 3) جزء على ثلاثة أقساط جديدة تبدأ من الشهر القادم
+    r = await post('admin', url(second.id), {
+      reason: 'أقساط جديدة',
+      amount: '60',
+      count: 3,
+      targetYear: 2026,
+      targetMonth: 8,
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    list = await get();
+    const created = list.filter((x) => x.status === 'scheduled' && Number(x.amount) === 20);
+    expect(created).toHaveLength(3);
+    expect(created.map((x) => x.dueMonth)).toEqual([8, 9, 10]);
+    // المجموع المجدول لا يتغير بالتأجيل
+    const sum = list
+      .filter((x) => x.status === 'scheduled')
+      .reduce((t, x) => t + Number(x.amount), 0);
+    expect(sum).toBeCloseTo(1000, 2);
+  });
 });

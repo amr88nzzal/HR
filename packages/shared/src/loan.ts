@@ -53,7 +53,11 @@ export const loanListQuery = z.object({
 });
 
 export const loanCancelInput = z.object({ reason: z.string().trim().min(2).max(300) });
-/** تأجيل قسط: كامل القسط أو جزء منه، إلى شهر يحدده المدير (افتراضياً بعد آخر قسط)، بسبب إلزامي. */
+export const DEFER_MODES = ['month', 'remaining'] as const;
+/**
+ * تأجيل قسط. المبلغ المؤجَّل (افتراضياً كامل القسط) يُلحَق إما بأقساط جديدة تبدأ من شهر محدد
+ * (`month`: عددها `count` ويساوي 1 افتراضياً) أو يُوزَّع على الأقساط المتبقية (`remaining`: أول `count` منها، أو كلها).
+ */
 export const installmentDeferInput = z
   .object({
     reason: z.string().trim().min(2).max(300),
@@ -62,6 +66,8 @@ export const installmentDeferInput = z
       .string()
       .regex(/^\d{1,14}(\.\d{1,4})?$/, 'مبلغ غير صالح')
       .optional(),
+    mode: z.enum(DEFER_MODES).default('month'),
+    count: z.number().int().min(1).max(120).optional(),
     targetYear: z.number().int().min(2000).max(2100).optional(),
     targetMonth: z.number().int().min(1).max(12).optional(),
   })
@@ -69,6 +75,72 @@ export const installmentDeferInput = z
     message: 'حدّد السنة والشهر معاً',
     path: ['targetMonth'],
   });
+export type InstallmentDeferInput = z.infer<typeof installmentDeferInput>;
+
+export type DeferRemaining = { id: string; year: number; month: number; amount: string };
+export type DeferRow = {
+  /** null = قسط جديد يُنشأ؛ وإلا قسط قائم يزداد */
+  id: string | null;
+  year: number;
+  month: number;
+  /** المبلغ المضاف */
+  add: string;
+  /** المبلغ بعد التأجيل */
+  total: string;
+};
+export type DeferPlan =
+  | { ok: true; keep: string; full: boolean; rows: DeferRow[] }
+  | {
+      ok: false;
+      code: 'INVALID_DEFER_AMOUNT' | 'INVALID_TARGET_MONTH' | 'NO_REMAINING' | 'INVALID_COUNT';
+    };
+
+/** خطة التأجيل (للمعاينة في الواجهة والتنفيذ في الخادم بالمنطق نفسه). */
+export const planDefer = (i: {
+  amount: string;
+  deferAmount?: string | undefined;
+  dueYear: number;
+  dueMonth: number;
+  mode: (typeof DEFER_MODES)[number];
+  targetYear?: number | undefined;
+  targetMonth?: number | undefined;
+  count?: number | undefined;
+  remaining: DeferRemaining[];
+}): DeferPlan => {
+  const whole = num(i.amount);
+  const d = i.deferAmount === undefined ? whole : num(i.deferAmount);
+  if (!d.gt(0) || d.gt(whole)) return { ok: false, code: 'INVALID_DEFER_AMOUNT' };
+  const keep = whole.minus(d);
+  const base = { keep: keep.toFixed(4), full: keep.isZero() };
+  if (i.mode === 'month') {
+    if (i.targetYear === undefined || i.targetMonth === undefined)
+      return { ok: false, code: 'INVALID_TARGET_MONTH' };
+    if (i.targetYear * 12 + i.targetMonth <= i.dueYear * 12 + i.dueMonth)
+      return { ok: false, code: 'INVALID_TARGET_MONTH' };
+    const n = i.count ?? 1;
+    const rows = buildSchedule(d.toFixed(4), n, i.targetYear, i.targetMonth).map((r) => ({
+      id: null,
+      year: r.year,
+      month: r.month,
+      add: r.amount,
+      total: r.amount,
+    }));
+    return { ok: true, ...base, rows };
+  }
+  const list = [...i.remaining].sort((a, b) => a.year * 12 + a.month - (b.year * 12 + b.month));
+  if (!list.length) return { ok: false, code: 'NO_REMAINING' };
+  const k = i.count ?? list.length;
+  if (k > list.length) return { ok: false, code: 'INVALID_COUNT' };
+  const parts = buildSchedule(d.toFixed(4), k, 2000, 1);
+  const rows = list.slice(0, k).map((r, idx) => ({
+    id: r.id,
+    year: r.year,
+    month: r.month,
+    add: parts[idx]!.amount,
+    total: num(r.amount).plus(parts[idx]!.amount).toFixed(4),
+  }));
+  return { ok: true, ...base, rows };
+};
 
 export const PAYMENT_METHODS = ['bank', 'cash', 'other'] as const;
 export const paymentMarkInput = z.object({

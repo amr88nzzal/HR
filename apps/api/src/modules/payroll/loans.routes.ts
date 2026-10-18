@@ -200,16 +200,29 @@ export const createLoansRouter = (db: Db, authenticate: RequestHandler): Router 
       const id = uuid.parse(req.params['id']);
       const b = installmentDeferInput.parse(req.body);
       const data = await run(req, async (ctx) => {
-        await detachFromDrafts(ctx, [id]);
+        // التوزيع على المتبقي يعدّل أقساطاً لاحقة أيضاً فتُفصل عن المسودات وتُحتسب من جديد
+        const affected =
+          b.mode === 'remaining'
+            ? (
+                await sql<Row>`
+                  select i.id from loan_installments i
+                   where i.status = 'scheduled' and i.loan_id = (select loan_id from loan_installments where id = ${id})`.execute(
+                  ctx.trx,
+                )
+              ).rows.map((r) => r.id as string)
+            : [id];
+        await detachFromDrafts(ctx, affected);
         await deferInstallment(ctx, id, {
           reason: b.reason,
           amount: b.amount,
+          mode: b.mode,
+          count: b.count,
           target:
             b.targetYear !== undefined && b.targetMonth !== undefined
               ? { year: b.targetYear, month: b.targetMonth }
               : undefined,
         });
-        await redo(ctx, [id]);
+        await redo(ctx, affected);
         const { rows } =
           await sql<Row>`select loan_id from loan_installments where id = ${id}`.execute(ctx.trx);
         await refreshLoanStatuses(ctx, [rows[0]!.loanId as string]);
