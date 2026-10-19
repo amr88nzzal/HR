@@ -172,6 +172,7 @@ export const hrAr = {
       externalRefs: 'المراجع الخارجية',
       salary: 'الراتب',
       loans: 'السلف',
+      adminActions: 'الإجراءات الإدارية',
       letters: 'الوثائق الصادرة',
       documents: 'الوثائق',
     },

@@ -5,6 +5,9 @@ export const adminActionsNavEn = {
 };
 
 export const adminActionsEn = {
+  employeeTabHint: 'Administrative actions recorded for this employee.',
+  employeeEmpty: 'No administrative actions for this employee.',
+  recordWarning: 'Record warning',
   new: 'New action',
   category: 'Category',
   search: 'Search employee',
