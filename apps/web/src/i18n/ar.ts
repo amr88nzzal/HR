@@ -1,5 +1,6 @@
 import { brandAr } from './brand.ar';
 import { loansAr } from './loans.ar';
+import { shortfallAr } from './shortfall.ar';
 import { payslipsAr } from './payslips.ar';
 import { dashboardAr, reportsAr } from './reports.ar';
 import { accountAr } from './account.ar';
@@ -988,6 +989,7 @@ export const ar = {
   payroll: payrollAr,
   account: accountAr,
   loans: loansAr,
+  shortfall: shortfallAr,
   payslips: payslipsAr,
   reports: reportsAr,
   brand: brandAr,
