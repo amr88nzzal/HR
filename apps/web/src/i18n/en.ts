@@ -1,3 +1,4 @@
+import { adminActionsNavEn, adminActionsEn } from './adminActions.en';
 import { brandEn } from './brand.en';
 import { loansEn } from './loans.en';
 import { payslipsEn } from './payslips.en';
@@ -52,6 +53,7 @@ export const en: Messages = {
   nav: {
     ...hrNavEn,
     ...payrollNavEn,
+    ...adminActionsNavEn,
     dashboard: 'Home',
     org: 'Organization',
     branches: 'Branches',
@@ -1000,6 +1002,7 @@ export const en: Messages = {
   payroll: payrollEn,
   account: accountEn,
   loans: loansEn,
+  adminActions: adminActionsEn,
   payslips: payslipsEn,
   reports: reportsEn,
   brand: brandEn,

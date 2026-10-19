@@ -57,6 +57,8 @@ export const NAV: (NavLeaf | NavGroup)[] = [
   { key: 'dashboard', path: '/', icon: IconHome },
   /** بلا صلاحية: كل مستخدم مرتبط بموظف يرى قسائمه (تُقيَّد في الخادم) */
   { key: 'myPayslips', path: '/me/payslips', icon: IconCash },
+  /** بلا صلاحية: يرى الموظف إجراءاته المعتمدة فقط (تُقيَّد في الخادم) */
+  { key: 'myAdminActions', path: '/me/admin-actions', icon: IconListCheck },
   /** بلا صلاحية: القائمة نفسها تُحجب في الخادم حسب صلاحيات المستخدم */
   { key: 'reportsCenter', path: '/reports', icon: IconReportAnalytics },
   {
@@ -73,6 +75,18 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         path: '/employees/import',
         icon: IconFileImport,
         permission: 'employees.employee.import',
+      },
+      {
+        key: 'adminActions',
+        path: '/admin-actions',
+        icon: IconListCheck,
+        permission: 'admin_actions.action.read',
+      },
+      {
+        key: 'adminActionTypes',
+        path: '/admin-actions/types',
+        icon: IconListCheck,
+        permission: 'admin_actions.type.read',
       },
       {
         key: 'orgChart',

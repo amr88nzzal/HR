@@ -99,6 +99,7 @@ describe('البيانات التجريبية', () => {
       'payslips:done',
       'reports:done',
       'brand:done',
+      'adminActions:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -203,6 +204,12 @@ describe('البيانات التجريبية', () => {
       admin,
     );
     expect(Number(invited.rows[0]?.n)).toBe(1);
+
+    // الإجراءات الإدارية: أنواع افتراضية + 7 إجراءات بحالات متنوعة
+    expect(await n('admin_action_types')).toBe(9);
+    expect(await n('admin_actions')).toBe(7);
+    expect(await n('admin_actions', sql`status = 'approved'`)).toBe(5);
+    expect(await n('admin_actions', sql`acknowledged_at is not null`)).toBe(1);
 
     // السلف: ثلاث سلف بأقساطها ودفعات صرف، وأقساط ظاهرة في الدورة (واحدة تتجاوز السقف)
     expect(await n('loans')).toBe(3);

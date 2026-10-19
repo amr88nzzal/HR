@@ -1,3 +1,4 @@
+import { adminActionsNavAr, adminActionsAr } from './adminActions.ar';
 import { brandAr } from './brand.ar';
 import { loansAr } from './loans.ar';
 import { payslipsAr } from './payslips.ar';
@@ -50,6 +51,7 @@ export const ar = {
   nav: {
     ...hrNavAr,
     ...payrollNavAr,
+    ...adminActionsNavAr,
     dashboard: 'الرئيسية',
     org: 'الهيكل التنظيمي',
     branches: 'الفروع',
@@ -988,6 +990,7 @@ export const ar = {
   payroll: payrollAr,
   account: accountAr,
   loans: loansAr,
+  adminActions: adminActionsAr,
   payslips: payslipsAr,
   reports: reportsAr,
   brand: brandAr,

@@ -18,6 +18,7 @@ import { AppError } from '../../shared/errors.js';
 import { parseSort } from '../../shared/sort.js';
 import { assertEmployeeVisible, employeeScope } from '../employees/index.js';
 import { hasPermission, requirePermission, type AuthContext } from '../identity/index.js';
+import { ensureDefaultTypes } from './default-types.js';
 import {
   cancelAction,
   createAction,
@@ -45,65 +46,6 @@ const wrap =
 const bad = (code: string, message: string, status = 400) => new AppError(code, status, message);
 const isFk = (e: unknown) => (e as { code?: string }).code === '23503';
 const isUnique = (e: unknown) => (e as { code?: string }).code === '23505';
-
-/** الأنواع الافتراضية (تُنشأ عند الطلب إن لم توجد): الأبعد تصعيداً أولاً لأن كل نوع يشير إلى التالي */
-const DEFAULT_TYPES = [
-  { code: 'warning_final', ar: 'إنذار نهائي', en: 'Final warning', cat: 'warning', approval: true },
-  {
-    code: 'warning_written',
-    ar: 'إنذار كتابي',
-    en: 'Written warning',
-    cat: 'warning',
-    approval: true,
-    next: { code: 'warning_final', count: 2, days: 365 },
-  },
-  {
-    code: 'notice_verbal',
-    ar: 'تنبيه شفهي',
-    en: 'Verbal notice',
-    cat: 'notice',
-    approval: false,
-    next: { code: 'warning_written', count: 3, days: 180 },
-  },
-  {
-    code: 'penalty_deduction',
-    ar: 'خصم من الراتب',
-    en: 'Salary deduction',
-    cat: 'penalty',
-    approval: true,
-    effect: 'deduction',
-  },
-  {
-    code: 'penalty_suspension',
-    ar: 'إيقاف عن العمل',
-    en: 'Suspension',
-    cat: 'penalty',
-    approval: true,
-  },
-  {
-    code: 'reward_cash',
-    ar: 'مكافأة نقدية',
-    en: 'Cash reward',
-    cat: 'reward_cash',
-    approval: true,
-    effect: 'bonus',
-  },
-  {
-    code: 'reward_moral',
-    ar: 'مكافأة معنوية',
-    en: 'Moral reward',
-    cat: 'reward_moral',
-    approval: false,
-  },
-  {
-    code: 'commendation',
-    ar: 'كتاب شكر وتقدير',
-    en: 'Commendation',
-    cat: 'commendation',
-    approval: false,
-  },
-  { code: 'promotion', ar: 'ترقية', en: 'Promotion', cat: 'promotion', approval: true },
-] as const;
 
 const makeRun =
   (db: Db) =>
@@ -163,43 +105,7 @@ export const createAdminActionTypesRouter = (db: Db, authenticate: RequestHandle
     '/defaults',
     requirePermission(`${P}.type.create`),
     wrap(async (req, res) => {
-      const created = await run(req, async (ctx) => {
-        const ids = new Map<string, string>();
-        let n = 0;
-        for (const t of DEFAULT_TYPES) {
-          const existing = await ctx.trx
-            .selectFrom('adminActionTypes')
-            .select('id')
-            .where('companyId', '=', ctx.companyId)
-            .where('code', '=', t.code)
-            .executeTakeFirst();
-          if (existing) {
-            ids.set(t.code, existing.id);
-            continue;
-          }
-          const next = 'next' in t ? t.next : null;
-          const row = await ctx.trx
-            .insertInto('adminActionTypes')
-            .values({
-              companyId: ctx.companyId,
-              code: t.code,
-              nameAr: t.ar,
-              nameEn: t.en,
-              category: t.cat,
-              payrollEffect: 'effect' in t ? t.effect : 'none',
-              requiresApproval: t.approval,
-              escalationTypeId: next ? (ids.get(next.code) ?? null) : null,
-              escalationCount: next ? next.count : null,
-              escalationWindowDays: next ? next.days : null,
-              letterTemplateCode: null,
-            })
-            .returning('id')
-            .executeTakeFirstOrThrow();
-          ids.set(t.code, row.id);
-          n += 1;
-        }
-        return n;
-      });
+      const created = await run(req, (ctx) => ensureDefaultTypes(ctx));
       res.status(201).json({ data: { created } });
     }),
   );
@@ -362,9 +268,9 @@ export const createAdminActionsRouter = (
         const where = sql`a.company_id = ${ctx.companyId}
           ${scope ? sql`and ${scope}` : sql``}
           ${q.employeeId ? sql`and a.employee_id = ${q.employeeId}` : sql``}
-          ${q.typeId ? sql`and a.type_id = ${q.typeId}` : sql``}
-          ${q.category ? sql`and t.category = ${q.category}` : sql``}
-          ${q.status ? sql`and a.status = ${q.status}` : sql``}
+          ${q.typeId?.length ? sql`and a.type_id = any(${q.typeId}::uuid[])` : sql``}
+          ${q.category?.length ? sql`and t.category::text = any(${q.category}::text[])` : sql``}
+          ${q.status?.length ? sql`and a.status::text = any(${q.status}::text[])` : sql``}
           ${like ? sql`and (a.title ilike ${like} or employees.full_name_ar ilike ${like} or employees.employee_no ilike ${like})` : sql``}`;
         const from = sql`from admin_actions a join employees on employees.id = a.employee_id
           join admin_action_types t on t.id = a.type_id`;
