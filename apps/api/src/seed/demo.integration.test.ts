@@ -237,6 +237,7 @@ describe('البيانات التجريبية', () => {
       'historyLeave:done',
       'historyAttendance:done',
       'historyPayroll:done',
+      'historyShortfall:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
       Number(
@@ -267,6 +268,13 @@ describe('البيانات التجريبية', () => {
     // سلفة مسدَّدة بأقساطها الأربعة المخصومة
     expect(await n('loans', sql`status = 'settled'`)).toBe(1);
     expect(await n('loan_installments', sql`status = 'deducted'`)).toBe(4);
+
+    // نقص الدوام: سياسة مفعّلة وقرارا مدير (رصيد وإعفاء)، وأثرهما في قسائم المسودة
+    expect(await n('shortfall_policies', sql`is_enabled`)).toBe(1);
+    expect(await n('shortfall_decisions', sql`target = 'leave'`)).toBe(1);
+    expect(await n('shortfall_decisions', sql`target = 'waive'`)).toBe(1);
+    expect(await n('payslip_shortfalls')).toBeGreaterThan(0);
+    expect(await n('payslip_lines', sql`code = 'shortfall_deduction'`)).toBeGreaterThan(0);
 
     const again = await seedDemoHistory(admin, companyId);
     expect(again.every((p) => p.status === 'skipped')).toBe(true);

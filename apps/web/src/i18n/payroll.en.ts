@@ -4,6 +4,7 @@ export const payrollNavEn = {
   payrollSetup: 'Payroll setup',
   payrollPeriods: 'Payroll periods',
   brand: 'Branding',
+  payrollShortfall: 'Shortfall',
   payrollLoans: 'Loans & advances',
   myPayslips: 'My payslips',
   reportsCenter: 'Reports',

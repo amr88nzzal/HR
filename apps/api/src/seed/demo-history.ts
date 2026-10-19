@@ -15,7 +15,8 @@ import { DEMO_EMAIL_DOMAIN, DEMO_PREFIX } from './demo.js';
  * طبقة «تاريخ ستة أشهر»: تملأ ما قبل الأسبوعين الأخيرين ببصمات وإجازات ورواتب مقفلة وسلفة مسدَّدة،
  * فتظهر التقارير والرسوم والكشوف بعمق زمني حقيقي. كل جزء له علامة فيُعاد تشغيله بأمان.
  */
-export type HistoryPart = 'historyLeave' | 'historyAttendance' | 'historyPayroll';
+export type HistoryPart =
+  'historyLeave' | 'historyAttendance' | 'historyPayroll' | 'historyShortfall';
 
 const HISTORY_DAYS = 182;
 const NOTE = 'DEMO-HIST';
@@ -383,6 +384,84 @@ const seedHistoryPayroll = async (ctx: Ctx): Promise<string | undefined> => {
   return `${made} دورات مقفلة`;
 };
 
+/**
+ * سياسة نقص الدوام مفعّلة (سماحية 30 دقيقة، الافتراضي الراتب، الإجازة السنوية للرصيد، اقتراح إجراء بعد 3 مرات)
+ * وقرارات مدير على مسودة الشهر الحالي: موظف بالرصيد وآخر بالإعفاء، ثم تُعاد احتساب المسودة.
+ * Shortfall policy enabled plus two manager decisions on the current draft, then the draft is recalculated.
+ */
+const seedHistoryShortfall = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const policy = await trx
+    .selectFrom('shortfallPolicies')
+    .select('companyId')
+    .where('companyId', '=', companyId)
+    .executeTakeFirst();
+  if (policy) return 'skip';
+  const draft = await trx
+    .selectFrom('payrollPeriods')
+    .selectAll()
+    .where('companyId', '=', companyId)
+    .where('status', '=', 'draft')
+    .orderBy('year', 'desc')
+    .orderBy('month', 'desc')
+    .executeTakeFirst();
+  const annual = await trx
+    .selectFrom('leaveTypes')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('code', '=', 'DEMO-ANNUAL')
+    .executeTakeFirst();
+  if (!draft || !annual) return 'skip لا دورة مسودة أو إجازة سنوية تجريبية';
+  await trx
+    .insertInto('shortfallPolicies')
+    .values({
+      companyId,
+      isEnabled: true,
+      method: 'minutes',
+      countLate: true,
+      countEarly: true,
+      monthlyFreeMinutes: 30,
+      minutesPerDay: 480,
+      tiers: JSON.stringify([]),
+      defaultTarget: 'salary',
+      leaveTypeId: annual.id,
+      suggestActionAfter: 3,
+    })
+    .execute();
+  // أكثر موظفَين نقصاً في شهر المسودة
+  const { rows } = await sql<{ employeeId: string }>`
+    select employee_id from attendance_days
+     where company_id = ${companyId} and day_date between ${String(draft.startDate)}::date and ${String(draft.endDate)}::date
+       and (late_minutes > 0 or early_leave_minutes > 0)
+     group by employee_id order by sum(late_minutes + early_leave_minutes) desc, employee_id limit 2`.execute(
+    trx,
+  );
+  const targets = ['leave', 'waive'] as const;
+  for (const [i, r] of rows.entries())
+    await trx
+      .insertInto('shortfallDecisions')
+      .values({
+        companyId,
+        employeeId: r.employeeId,
+        year: draft.year,
+        month: draft.month,
+        target: targets[i] as 'leave' | 'waive',
+        reason: i === 0 ? 'اتفاق مع المدير: يُخصم من رصيد الإجازات' : 'إعفاء: ظرف قاهر',
+      })
+      .execute();
+  await calculatePeriod(ctx, {
+    id: draft.id,
+    payGroupId: draft.payGroupId,
+    year: draft.year,
+    month: draft.month,
+    startDate: String(draft.startDate),
+    endDate: String(draft.endDate),
+    currency: draft.currency,
+    status: 'draft',
+  });
+  return `${rows.length} قرارات`;
+};
+
 export const seedDemoHistory = async (
   db: Db,
   companyId: string,
@@ -391,6 +470,7 @@ export const seedDemoHistory = async (
     ['historyLeave', seedHistoryLeave],
     ['historyAttendance', seedHistoryAttendance],
     ['historyPayroll', seedHistoryPayroll],
+    ['historyShortfall', seedHistoryShortfall],
   ];
   const out: { part: HistoryPart; status: 'done' | 'skipped'; note?: string }[] = [];
   for (const [part, fn] of parts) {
