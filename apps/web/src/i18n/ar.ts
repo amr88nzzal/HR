@@ -1,6 +1,7 @@
 import { adminActionsNavAr, adminActionsAr } from './adminActions.ar';
 import { brandAr } from './brand.ar';
 import { loansAr } from './loans.ar';
+import { shortfallAr } from './shortfall.ar';
 import { payslipsAr } from './payslips.ar';
 import { dashboardAr, reportsAr } from './reports.ar';
 import { accountAr } from './account.ar';
@@ -991,6 +992,7 @@ export const ar = {
   account: accountAr,
   loans: loansAr,
   adminActions: adminActionsAr,
+  shortfall: shortfallAr,
   payslips: payslipsAr,
   reports: reportsAr,
   brand: brandAr,

@@ -133,6 +133,11 @@ export const PeriodPage = () => {
               {t('loans.overCap')}
             </Badge>
           )}
+          {s.warnings.includes('SHORTFALL_BALANCE_INSUFFICIENT') && (
+            <Badge color="yellow" variant="light">
+              {t('shortfall.balanceShort')}
+            </Badge>
+          )}
           {s.warnings.includes('NEGATIVE_NET') && (
             <Badge color="red" variant="light">
               {t('payroll.run.negativeNet')}
@@ -145,6 +150,7 @@ export const PeriodPage = () => {
           s.hasManual ? t('payroll.run.manual') : '',
           s.status === 'error' ? t('payroll.run.error') : '',
           s.warnings.includes('LOAN_OVER_CAP') ? t('loans.overCap') : '',
+          s.warnings.includes('SHORTFALL_BALANCE_INSUFFICIENT') ? t('shortfall.balanceShort') : '',
           s.warnings.includes('NEGATIVE_NET') ? t('payroll.run.negativeNet') : '',
         ]
           .filter(Boolean)

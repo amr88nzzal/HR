@@ -4,6 +4,7 @@ export const payrollNavAr = {
   payrollSetup: 'إعداد الرواتب',
   payrollPeriods: 'دورات الرواتب',
   brand: 'الهوية البصرية',
+  payrollShortfall: 'نقص الدوام',
   payrollLoans: 'قروض وسلف',
   myPayslips: 'قسائم راتبي',
   reportsCenter: 'التقارير',

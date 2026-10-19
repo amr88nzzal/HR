@@ -1,6 +1,7 @@
 import { adminActionsNavEn, adminActionsEn } from './adminActions.en';
 import { brandEn } from './brand.en';
 import { loansEn } from './loans.en';
+import { shortfallEn } from './shortfall.en';
 import { payslipsEn } from './payslips.en';
 import { dashboardEn, reportsEn } from './reports.en';
 import { accountEn } from './account.en';
@@ -1003,6 +1004,7 @@ export const en: Messages = {
   account: accountEn,
   loans: loansEn,
   adminActions: adminActionsEn,
+  shortfall: shortfallEn,
   payslips: payslipsEn,
   reports: reportsEn,
   brand: brandEn,
