@@ -27,6 +27,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { DataTable, type Column } from '../../components/DataTable';
 import { csv, MultiFilter } from '../../components/MultiFilter';
 import { errorMessage } from '../../lib/errors';
+import { NewActionModal } from '../adminActions/AdminActionsPage';
+import type { ActionType } from '../adminActions/types';
 import { useLookup, useOrgLookups } from '../employees/shared';
 
 // ───────────── الأنواع / Types ─────────────
@@ -213,6 +215,15 @@ const ReportTab = () => {
   const [branch, setBranch] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [deciding, setDeciding] = useState<ReportRow | null>(null);
+  const [warning, setWarning] = useState<ReportRow | null>(null);
+  const canWarn =
+    (can('admin_actions.action.create') || can('admin_actions.action.propose')) &&
+    can('admin_actions.type.read');
+  const actionTypes = useQuery({
+    queryKey: ['/admin-action-types'],
+    enabled: canWarn,
+    queryFn: async () => (await api.get<ActionType[]>('/admin-action-types')).data,
+  });
   const PAGE = 50;
   const params = (p: number, size: number) => ({
     year,
@@ -391,15 +402,32 @@ const ReportTab = () => {
           (await api.get<ReportRow[]>('/payroll/shortfall/report', params(1, 500))).data
         }
         actions={
-          canDecide
+          canDecide || canWarn
             ? (r) => (
-                <Button size="xs" variant="light" onClick={() => setDeciding(r)}>
-                  {t('shortfall.decide')}
-                </Button>
+                <Group gap={4} wrap="nowrap">
+                  {canDecide && (
+                    <Button size="xs" variant="light" onClick={() => setDeciding(r)}>
+                      {t('shortfall.decide')}
+                    </Button>
+                  )}
+                  {canWarn && r.suggestAction && (
+                    <Button size="xs" variant="light" color="orange" onClick={() => setWarning(r)}>
+                      {t('adminActions.recordWarning')}
+                    </Button>
+                  )}
+                </Group>
               )
             : undefined
         }
       />
+      {warning && (
+        <NewActionModal
+          types={actionTypes.data ?? []}
+          employeeId={warning.employeeId}
+          typeCode="warning_written"
+          onClose={() => setWarning(null)}
+        />
+      )}
       {deciding && (
         <DecisionModal row={deciding} year={year} month={month} onClose={() => setDeciding(null)} />
       )}

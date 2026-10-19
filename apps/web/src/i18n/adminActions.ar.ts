@@ -5,6 +5,9 @@ export const adminActionsNavAr = {
 };
 
 export const adminActionsAr = {
+  employeeTabHint: 'سجلّ الإجراءات الإدارية بحق الموظف.',
+  employeeEmpty: 'لا توجد إجراءات إدارية لهذا الموظف.',
+  recordWarning: 'تسجيل إنذار',
   new: 'إجراء جديد',
   category: 'الفئة',
   search: 'بحث بالموظف',

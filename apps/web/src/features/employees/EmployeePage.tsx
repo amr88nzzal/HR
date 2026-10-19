@@ -23,6 +23,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../lib/errors';
 import { localName } from '../../lib/names';
 import { IssuePanel } from '../letters/IssuePanel';
+import { EmployeeActionsPanel } from '../adminActions/EmployeeActionsPanel';
 import { LoansPanel } from '../payroll/LoansPanel';
 import { SalaryTab } from '../payroll/SalaryTab';
 import { DocumentsPanel } from '../archive/DocumentsPanel';
@@ -202,6 +203,12 @@ export const EmployeePage = () => {
       label: t('hr.emp.tabs.loans'),
       show: can('payroll.loan.read'),
       body: <LoansPanel employeeId={employeeId} />,
+    },
+    {
+      value: 'adminActions',
+      label: t('hr.emp.tabs.adminActions'),
+      show: can('admin_actions.action.read'),
+      body: <EmployeeActionsPanel employeeId={employeeId} />,
     },
     {
       value: 'letters',

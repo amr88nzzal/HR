@@ -42,7 +42,7 @@ type Suggestion = {
 
 // ───────────── إضافة إجراء / New action ─────────────
 
-const NewActionModal = ({
+export const NewActionModal = ({
   types,
   employeeId,
   typeCode,
@@ -224,7 +224,7 @@ const NewActionModal = ({
 
 // ───────────── تفاصيل الإجراء / Detail drawer ─────────────
 
-const DetailDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
+export const DetailDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
   const { t } = useTranslation();
   const { can } = useAuth();
   const fmt = useFormat();
