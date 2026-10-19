@@ -490,6 +490,20 @@ describe('المرحلة 10: الإجراءات الإدارية', () => {
     expect(
       byAmount.body.data.every((x: { category: string }) => x.category === 'reward_cash'),
     ).toBe(true);
+    // قيم متعددة مفصولة بفواصل / comma-separated multi-value filters
+    const multi = await get(
+      'hrm',
+      '/admin-actions?status=draft,pending,approved&category=reward_cash,warning,penalty',
+    );
+    expect(multi.status).toBe(200);
+    expect(
+      multi.body.data.every(
+        (x: { category: string; status: string }) =>
+          ['reward_cash', 'warning', 'penalty'].includes(x.category) &&
+          ['draft', 'pending', 'approved'].includes(x.status),
+      ),
+    ).toBe(true);
+    expect((await get('hrm', '/admin-actions?status=bogus')).status).toBe(400);
     const byEmp = await get('hrm', `/admin-actions?employeeId=${empB}&sort=employee`);
     expect(byEmp.body.data.every((x: { employeeId: string }) => x.employeeId === empB)).toBe(true);
     expect((await get('hrm', '/admin-actions?sort=password')).status).toBe(400);

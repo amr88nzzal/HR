@@ -28,6 +28,7 @@ import {
   submitRequest,
 } from '../modules/leave/index.js';
 import { buildSchedule } from '@hrms/shared';
+import { ensureDefaultTypes } from '../modules/admin-actions/index.js';
 import { createNotifier } from '../notifications/index.js';
 import type { FieldCrypto } from '../shared/crypto.js';
 import { DEMO_EMAIL_DOMAIN, DEMO_PREFIX } from './demo.js';
@@ -49,7 +50,8 @@ export type ExtrasPart =
   | 'payslips'
   | 'reports'
   | 'brand'
-  | 'accounts';
+  | 'accounts'
+  | 'adminActions';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
 
 const pad = (n: number, w = 3) => String(n).padStart(w, '0');
@@ -1848,6 +1850,111 @@ const seedReports = async (ctx: Ctx): Promise<string | undefined> => {
  * يضيف طبقات البيانات التجريبية الموسَّعة فوق الأساس. كل طبقة آمنة لإعادة التشغيل (لها علامة)،
  * فتُضاف الطبقات الجديدة فقط على قاعدة بُذرت سابقاً. كل طبقة في معاملة مستقلة.
  */
+/**
+ * الإجراءات الإدارية التجريبية: الأنواع الافتراضية + إجراءات بحالات متنوعة.
+ * Demo administrative actions: default types plus actions in varied statuses.
+ * بلا أثر مالي عمداً كي لا تتغير أرقام الرواتب التجريبية / no money effect on purpose.
+ */
+const seedAdminActions = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('adminActions')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('title', 'like', `${DEMO_PREFIX}%`)
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  await ensureDefaultTypes(ctx);
+  // الإنذارات تتطلب إقرار الموظف في العرض التجريبي / warnings need acknowledgment in the demo
+  await trx
+    .updateTable('adminActionTypes')
+    .set({ requiresAcknowledgment: true })
+    .where('companyId', '=', companyId)
+    .where('category', '=', 'warning')
+    .execute();
+  const types = await trx
+    .selectFrom('adminActionTypes')
+    .select(['id', 'code'])
+    .where('companyId', '=', companyId)
+    .execute();
+  const typeId = (code: string) => types.find((x) => x.code === code)?.id;
+  const emps = await loadEmployees(ctx);
+  const creator = await trx
+    .selectFrom('users')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .orderBy('createdAt')
+    .executeTakeFirst();
+  if (!creator || emps.length < 6) return 'skip لا موظفون أو مستخدمون كفاية';
+  const plan: {
+    code: string;
+    i: number;
+    title: string;
+    status: 'draft' | 'approved' | 'cancelled';
+    ago: number;
+    ack?: boolean;
+  }[] = [
+    {
+      code: 'notice_verbal',
+      i: 0,
+      title: 'تنبيه بشأن التأخر المتكرر',
+      status: 'approved',
+      ago: 40,
+    },
+    {
+      code: 'warning_written',
+      i: 0,
+      title: 'إنذار كتابي: تأخر متكرر',
+      status: 'approved',
+      ago: 20,
+      ack: true,
+    },
+    {
+      code: 'warning_written',
+      i: 1,
+      title: 'إنذار كتابي: مخالفة إجراءات السلامة',
+      status: 'approved',
+      ago: 10,
+    },
+    { code: 'commendation', i: 2, title: 'شكر على إنجاز المشروع', status: 'approved', ago: 30 },
+    { code: 'reward_moral', i: 3, title: 'موظف الشهر', status: 'approved', ago: 15 },
+    { code: 'notice_verbal', i: 4, title: 'تنبيه شفهي: الالتزام بالزي', status: 'draft', ago: 2 },
+    {
+      code: 'notice_verbal',
+      i: 5,
+      title: 'تنبيه أُلغي بعد المراجعة',
+      status: 'cancelled',
+      ago: 25,
+    },
+  ];
+  let n = 0;
+  for (const p of plan) {
+    const tid = typeId(p.code);
+    const emp = emps[p.i];
+    if (!tid || !emp) continue;
+    const day = isoDay(-p.ago);
+    await trx
+      .insertInto('adminActions')
+      .values({
+        companyId,
+        employeeId: emp.id,
+        typeId: tid,
+        title: `${DEMO_PREFIX} ${p.title}`,
+        actionDate: day,
+        effectiveDate: day,
+        status: p.status,
+        decidedAt: p.status === 'draft' ? null : new Date(),
+        cancelReason: p.status === 'cancelled' ? 'ثبت عدم صحة الواقعة' : null,
+        acknowledgedAt: p.ack ? new Date() : null,
+        acknowledgedBy: p.ack ? (emp.userId ?? creator.id) : null,
+        createdBy: creator.id,
+      })
+      .execute();
+    n += 1;
+  }
+  return `${n} إجراء`;
+};
+
 export const seedDemoExtras = async (
   db: Db,
   companyId: string,
@@ -1872,6 +1979,7 @@ export const seedDemoExtras = async (
     ['payslips', (ctx) => seedPublishedPayslips(ctx)],
     ['reports', (ctx) => seedReports(ctx)],
     ['brand', (ctx) => seedBrand(ctx)],
+    ['adminActions', (ctx) => seedAdminActions(ctx)],
   ];
   for (const [part, fn] of parts) {
     const note = await withTenant(db, { companyId, requestId: 'cli' }, fn);

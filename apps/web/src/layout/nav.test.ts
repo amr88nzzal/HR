@@ -10,6 +10,7 @@ describe('القائمة تُبنى من الصلاحيات', () => {
     expect(keys([])).toEqual([
       'dashboard',
       'myPayslips',
+      'myAdminActions',
       'reportsCenter',
       'approvalsInbox',
       'approvalDelegations',
@@ -19,6 +20,7 @@ describe('القائمة تُبنى من الصلاحيات', () => {
     expect(keys(['system.branch.read', 'identity.user.read'])).toEqual([
       'dashboard',
       'myPayslips',
+      'myAdminActions',
       'reportsCenter',
       'approvalsInbox',
       'approvalDelegations',
@@ -65,8 +67,10 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'attendance.correction.read_all',
         'letters.document.read',
         'letters.template.read',
+        'admin_actions.action.read',
+        'admin_actions.type.read',
       ]).length,
-    ).toBe(46);
+    ).toBe(49);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');

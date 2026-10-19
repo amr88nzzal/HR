@@ -23,6 +23,9 @@ import { ApprovalsPage } from './features/approvals/ApprovalsPage';
 import { ApprovalDetailPage } from './features/approvals/ApprovalDetailPage';
 import { DelegationsPage } from './features/approvals/DelegationsPage';
 import { ReportsPage } from './features/reports/ReportsPage';
+import { AdminActionsPage } from './features/adminActions/AdminActionsPage';
+import { AdminActionTypesPage } from './features/adminActions/AdminActionTypesPage';
+import { MyAdminActionsPage } from './features/adminActions/MyAdminActionsPage';
 import { MyPayslipsPage } from './features/payroll/MyPayslipsPage';
 import { MyLeavePage } from './features/leave/MyLeavePage';
 import { BalancesAdminPage } from './features/leave/BalancesAdminPage';
@@ -150,6 +153,9 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/channels': () => <ChannelsPage />,
   '/admin/notification-templates': () => <NotificationTemplatesPage />,
   '/me/payslips': () => <MyPayslipsPage />,
+  '/me/admin-actions': () => <MyAdminActionsPage />,
+  '/admin-actions': () => <AdminActionsPage />,
+  '/admin-actions/types': () => <AdminActionTypesPage />,
   '/reports': () => <ReportsPage />,
   '/leave': () => <MyLeavePage />,
   '/leave/calendar': () => <TeamCalendarPage />,

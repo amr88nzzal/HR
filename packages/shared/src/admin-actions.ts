@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { csvList } from './employees.js';
 import { employmentFields } from './employments.js';
 import { withVersion } from './org.js';
 
@@ -120,9 +121,9 @@ export const adminActionListQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(200).default(25),
   q: z.string().trim().max(100).optional(),
   employeeId: uuid.optional(),
-  typeId: uuid.optional(),
-  category: z.enum(ACTION_CATEGORIES).optional(),
-  status: z.enum(ACTION_STATUSES).optional(),
+  typeId: csvList(uuid),
+  category: csvList(z.enum(ACTION_CATEGORIES)),
+  status: csvList(z.enum(ACTION_STATUSES)),
   sort: z
     .string()
     .regex(/^-?[a-zA-Z]{1,40}$/)
