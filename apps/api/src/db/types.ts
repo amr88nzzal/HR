@@ -474,7 +474,13 @@ export type StoredFilesTable = {
   sha256: string;
   isEncrypted: Generated<boolean>;
   purpose:
-    'document' | 'employee_photo' | 'issued_document' | 'letter_template' | 'brand' | 'report';
+    | 'document'
+    | 'employee_photo'
+    | 'issued_document'
+    | 'letter_template'
+    | 'brand'
+    | 'report'
+    | 'admin_action';
   parentId: string | null;
   variant: string | null;
   createdBy: string | null;
@@ -1235,6 +1241,14 @@ export type AdminActionsTable = Versioned & {
   decidedAt: Date | null;
   createdBy: string;
 };
+export type AdminActionAttachmentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  actionId: string;
+  fileId: string;
+  uploadedBy: string | null;
+  createdAt: Generated<Date>;
+};
 export type UserTablePrefsTable = {
   companyId: string;
   userId: string;
@@ -1498,6 +1512,7 @@ export type Database = {
   userTablePrefs: UserTablePrefsTable;
   adminActionTypes: AdminActionTypesTable;
   adminActions: AdminActionsTable;
+  adminActionAttachments: AdminActionAttachmentsTable;
   shortfallPolicies: ShortfallPoliciesTable;
   shortfallDecisions: ShortfallDecisionsTable;
   payslipShortfalls: PayslipShortfallsTable;

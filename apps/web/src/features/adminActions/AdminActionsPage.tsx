@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Drawer,
+  FileButton,
   Group,
   NativeSelect,
   Stack,
@@ -277,6 +278,36 @@ export const DetailDrawer = ({ id, onClose }: { id: string; onClose: () => void 
       notifications.show({ color: 'red', message: errorMessage(e, t) });
     }
   };
+  // المرفقات / attachments
+  type Att = { id: string; name: string; sizeBytes: number; createdAt: string };
+  const atts = useQuery({
+    queryKey: ['/admin-actions', id, 'attachments'],
+    queryFn: async () => (await api.get<Att[]>(`/admin-actions/${id}/attachments`)).data,
+  });
+  const upload = useMutation({
+    mutationFn: async (file: File) =>
+      api.upload(`/admin-actions/${id}/attachments`, file, { name: file.name }),
+    onSuccess: async () => atts.refetch(),
+    onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
+  });
+  const removeAtt = useMutation({
+    mutationFn: async (attId: string) => api.del(`/admin-actions/${id}/attachments/${attId}`),
+    onSuccess: async () => atts.refetch(),
+    onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
+  });
+  const downloadAtt = async (x: Att) => {
+    try {
+      const blob = await api.blob(`/admin-actions/${id}/attachments/${x.id}/content`);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = x.name;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      notifications.show({ color: 'red', message: errorMessage(e, t) });
+    }
+  };
   const a = q.data;
   const canWrite = can('admin_actions.action.create') || can('admin_actions.action.propose');
   const canCancel =
@@ -347,6 +378,53 @@ export const DetailDrawer = ({ id, onClose }: { id: string; onClose: () => void 
               )}
             </Group>
           )}
+          <Stack gap={4}>
+            <Group justify="space-between">
+              <Text size="sm" fw={600}>
+                {t('adminActions.attachments')}
+              </Text>
+              {canWrite && a.status !== 'cancelled' && a.status !== 'rejected' && (
+                <FileButton
+                  onChange={(f) => f && upload.mutate(f)}
+                  accept="application/pdf,image/jpeg,image/png,image/webp,.docx,.xlsx"
+                >
+                  {(props) => (
+                    <Button {...props} size="xs" variant="light" loading={upload.isPending}>
+                      {t('adminActions.addAttachment')}
+                    </Button>
+                  )}
+                </FileButton>
+              )}
+            </Group>
+            {(atts.data ?? []).length === 0 && (
+              <Text size="sm" c="dimmed">
+                {t('adminActions.noAttachments')}
+              </Text>
+            )}
+            {(atts.data ?? []).map((x) => (
+              <Group key={x.id} justify="space-between" wrap="nowrap">
+                <Text
+                  size="sm"
+                  c="blue"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => void downloadAtt(x)}
+                >
+                  {x.name}
+                </Text>
+                {canWrite && (
+                  <Button
+                    size="compact-xs"
+                    color="red"
+                    variant="subtle"
+                    loading={removeAtt.isPending}
+                    onClick={() => removeAtt.mutate(x.id)}
+                  >
+                    {t('adminActions.removeAttachment')}
+                  </Button>
+                )}
+              </Group>
+            ))}
+          </Stack>
           <Group>
             {a.status === 'draft' && canWrite && (
               <Button loading={submit.isPending} onClick={() => submit.mutate()}>

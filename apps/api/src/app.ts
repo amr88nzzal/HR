@@ -218,7 +218,7 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
     api.use('/admin-action-types', createAdminActionTypesRouter(auth.db, authenticate));
     api.use(
       '/admin-actions',
-      createAdminActionsRouter(auth.db, authenticate, engine, createNotifier(auth.jobs)),
+      createAdminActionsRouter(auth.db, authenticate, engine, createNotifier(auth.jobs), files),
     );
     api.use('/me/admin-actions', createMyAdminActionsRouter(auth.db, authenticate));
     app.use('/api/v1', api);

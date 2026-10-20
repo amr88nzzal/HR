@@ -511,4 +511,77 @@ describe('المرحلة 10: الإجراءات الإدارية', () => {
     expect(all.body.meta.total).toBeGreaterThanOrEqual(8);
     expect((await get('empa', `/admin-actions/${all.body.data[0].id}`)).status).toBe(403);
   });
+  it('المرفقات: رفع وقائمة وتنزيل وحذف، ومنع غير المصرَّح والنوع غير المسموح والإجراء الملغى', async () => {
+    const created = await post('hrm', '/admin-actions', {
+      employeeId: empA,
+      typeId: typeId['notice_verbal'],
+      title: 'تنبيه بمرفق',
+      actionDate: '2026-10-01',
+    });
+    expect(created.status).toBe(201);
+    const id = created.body.data.id as string;
+    const pdf = Buffer.from('%PDF-1.4\n%fake attachment bytes\n');
+    const up = (who: string, path: string, body: Buffer) =>
+      request(api)
+        .post(`/api/v1${path}`)
+        .set(as(who))
+        .set('Content-Type', 'application/octet-stream')
+        .send(body);
+    // الموظف العادي لا يرفع ولا يرى
+    expect((await up('empb', `/admin-actions/${id}/attachments?name=x.pdf`, pdf)).status).toBe(403);
+    expect((await get('empb', `/admin-actions/${id}/attachments`)).status).toBe(403);
+    // نوع غير مسموح (نص عادي)
+    expect(
+      (
+        await up(
+          'hrm',
+          `/admin-actions/${id}/attachments?name=x.txt`,
+          Buffer.from('plain text file!!'),
+        )
+      ).status,
+    ).toBe(415);
+    const ok = await up(
+      'hrm',
+      `/admin-actions/${id}/attachments?name=${encodeURIComponent('قرار.pdf')}`,
+      pdf,
+    );
+    expect(ok.status).toBe(201);
+    const list = await get('hrm', `/admin-actions/${id}/attachments`);
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data[0].name).toBe('قرار.pdf');
+    // الاسم من ترويسة X-File-Name كما يرسلها عميل الويب
+    const viaHeader = await request(api)
+      .post(`/api/v1/admin-actions/${id}/attachments`)
+      .set(as('hrm'))
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-File-Name', encodeURIComponent('إفادة.pdf'))
+      .send(pdf);
+    expect(viaHeader.status).toBe(201);
+    expect((await get('hrm', `/admin-actions/${id}/attachments`)).body.data[1].name).toBe(
+      'إفادة.pdf',
+    );
+    expect(
+      (await del('hrm', `/admin-actions/${id}/attachments/${viaHeader.body.data.id}`)).status,
+    ).toBe(204);
+    const dl = await get('hrm', `/admin-actions/${id}/attachments/${ok.body.data.id}/content`)
+      .buffer(true)
+      .parse((res, cb) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(dl.status).toBe(200);
+    expect(Buffer.from(dl.body).equals(pdf)).toBe(true);
+    expect((await del('hrm', `/admin-actions/${id}/attachments/${ok.body.data.id}`)).status).toBe(
+      204,
+    );
+    expect((await get('hrm', `/admin-actions/${id}/attachments`)).body.data).toHaveLength(0);
+    // إجراء ملغى: لا مرفقات جديدة
+    expect(
+      (await post('hrm', `/admin-actions/${id}/cancel`, { reason: 'إلغاء للاختبار' })).status,
+    ).toBe(200);
+    const closed = await up('hrm', `/admin-actions/${id}/attachments?name=y.pdf`, pdf);
+    expect(closed.status).toBe(409);
+    expect(closed.body.error.code).toBe('ACTION_CLOSED');
+  });
 });
