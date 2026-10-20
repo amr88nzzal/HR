@@ -287,4 +287,53 @@ describe('حساب المستخدم من بطاقة الموظف: الدعوة �
     expect((await put(a)).status).toBe(200);
     expect((await put(b)).status).toBe(409);
   });
+  it('إنشاء حسابات بالجملة: معاينة بلا كتابة، ثم تنفيذ يتخطى من بلا بريد أو له حساب أو بريده مكرر', async () => {
+    const withMail = async (name: string, mail: string) => {
+      const id = await newEmp(name);
+      await post('admin', `/employees/${id}/contacts`, {
+        type: 'email',
+        value: mail,
+        isPrimary: true,
+      });
+      return id;
+    };
+    const a = await withMail('بسمة', 'basma@acme.test');
+    const b = await withMail('جود', 'jood@acme.test');
+    const dupA = await withMail('سلمى', 'basma@acme.test'); // نفس بريد بسمة داخل الدفعة
+    const noMail = await newEmp('بلا بريد');
+    const taken = await withMail('مأخوذ', 'noor@acme.test'); // بريد حساب سابق
+    const linked = await newEmp('له حساب');
+    await post('admin', `/employees/${linked}/account`, { email: 'linked@acme.test' });
+    const ids = [a, b, dupA, noMail, taken, linked];
+    // الموارد البشرية بلا صلاحية إنشاء الحسابات
+    expect((await post('hr', '/employees/accounts/bulk', { employeeIds: ids })).status).toBe(403);
+    // معاينة: لا يُكتب شيء
+    const dry = await post('admin', '/employees/accounts/bulk', { employeeIds: ids, dryRun: true });
+    expect(dry.status, JSON.stringify(dry.body)).toBe(200);
+    const st = (r: typeof dry) =>
+      Object.fromEntries(
+        r.body.data.map((x: { employeeId: string; status: string }) => [x.employeeId, x.status]),
+      );
+    expect(st(dry)).toEqual({
+      [a]: 'ok',
+      [b]: 'ok',
+      [dupA]: 'duplicate_email',
+      [noMail]: 'no_email',
+      [taken]: 'email_taken',
+      [linked]: 'has_account',
+    });
+    expect((await get('admin', `/employees/${a}/account`)).body.data.state).toBe('none');
+    // تنفيذ
+    const run = await post('admin', '/employees/accounts/bulk', { employeeIds: ids });
+    expect(run.status).toBe(200);
+    expect(run.body.meta.created).toBe(2);
+    expect(st(run)[a]).toBe('created');
+    expect((await get('admin', `/employees/${a}/account`)).body.data.state).toBe('invited');
+    expect((await get('admin', `/employees/${b}/account`)).body.data.state).toBe('invited');
+    expect((await get('admin', `/employees/${dupA}/account`)).body.data.state).toBe('none');
+    // إعادة التنفيذ: الجميع تُخطّى
+    const again = await post('admin', '/employees/accounts/bulk', { employeeIds: [a, b] });
+    expect(again.body.meta.created).toBe(0);
+    expect(st(again)[a]).toBe('has_account');
+  });
 });

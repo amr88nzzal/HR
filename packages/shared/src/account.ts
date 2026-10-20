@@ -21,6 +21,31 @@ export const employeeAccountInput = z.object({
 });
 export type EmployeeAccountInput = z.infer<typeof employeeAccountInput>;
 
+/**
+ * إنشاء حسابات بالجملة لموظفين بلا حساب: دعوة بالبريد المسجَّل في جهات الاتصال ودور موحّد.
+ * `dryRun` يعاين النتيجة لكل موظف دون كتابة شيء.
+ * Bulk account creation for employees without one: email invite to the contact email and a single role.
+ * `dryRun` previews the per-employee outcome without writing anything.
+ */
+export const BULK_ACCOUNT_MAX = 200;
+export const bulkAccountInput = z.object({
+  employeeIds: z.array(z.string().uuid()).min(1).max(BULK_ACCOUNT_MAX),
+  roleId: z.string().uuid().optional(),
+  dryRun: z.boolean().default(false),
+});
+export type BulkAccountInput = z.infer<typeof bulkAccountInput>;
+export const BULK_ACCOUNT_STATUSES = [
+  'created',
+  'ok',
+  'has_account',
+  'no_email',
+  'email_taken',
+  'duplicate_email',
+  'not_visible',
+  'error',
+] as const;
+export type BulkAccountStatus = (typeof BULK_ACCOUNT_STATUSES)[number];
+
 export const acceptInviteInput = z.object({
   token: z.string().min(10).max(300),
   password: z.string().min(1).max(256),

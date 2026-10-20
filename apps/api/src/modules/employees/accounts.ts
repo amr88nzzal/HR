@@ -151,6 +151,25 @@ export const createEmployeeAccount = async (
   return { ...base, ...(await sendInvite(ctx, deps, user)) };
 };
 
+/**
+ * فحص إمكان إنشاء حساب لموظف دون كتابة: ok / has_account / no_email / email_taken.
+ * Read-only check whether an account can be created: ok / has_account / no_email / email_taken.
+ */
+export const checkAccountCreation = async (
+  ctx: Ctx,
+  emp: { id: string; userId: string | null },
+): Promise<{ status: 'ok' | 'has_account' | 'no_email' | 'email_taken'; email: string | null }> => {
+  if (emp.userId) return { status: 'has_account', email: null };
+  const email = await contactEmail(ctx, emp.id);
+  if (!email) return { status: 'no_email', email: null };
+  const taken = await ctx.trx
+    .selectFrom('users')
+    .select('id')
+    .where('email', '=', email)
+    .executeTakeFirst();
+  return { status: taken ? 'email_taken' : 'ok', email };
+};
+
 export const resendInvite = async (ctx: Ctx, deps: AccountDeps, userId: string | null) => {
   const user = userId
     ? await ctx.trx
