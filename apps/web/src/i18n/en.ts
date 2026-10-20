@@ -383,6 +383,8 @@ export const en: Messages = {
     up: 'Up',
   },
   table: {
+    selectAll: 'Select all shown',
+    selectRow: 'Select row',
     columns: 'Columns',
     print: 'Print',
     resetColumns: 'Reset to default',

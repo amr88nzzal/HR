@@ -3,6 +3,8 @@ import { sql, type RawBuilder } from 'kysely';
 import { z } from 'zod';
 import {
   employeeAccountInput,
+  bulkAccountInput,
+  type BulkAccountStatus,
   employeeInput,
   employeeListQuery,
   employeeUpdateInput,
@@ -17,7 +19,13 @@ import { AppError } from '../../shared/errors.js';
 import { hasPermission, requirePermission, type AuthContext } from '../identity/index.js';
 import type { FieldCrypto } from '../../shared/crypto.js';
 import { employeeScope } from './access.js';
-import { accountOf, createEmployeeAccount, resendInvite, type AccountDeps } from './accounts.js';
+import {
+  accountOf,
+  checkAccountCreation,
+  createEmployeeAccount,
+  resendInvite,
+  type AccountDeps,
+} from './accounts.js';
 import {
   decryptCustomField,
   prepareCustomFields,
@@ -467,6 +475,91 @@ export const createEmployeesRouter = (
           return accountOf(ctx, id);
         });
         res.json({ data });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // إنشاء حسابات بالجملة (دعوة بالبريد) لموظفين محدّدين: معاينة أو تنفيذ، كل موظف داخل SAVEPOINT
+  // Bulk account creation (email invite) for chosen employees: preview or run, each employee in a SAVEPOINT
+  router.post(
+    '/accounts/bulk',
+    requirePermission('employees.employee.update'),
+    requirePermission('identity.user.create_from_employee'),
+    async (req, res, next) => {
+      try {
+        const input = bulkAccountInput.parse(req.body);
+        const ids = [...new Set(input.employeeIds)];
+        const data = await run(req, async (ctx, auth) => {
+          const seen = new Set<string>();
+          const results: {
+            employeeId: string;
+            employeeNo: string | null;
+            name: string | null;
+            email: string | null;
+            status: BulkAccountStatus;
+            reason?: string;
+          }[] = [];
+          for (const id of ids) {
+            let emp: Awaited<ReturnType<typeof loadVisible>>;
+            try {
+              emp = await loadVisible(ctx, auth, id, 'employees.employee.update');
+            } catch {
+              results.push({
+                employeeId: id,
+                employeeNo: null,
+                name: null,
+                email: null,
+                status: 'not_visible',
+              });
+              continue;
+            }
+            const base = { employeeId: id, employeeNo: emp.employeeNo, name: emp.fullNameAr };
+            const chk = await checkAccountCreation(ctx, emp);
+            if (chk.status !== 'ok') {
+              results.push({ ...base, email: chk.email, status: chk.status });
+              continue;
+            }
+            // بريد مكرر داخل الدفعة نفسها / same email twice inside this batch
+            if (chk.email && seen.has(chk.email)) {
+              results.push({ ...base, email: chk.email, status: 'duplicate_email' });
+              continue;
+            }
+            if (chk.email) seen.add(chk.email);
+            if (input.dryRun) {
+              results.push({ ...base, email: chk.email, status: 'ok' });
+              continue;
+            }
+            await sql`savepoint bulk_account`.execute(ctx.trx);
+            try {
+              await createEmployeeAccount(ctx, accountDeps, emp, {
+                delivery: 'invite',
+                ...(input.roleId ? { roleId: input.roleId } : {}),
+              });
+              await sql`release savepoint bulk_account`.execute(ctx.trx);
+              results.push({ ...base, email: chk.email, status: 'created' });
+            } catch (err) {
+              await sql`rollback to savepoint bulk_account`.execute(ctx.trx);
+              results.push({
+                ...base,
+                email: chk.email,
+                status: 'error',
+                reason: err instanceof AppError ? err.message : 'تعذّر إنشاء الحساب',
+              });
+            }
+          }
+          return results;
+        });
+        res.json({
+          data,
+          meta: {
+            dryRun: input.dryRun,
+            total: data.length,
+            created: data.filter((r) => r.status === 'created').length,
+            ok: data.filter((r) => r.status === 'ok').length,
+          },
+        });
       } catch (err) {
         next(err);
       }

@@ -72,6 +72,9 @@ type Props<T extends { id: string }> = {
   fetchAll?: () => Promise<T[]>;
   /** الصفحة لديها زر تصدير خاص */
   hideExport?: boolean;
+  /** تحديد الصفوف: مفعّل عند تمرير الاثنين معاً (مربع في أول كل صف ومربع «تحديد المعروض» في الرأس) */
+  selected?: ReadonlySet<string>;
+  onSelect?: (ids: Set<string>) => void;
 };
 
 export const ActiveBadge = ({ active }: { active: boolean }) => {
@@ -99,6 +102,8 @@ export const DataTable = <T extends { id: string }>({
   onSort,
   fetchAll,
   hideExport,
+  selected,
+  onSelect,
 }: Props<T>) => {
   const { t, i18n } = useTranslation();
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -348,6 +353,26 @@ export const DataTable = <T extends { id: string }>({
         <Table striped highlightOnHover={!!onRowClick} withTableBorder>
           <Table.Thead>
             <Table.Tr>
+              {selected && onSelect && (
+                <Table.Th w={1}>
+                  <Checkbox
+                    aria-label={t('table.selectAll')}
+                    checked={sorted.length > 0 && sorted.every((r) => selected.has(r.id))}
+                    indeterminate={
+                      sorted.some((r) => selected.has(r.id)) &&
+                      !sorted.every((r) => selected.has(r.id))
+                    }
+                    onChange={(e) => {
+                      const next = new Set(selected);
+                      for (const r of sorted) {
+                        if (e.currentTarget.checked) next.add(r.id);
+                        else next.delete(r.id);
+                      }
+                      onSelect(next);
+                    }}
+                  />
+                </Table.Th>
+              )}
               {visible.map((c) => (
                 <Table.Th key={c.key} ta={c.align}>
                   {header(c)}
@@ -363,6 +388,20 @@ export const DataTable = <T extends { id: string }>({
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 style={onRowClick ? { cursor: 'pointer' } : undefined}
               >
+                {selected && onSelect && (
+                  <Table.Td onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      aria-label={t('table.selectRow')}
+                      checked={selected.has(row.id)}
+                      onChange={(e) => {
+                        const next = new Set(selected);
+                        if (e.currentTarget.checked) next.add(row.id);
+                        else next.delete(row.id);
+                        onSelect(next);
+                      }}
+                    />
+                  </Table.Td>
+                )}
                 {visible.map((c) => (
                   <Table.Td
                     key={c.key}

@@ -375,6 +375,8 @@ export const ar = {
     up: 'للأعلى',
   },
   table: {
+    selectAll: 'تحديد كل المعروض',
+    selectRow: 'تحديد الصف',
     columns: 'الأعمدة',
     print: 'طباعة',
     resetColumns: 'إعادة الترتيب الافتراضي',

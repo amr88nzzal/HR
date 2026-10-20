@@ -31,6 +31,7 @@ import {
   type AccountResult,
   type AccountState,
 } from './AccountPanel';
+import { BulkAccountsModal } from './BulkAccountsModal';
 import { enumLabel, enumOptions, StatusBadge, str, useOrgLookups } from './shared';
 
 const PAGE_SIZE = 25;
@@ -85,6 +86,9 @@ export const EmployeesPage = () => {
   const [account, setAccount] = useState<string[]>([]);
   const [opened, { open, close }] = useDisclosure(false);
   const [sort, setSort] = useState<string | undefined>(undefined);
+  // تحديد الموظفين لإنشاء حساباتهم بالجملة / employees selected for bulk account creation
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const filters = {
     q: debounced || undefined,
@@ -214,6 +218,11 @@ export const EmployeesPage = () => {
       <Group justify="space-between">
         <Title order={2}>{t('hr.emp.title')}</Title>
         <Group>
+          {canAccount && can('employees.employee.update') && picked.size > 0 && (
+            <Button variant="light" onClick={() => setBulkOpen(true)}>
+              {t('account.bulk.open', { count: picked.size })}
+            </Button>
+          )}
           {can('employees.employee.create') && (
             <Button
               leftSection={<IconPlus size={16} />}
@@ -296,7 +305,17 @@ export const EmployeesPage = () => {
         sort={sort}
         onSort={setSort}
         fetchAll={() => fetchAllRows<Row>('/employees', { ...filters, sort })}
+        {...(canAccount && can('employees.employee.update')
+          ? { selected: picked, onSelect: setPicked }
+          : {})}
       />
+      {bulkOpen && (
+        <BulkAccountsModal
+          ids={[...picked]}
+          onClose={() => setBulkOpen(false)}
+          onDone={() => setPicked(new Set())}
+        />
+      )}
       <Modal opened={opened} onClose={close} title={t('hr.emp.add')} centered size="lg">
         {opened && canAccount && acct && (
           <Stack mb="md" gap="xs">
