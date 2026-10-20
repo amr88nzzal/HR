@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="نظام شؤون الموظفين">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#134e4a"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fcd34d"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <!-- الشخص الثاني (الفريق) خلف الأول / second person (the team) behind the first -->
+  <circle cx="384" cy="168" r="38" fill="#99f6e4" opacity=".6"/>
+  <path d="M310 334c0-48 28-80 74-80s74 32 74 80z" fill="#99f6e4" opacity=".6"/>
+  <!-- الشخص الرئيسي / main person -->
+  <circle cx="226" cy="176" r="58" fill="#ffffff"/>
+  <path d="M104 408c0-84 52-136 122-136s122 52 122 136z" fill="#ffffff"/>
+  <!-- شارة اعتماد ذهبية / gold approval badge -->
+  <circle cx="360" cy="376" r="48" fill="url(#gold)" stroke="#134e4a" stroke-width="12"/>
+  <path d="M338 377l15 15 29-31" fill="none" stroke="#134e4a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

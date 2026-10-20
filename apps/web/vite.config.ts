@@ -1,8 +1,18 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
+// العنوان العام يلزم مطلقاً في وسوم og:image؛ يمكن تغييره عند البناء بالمتغير VITE_PUBLIC_URL
+// The public URL must be absolute in og:image tags; override at build time with VITE_PUBLIC_URL
+const PUBLIC_URL = (process.env['VITE_PUBLIC_URL'] ?? 'https://hr.amrodev.com').replace(/\/$/, '');
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'public-url-in-html',
+      transformIndexHtml: (html: string) => html.replaceAll('%PUBLIC_URL%', PUBLIC_URL),
+    },
+  ],
   build: {
     rolldownOptions: {
       output: {

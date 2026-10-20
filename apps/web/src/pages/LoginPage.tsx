@@ -46,7 +46,12 @@ export const LoginPage = () => {
             alt=""
             style={{ maxHeight: 60, maxWidth: 220, alignSelf: 'center' }}
             onError={(e) => {
-              e.currentTarget.style.display = 'none';
+              // لا شعار للشركة: نعرض علامة المشروع بدلاً منه / no company logo: show the project mark
+              const img = e.currentTarget;
+              if (img.dataset['fallback']) return;
+              img.dataset['fallback'] = '1';
+              img.src = '/mark.svg';
+              img.style.maxHeight = '64px';
             }}
           />
           <Title order={3}>{t('app.name')}</Title>
