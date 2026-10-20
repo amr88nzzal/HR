@@ -6,6 +6,10 @@ export const adminActionsNavEn = {
 };
 
 export const adminActionsEn = {
+  attachments: 'Attachments',
+  addAttachment: 'Add attachment',
+  noAttachments: 'No attachments',
+  removeAttachment: 'Remove',
   issueLetter: 'Issue letter',
   downloadLetter: 'Download letter',
   letterIssued: 'Letter issued',
