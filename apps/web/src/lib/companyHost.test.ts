@@ -2,15 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { companyFromHost } from './companyHost';
 
 describe('companyFromHost', () => {
-  const base = 'hr.amrodev.com';
-  it('يستخرج رمز الشركة', () => {
-    expect(companyFromHost('acme.hr.amrodev.com', base)).toBe('acme');
-    expect(companyFromHost('ACME.hr.amrodev.com', base)).toBe('acme');
+  it('قالب لاحقة: {company}-hr', () => {
+    const p = '{company}-hr.amrodev.com';
+    expect(companyFromHost('abc-hr.amrodev.com', p)).toBe('abc');
+    expect(companyFromHost('ABC-hr.amrodev.com', p)).toBe('abc');
+    expect(companyFromHost('my-co-hr.amrodev.com', p)).toBe('my-co');
   });
-  it('يتجاهل النطاق الأساسي وغيره', () => {
-    expect(companyFromHost('hr.amrodev.com', base)).toBeUndefined();
-    expect(companyFromHost('localhost', base)).toBeUndefined();
-    expect(companyFromHost('evilhr.amrodev.com', base)).toBeUndefined();
-    expect(companyFromHost('a.b.hr.amrodev.com', base)).toBeUndefined();
+  it('قالب بادئة: hr-{company}', () => {
+    expect(companyFromHost('hr-xyz.amrodev.com', 'hr-{company}.amrodev.com')).toBe('xyz');
+  });
+  it('يتجاهل المضيفات الأخرى', () => {
+    const p = '{company}-hr.amrodev.com';
+    expect(companyFromHost('hr.amrodev.com', p)).toBeUndefined();
+    expect(companyFromHost('localhost', p)).toBeUndefined();
+    expect(companyFromHost('abc-hr.amrodev.com.evil.io', p)).toBeUndefined();
+    expect(companyFromHost('a.b-hr.amrodev.com', p)).toBeUndefined();
+    expect(companyFromHost('abc-hr.amrodev.com', 'no-placeholder.com')).toBeUndefined();
   });
 });
