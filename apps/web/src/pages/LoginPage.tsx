@@ -12,6 +12,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { COMPANY_HOST_PATTERN, companyFromHost } from '../lib/companyHost';
 
 const COMPANY_KEY = 'hr.loginCompany';
 
@@ -20,7 +21,10 @@ export const LoginPage = () => {
   const { login } = useAuth();
   // رمز الشركة: من الرابط أولاً ثم آخر قيمة محفوظة في المتصفح؛ فارغ = الشركة الافتراضية
   // Company code: from the URL first, then the last value saved in the browser; empty = default company
+  // النطاق الفرعي له الأولوية ويُثبَّت الحقل / the subdomain wins and locks the field
+  const hostCompany = companyFromHost(window.location.hostname, COMPANY_HOST_PATTERN);
   const [companyInput, setCompanyInput] = useState(() => {
+    if (hostCompany) return hostCompany;
     const fromUrl = new URLSearchParams(window.location.search).get('company');
     if (fromUrl) return fromUrl;
     try {
@@ -88,6 +92,7 @@ export const LoginPage = () => {
             value={companyInput}
             onChange={(e) => setCompanyInput(e.currentTarget.value)}
             autoComplete="organization"
+            readOnly={!!hostCompany}
             dir="ltr"
           />
           <TextInput
