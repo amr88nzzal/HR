@@ -76,7 +76,7 @@ export const MyAttendancePage = () => {
         )}
       </Group>
       {q.isError && <Alert color="red">{errorMessage(q.error, t)}</Alert>}
-      <SimpleGrid cols={{ base: 2, sm: 4 }}>
+      <SimpleGrid cols={{ base: 2, sm: 5 }}>
         <Card withBorder padding="sm">
           <Text size="sm" c="dimmed">
             {t('attendance.daysPresent')}
@@ -107,6 +107,15 @@ export const MyAttendancePage = () => {
           </Text>
           <Text fz={26} fw={700} dir="ltr" ta="start">
             {hm(sum((d) => d.lateMinutes))}
+          </Text>
+        </Card>
+        {/* مجموع الخروج المبكر بجانب مجموع التأخير / total early leave next to total late */}
+        <Card withBorder padding="sm">
+          <Text size="sm" c="dimmed">
+            {t('attendance.totalEarly')}
+          </Text>
+          <Text fz={26} fw={700} dir="ltr" ta="start">
+            {hm(sum((d) => d.earlyLeaveMinutes))}
           </Text>
         </Card>
       </SimpleGrid>

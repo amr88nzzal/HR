@@ -1314,6 +1314,11 @@ export type LoansTable = Versioned & {
   reason: string | null;
   status: Generated<'active' | 'settled' | 'cancelled'>;
   cancelReason: string | null;
+  settlementMode: 'cash' | null;
+  settlementAmount: Dec | null;
+  settlementReference: string | null;
+  settlementNote: string | null;
+  settledAt: Date | null;
   createdBy: string | null;
 };
 export type LoanInstallmentsTable = {

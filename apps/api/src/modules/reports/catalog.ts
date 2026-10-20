@@ -377,6 +377,13 @@ export const REPORTS: ReportDef[] = [
         { key: 'absent', labelAr: 'غياب', labelEn: 'Absent', type: 'number' },
         { key: 'leave', labelAr: 'إجازة', labelEn: 'Leave', type: 'number' },
         { key: 'lateMinutes', labelAr: 'التأخير (د)', labelEn: 'Late (min)', type: 'number' },
+        // مجموع الخروج المبكر بجانب التأخير / total early leave next to lateness
+        {
+          key: 'earlyLeaveMinutes',
+          labelAr: 'مغادرة مبكرة (د)',
+          labelEn: 'Early leave (min)',
+          type: 'number',
+        },
         { key: 'workedHours', labelAr: 'ساعات العمل', labelEn: 'Worked hours', type: 'number' },
       ],
     },
@@ -387,6 +394,7 @@ export const REPORTS: ReportDef[] = [
              count(*) filter (where coalesce(ad.override_status, ad.status) = 'absent')::int as absent,
              count(*) filter (where coalesce(ad.override_status, ad.status) = 'leave')::int as leave,
              coalesce(sum(ad.late_minutes), 0)::int as late_minutes,
+             coalesce(sum(ad.early_leave_minutes), 0)::int as early_leave_minutes,
              round(coalesce(sum(ad.worked_minutes), 0) / 60.0, 2)::float8 as worked_hours
         from attendance_days ad
         join employees on employees.id = ad.employee_id ${CE}

@@ -597,6 +597,7 @@ export const ar = {
     daysAbsent: 'أيام الغياب',
     totalWorked: 'إجمالي ساعات العمل',
     totalLate: 'إجمالي التأخير',
+    totalEarly: 'إجمالي الخروج المبكر',
     selectEmployee: 'اختر موظفاً (فارغ = حضوري)',
     legend: 'دليل الألوان',
     override: 'تجاوز يدوي',

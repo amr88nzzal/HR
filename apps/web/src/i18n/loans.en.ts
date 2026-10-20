@@ -41,6 +41,18 @@ export const loansEn = {
     INVALID_COUNT: 'Count exceeds remaining installments',
   },
   defer: 'Defer',
+  settle: 'Settle early',
+  settleTitle: 'Settle loan early',
+  settlePayroll: 'From payroll',
+  settleCash: 'Cash payment',
+  settlePayrollHint:
+    'The remaining installments are merged into one, deducted from the chosen month’s salary (within the net cap).',
+  settleCashHint:
+    'The employee paid the rest outside payroll; the loan is closed now and the amount and reference are recorded.',
+  settleMonth: 'Deduction month',
+  settleReference: 'Payment reference (receipt/transfer no.)',
+  settleDone: 'Settled',
+  settledCash: 'Paid in cash',
   cancel: 'Cancel loan',
   cancelReason: 'Cancel reason',
   confirm: 'Confirm',
