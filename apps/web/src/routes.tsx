@@ -1,5 +1,5 @@
 import { Center, Loader } from '@mantine/core';
-import type { ReactElement } from 'react';
+import { lazy, Suspense, type ReactElement } from 'react';
 import {
   createRootRoute,
   createRoute,
@@ -15,55 +15,165 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { VerifyPage } from './pages/VerifyPage';
 import { LoginPage } from './pages/LoginPage';
-import { JobsPage } from './features/admin/JobsPage';
-import { ChannelsPage } from './features/admin/ChannelsPage';
-import { NotificationTemplatesPage } from './features/admin/NotificationTemplatesPage';
-import { ApprovalFlowsPage } from './features/admin/ApprovalFlowsPage';
-import { ApprovalsPage } from './features/approvals/ApprovalsPage';
-import { ApprovalDetailPage } from './features/approvals/ApprovalDetailPage';
-import { DelegationsPage } from './features/approvals/DelegationsPage';
-import { ReportsPage } from './features/reports/ReportsPage';
-import { AdminActionsPage } from './features/adminActions/AdminActionsPage';
-import { AdminActionTypesPage } from './features/adminActions/AdminActionTypesPage';
-import { MyAdminActionsPage } from './features/adminActions/MyAdminActionsPage';
-import { MyPayslipsPage } from './features/payroll/MyPayslipsPage';
-import { MyLeavePage } from './features/leave/MyLeavePage';
-import { BalancesAdminPage } from './features/leave/BalancesAdminPage';
-import { TeamCalendarPage } from './features/leave/TeamCalendarPage';
-import { BalancesReportPage } from './features/leave/BalancesReportPage';
-import { AssignmentsPage } from './features/leave/AssignmentsPage';
-import { MyAttendancePage } from './features/attendance/MyAttendancePage';
-import { DailyBoardPage } from './features/attendance/DailyBoardPage';
-import { PunchEntryPage } from './features/attendance/PunchEntryPage';
-import { AdjustmentsPage } from './features/attendance/AdjustmentsPage';
-import { TemplatesPage } from './features/letters/TemplatesPage';
-import { IssuedPage } from './features/letters/IssuedPage';
-import { LoansPanel } from './features/payroll/LoansPanel';
-import { ShortfallPage } from './features/payroll/ShortfallPage';
-import { BrandPage } from './features/brand/BrandPage';
-import { PeriodPage } from './features/payroll/PeriodPage';
-import { PeriodsPage } from './features/payroll/PeriodsPage';
 import { SetupPage as PayrollSetupPage } from './features/payroll/SetupPage';
-import { ShiftsPage } from './features/attendance/ShiftsPage';
-import { SchedulesPage } from './features/attendance/SchedulesPage';
-import { ImportPage } from './features/attendance/ImportPage';
-import { ImportProfilesPage } from './features/attendance/ImportProfilesPage';
-import { NotificationsPage } from './features/notifications/NotificationsPage';
-import { AuditPage } from './features/AuditPage';
-import { CustomFieldsPage } from './features/admin/CustomFieldsPage';
-import { ExternalSystemsPage } from './features/admin/ExternalSystemsPage';
-import { OrgChartPage } from './features/admin/OrgChartPage';
-import { DocumentsPage } from './features/archive/DocumentsPage';
-import { DocumentTypesPage } from './features/archive/DocumentTypesPage';
-import { EmployeeImportPage } from './features/employees/EmployeeImportPage';
-import { EmployeePage } from './features/employees/EmployeePage';
-import { EmployeesPage } from './features/employees/EmployeesPage';
-import { ResourcePage } from './features/ResourcePage';
-import { RolesPage } from './features/RolesPage';
-import { SettingsPage } from './features/SettingsPage';
-import { UsersPage } from './features/UsersPage';
-import { DashboardPage } from './pages/DashboardPage';
 import { ComingSoonPage, ForbiddenPage, NotFoundPage } from './pages/SimplePages';
+
+// الشاشات تُحمَّل عند أول زيارة (تقسيم الحزمة) / screens load on first visit (code-splitting)
+const JobsPage = lazy(() =>
+  import('./features/admin/JobsPage').then((m) => ({ default: m.JobsPage })),
+);
+const ChannelsPage = lazy(() =>
+  import('./features/admin/ChannelsPage').then((m) => ({ default: m.ChannelsPage })),
+);
+const NotificationTemplatesPage = lazy(() =>
+  import('./features/admin/NotificationTemplatesPage').then((m) => ({
+    default: m.NotificationTemplatesPage,
+  })),
+);
+const ApprovalFlowsPage = lazy(() =>
+  import('./features/admin/ApprovalFlowsPage').then((m) => ({ default: m.ApprovalFlowsPage })),
+);
+const ApprovalsPage = lazy(() =>
+  import('./features/approvals/ApprovalsPage').then((m) => ({ default: m.ApprovalsPage })),
+);
+const ApprovalDetailPage = lazy(() =>
+  import('./features/approvals/ApprovalDetailPage').then((m) => ({
+    default: m.ApprovalDetailPage,
+  })),
+);
+const DelegationsPage = lazy(() =>
+  import('./features/approvals/DelegationsPage').then((m) => ({ default: m.DelegationsPage })),
+);
+const ReportsPage = lazy(() =>
+  import('./features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
+);
+const AdminActionsPage = lazy(() =>
+  import('./features/adminActions/AdminActionsPage').then((m) => ({ default: m.AdminActionsPage })),
+);
+const AdminActionTypesPage = lazy(() =>
+  import('./features/adminActions/AdminActionTypesPage').then((m) => ({
+    default: m.AdminActionTypesPage,
+  })),
+);
+const MyAdminActionsPage = lazy(() =>
+  import('./features/adminActions/MyAdminActionsPage').then((m) => ({
+    default: m.MyAdminActionsPage,
+  })),
+);
+const MyPayslipsPage = lazy(() =>
+  import('./features/payroll/MyPayslipsPage').then((m) => ({ default: m.MyPayslipsPage })),
+);
+const MyLeavePage = lazy(() =>
+  import('./features/leave/MyLeavePage').then((m) => ({ default: m.MyLeavePage })),
+);
+const BalancesAdminPage = lazy(() =>
+  import('./features/leave/BalancesAdminPage').then((m) => ({ default: m.BalancesAdminPage })),
+);
+const TeamCalendarPage = lazy(() =>
+  import('./features/leave/TeamCalendarPage').then((m) => ({ default: m.TeamCalendarPage })),
+);
+const BalancesReportPage = lazy(() =>
+  import('./features/leave/BalancesReportPage').then((m) => ({ default: m.BalancesReportPage })),
+);
+const AssignmentsPage = lazy(() =>
+  import('./features/leave/AssignmentsPage').then((m) => ({ default: m.AssignmentsPage })),
+);
+const MyAttendancePage = lazy(() =>
+  import('./features/attendance/MyAttendancePage').then((m) => ({ default: m.MyAttendancePage })),
+);
+const DailyBoardPage = lazy(() =>
+  import('./features/attendance/DailyBoardPage').then((m) => ({ default: m.DailyBoardPage })),
+);
+const PunchEntryPage = lazy(() =>
+  import('./features/attendance/PunchEntryPage').then((m) => ({ default: m.PunchEntryPage })),
+);
+const AdjustmentsPage = lazy(() =>
+  import('./features/attendance/AdjustmentsPage').then((m) => ({ default: m.AdjustmentsPage })),
+);
+const TemplatesPage = lazy(() =>
+  import('./features/letters/TemplatesPage').then((m) => ({ default: m.TemplatesPage })),
+);
+const IssuedPage = lazy(() =>
+  import('./features/letters/IssuedPage').then((m) => ({ default: m.IssuedPage })),
+);
+const LoansPanel = lazy(() =>
+  import('./features/payroll/LoansPanel').then((m) => ({ default: m.LoansPanel })),
+);
+const ShortfallPage = lazy(() =>
+  import('./features/payroll/ShortfallPage').then((m) => ({ default: m.ShortfallPage })),
+);
+const BrandPage = lazy(() =>
+  import('./features/brand/BrandPage').then((m) => ({ default: m.BrandPage })),
+);
+const PeriodPage = lazy(() =>
+  import('./features/payroll/PeriodPage').then((m) => ({ default: m.PeriodPage })),
+);
+const PeriodsPage = lazy(() =>
+  import('./features/payroll/PeriodsPage').then((m) => ({ default: m.PeriodsPage })),
+);
+const ShiftsPage = lazy(() =>
+  import('./features/attendance/ShiftsPage').then((m) => ({ default: m.ShiftsPage })),
+);
+const SchedulesPage = lazy(() =>
+  import('./features/attendance/SchedulesPage').then((m) => ({ default: m.SchedulesPage })),
+);
+const ImportPage = lazy(() =>
+  import('./features/attendance/ImportPage').then((m) => ({ default: m.ImportPage })),
+);
+const ImportProfilesPage = lazy(() =>
+  import('./features/attendance/ImportProfilesPage').then((m) => ({
+    default: m.ImportProfilesPage,
+  })),
+);
+const NotificationsPage = lazy(() =>
+  import('./features/notifications/NotificationsPage').then((m) => ({
+    default: m.NotificationsPage,
+  })),
+);
+const AuditPage = lazy(() =>
+  import('./features/AuditPage').then((m) => ({ default: m.AuditPage })),
+);
+const CustomFieldsPage = lazy(() =>
+  import('./features/admin/CustomFieldsPage').then((m) => ({ default: m.CustomFieldsPage })),
+);
+const ExternalSystemsPage = lazy(() =>
+  import('./features/admin/ExternalSystemsPage').then((m) => ({ default: m.ExternalSystemsPage })),
+);
+const OrgChartPage = lazy(() =>
+  import('./features/admin/OrgChartPage').then((m) => ({ default: m.OrgChartPage })),
+);
+const DocumentsPage = lazy(() =>
+  import('./features/archive/DocumentsPage').then((m) => ({ default: m.DocumentsPage })),
+);
+const DocumentTypesPage = lazy(() =>
+  import('./features/archive/DocumentTypesPage').then((m) => ({ default: m.DocumentTypesPage })),
+);
+const EmployeeImportPage = lazy(() =>
+  import('./features/employees/EmployeeImportPage').then((m) => ({
+    default: m.EmployeeImportPage,
+  })),
+);
+const EmployeePage = lazy(() =>
+  import('./features/employees/EmployeePage').then((m) => ({ default: m.EmployeePage })),
+);
+const EmployeesPage = lazy(() =>
+  import('./features/employees/EmployeesPage').then((m) => ({ default: m.EmployeesPage })),
+);
+const ResourcePage = lazy(() =>
+  import('./features/ResourcePage').then((m) => ({ default: m.ResourcePage })),
+);
+const RolesPage = lazy(() =>
+  import('./features/RolesPage').then((m) => ({ default: m.RolesPage })),
+);
+const SettingsPage = lazy(() =>
+  import('./features/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
+const UsersPage = lazy(() =>
+  import('./features/UsersPage').then((m) => ({ default: m.UsersPage })),
+);
+const DashboardPage = lazy(() =>
+  import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+);
 
 const Spinner = () => (
   <Center mih="100vh">
@@ -111,7 +221,15 @@ const authRoute = createRoute({
       return <Navigate to="/change-password" />;
     return (
       <AppLayout>
-        <Outlet />
+        <Suspense
+          fallback={
+            <Center mih={240}>
+              <Loader />
+            </Center>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </AppLayout>
     );
   },
