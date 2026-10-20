@@ -343,6 +343,91 @@ const DeferModal = ({
   );
 };
 
+/** تسوية مبكرة: دمج المتبقي في قسط واحد من الراتب، أو سداد نقدي يُغلق السلفة فوراً. */
+const SettleModal = ({ loan, onClose }: { loan: LoanDetail; onClose: () => void }) => {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const now = new Date();
+  const [mode, setMode] = useState<'payroll' | 'cash'>('payroll');
+  const [target, setTarget] = useState(ym(now.getFullYear(), now.getMonth() + 1));
+  const [reason, setReason] = useState('');
+  const [reference, setReference] = useState('');
+  const [y, m] = target.split('-').map(Number);
+  const valid = reason.trim().length >= 2 && (mode === 'cash' || (!!y && !!m && m >= 1 && m <= 12));
+  const save = useMutation({
+    mutationFn: async () =>
+      api.post(
+        `/payroll/loans/${loan.id}/settle`,
+        mode === 'payroll'
+          ? { mode, reason: reason.trim(), targetYear: y, targetMonth: m }
+          : { mode, reason: reason.trim(), reference: reference.trim() || undefined },
+      ),
+    onSuccess: async () => {
+      notifications.show({ color: 'teal', message: t('loans.settleDone') });
+      await qc.invalidateQueries({ queryKey: ['/payroll'] });
+      onClose();
+    },
+    onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
+  });
+  return (
+    <Modal opened onClose={onClose} title={t('loans.settleTitle')} size="md">
+      <Stack>
+        <Text
+          size="sm"
+          dir="ltr"
+          ta="start"
+        >{`${t('loans.remaining')}: ${loan.remaining} ${loan.currency}`}</Text>
+        <SegmentedControl
+          value={mode}
+          onChange={(v) => setMode(v as 'payroll' | 'cash')}
+          data={[
+            { value: 'payroll', label: t('loans.settlePayroll') },
+            { value: 'cash', label: t('loans.settleCash') },
+          ]}
+        />
+        {mode === 'payroll' ? (
+          <>
+            <Text size="sm" c="dimmed">
+              {t('loans.settlePayrollHint')}
+            </Text>
+            <TextInput
+              type="month"
+              dir="ltr"
+              label={t('loans.settleMonth')}
+              value={target}
+              onChange={(e) => setTarget(e.currentTarget.value)}
+            />
+          </>
+        ) : (
+          <>
+            <Text size="sm" c="dimmed">
+              {t('loans.settleCashHint')}
+            </Text>
+            <TextInput
+              label={t('loans.settleReference')}
+              value={reference}
+              onChange={(e) => setReference(e.currentTarget.value)}
+            />
+          </>
+        )}
+        <TextInput
+          label={t('loans.reasonRequired')}
+          value={reason}
+          onChange={(e) => setReason(e.currentTarget.value)}
+        />
+        <Group justify="flex-end">
+          <Button variant="default" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button loading={save.isPending} disabled={!valid} onClick={() => save.mutate()}>
+            {t('loans.confirm')}
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+};
+
 const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
   const { t } = useTranslation();
   const { can } = useAuth();
@@ -356,6 +441,7 @@ const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
     dueMonth: number;
   } | null>(null);
   const [marking, setMarking] = useState<string[] | null>(null);
+  const [settling, setSettling] = useState(false);
   const d = useQuery({
     queryKey: ['/payroll', 'loan', id],
     queryFn: async () => (await api.get<LoanDetail>(`/payroll/loans/${id}`)).data,
@@ -454,6 +540,16 @@ const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
               ))}
             </Table.Tbody>
           </Table>
+          {loan.settlementMode === 'cash' && (
+            <Alert color="teal">
+              {`${t('loans.settledCash')}: ${loan.settlementAmount} ${loan.currency}${loan.settlementReference ? ` — ${loan.settlementReference}` : ''}`}
+            </Alert>
+          )}
+          {manage && loan.status === 'active' && Number(loan.remaining) > 0 && (
+            <Button variant="light" onClick={() => setSettling(true)}>
+              {t('loans.settle')}
+            </Button>
+          )}
           {manage && loan.status === 'active' && (
             <Button
               color="red"
@@ -489,6 +585,7 @@ const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
       {defer && loan && (
         <DeferModal inst={defer} list={loan.installments} onClose={() => setDefer(null)} />
       )}
+      {settling && loan && <SettleModal loan={loan} onClose={() => setSettling(false)} />}
       {marking && <MarkPaidModal ids={marking} onClose={() => setMarking(null)} />}
     </Drawer>
   );

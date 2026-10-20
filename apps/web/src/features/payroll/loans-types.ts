@@ -38,6 +38,11 @@ export type PaymentRow = {
 export type LoanDetail = LoanRow & {
   reason: string | null;
   cancelReason: string | null;
+  settlementMode: 'cash' | null;
+  settlementAmount: string | null;
+  settlementReference: string | null;
+  settlementNote: string | null;
+  settledAt: string | null;
   installments: Installment[];
   payments: PaymentRow[];
 };

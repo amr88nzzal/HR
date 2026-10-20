@@ -53,6 +53,26 @@ export const loanListQuery = z.object({
 });
 
 export const loanCancelInput = z.object({ reason: z.string().trim().min(2).max(300) });
+/**
+ * تسوية مبكرة: `payroll` تدمج الأقساط المتبقية في قسط واحد يُخصم من راتب الشهر المحدد (يخضع لسقف الصافي)،
+ * و`cash` يسدد الموظف المتبقي خارج الرواتب فتُغلق السلفة فوراً ويُسجَّل المبلغ والمرجع.
+ * Early settlement: `payroll` merges the remaining installments into one deducted in the chosen month
+ * (subject to the net cap); `cash` closes the loan at once, recording amount and reference.
+ */
+export const loanSettleInput = z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.literal('payroll'),
+    reason: z.string().trim().min(2).max(300),
+    targetYear: z.number().int().min(2000).max(2100),
+    targetMonth: z.number().int().min(1).max(12),
+  }),
+  z.object({
+    mode: z.literal('cash'),
+    reason: z.string().trim().min(2).max(300),
+    reference: z.string().trim().max(120).optional(),
+  }),
+]);
+export type LoanSettleInput = z.infer<typeof loanSettleInput>;
 export const DEFER_MODES = ['month', 'remaining'] as const;
 /**
  * تأجيل قسط. المبلغ المؤجَّل (افتراضياً كامل القسط) يُلحَق إما بأقساط جديدة تبدأ من شهر محدد

@@ -433,4 +433,47 @@ describe('الرواتب 7c: السلف والأقساط والدفعات', () =
       .reduce((t, x) => t + Number(x.amount), 0);
     expect(sum).toBeCloseTo(1000, 2);
   });
+  it('تسوية مبكرة من الراتب: تُدمج الأقساط المتبقية في قسط واحد بالشهر المختار وتُلغى البقية', async () => {
+    const loan = await newLoan('1200', 4, 9);
+    const url = `/payroll/loans/${loan}/settle`;
+    // التحقق: الشهر مطلوب للدمج والسبب مطلوب
+    expect((await post('admin', url, { mode: 'payroll', reason: 'سداد مبكر' })).status).toBe(400);
+    expect(
+      (await post('hr', url, { mode: 'payroll', reason: 'x1', targetYear: 2026, targetMonth: 10 }))
+        .status,
+    ).toBe(403);
+    const r = await post('admin', url, {
+      mode: 'payroll',
+      reason: 'سداد مبكر',
+      targetYear: 2026,
+      targetMonth: 10,
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.data.status).toBe('active');
+    const d = await loanDetail(loan);
+    const live = d.installments.filter((x: { status: string }) => x.status === 'scheduled');
+    expect(live).toHaveLength(1);
+    expect(Number(live[0].amount)).toBeCloseTo(1200, 2);
+    expect(live[0]).toMatchObject({ dueYear: 2026, dueMonth: 10 });
+    expect(d.installments.filter((x: { status: string }) => x.status === 'cancelled')).toHaveLength(
+      3,
+    );
+  });
+
+  it('تسوية مبكرة بسداد نقدي: تُغلق السلفة فوراً ويُسجَّل المبلغ والمرجع ولا تُسوّى مرتين', async () => {
+    const loan = await newLoan('600', 3, 9);
+    const url = `/payroll/loans/${loan}/settle`;
+    const r = await post('admin', url, { mode: 'cash', reason: 'سدد نقداً', reference: 'REC-77' });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.data).toMatchObject({
+      status: 'settled',
+      settlementMode: 'cash',
+      settlementReference: 'REC-77',
+    });
+    expect(Number(r.body.data.settlementAmount)).toBeCloseTo(600, 2);
+    const d = await loanDetail(loan);
+    expect(d.installments.every((x: { status: string }) => x.status === 'cancelled')).toBe(true);
+    expect(d.payments).toHaveLength(0);
+    expect((await post('admin', url, { mode: 'cash', reason: 'مرة ثانية' })).status).toBe(409);
+  });
 });

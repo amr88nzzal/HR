@@ -95,6 +95,9 @@ describe('شاشات الحضور', () => {
     vi.setSystemTime(new Date(`${ym}-15T12:00:00Z`));
     wrap(<MyAttendancePage />);
     await waitFor(() => expect(screen.getByTestId('attendance-calendar')).toBeTruthy());
+    // مجموع الخروج المبكر يظهر بجانب مجموع التأخير
+    expect(screen.getByText('إجمالي التأخير')).toBeTruthy();
+    expect(screen.getByText('إجمالي الخروج المبكر')).toBeTruthy();
     vi.useRealTimers();
   });
 

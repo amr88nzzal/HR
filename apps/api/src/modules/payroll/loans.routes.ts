@@ -7,6 +7,8 @@ import {
   loanCancelInput,
   loanInput,
   loanListQuery,
+  loanSettleInput,
+  num,
   paymentBulkInput,
   paymentListQuery,
   paymentMarkInput,
@@ -33,7 +35,8 @@ const loanRow = async (ctx: Ctx, id: string) => {
   const { rows } = await sql<Row>`
     select l.id, l.employee_id, e.employee_no, e.full_name_ar as employee_name, l.kind, l.currency,
            l.principal::text as principal, l.installments_count, l.first_year, l.first_month, l.reason,
-           l.status, l.cancel_reason, l.version, l.created_at,
+           l.status, l.cancel_reason, l.version, l.created_at, l.settlement_mode, l.settlement_amount::text as settlement_amount,
+           l.settlement_reference, l.settlement_note, l.settled_at,
            coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id and i.status = 'deducted'), 0)::text as repaid,
            coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id and i.status = 'scheduled'), 0)::text as remaining
       from loans l join employees e on e.id = l.employee_id
@@ -187,6 +190,58 @@ export const createLoansRouter = (db: Db, authenticate: RequestHandler): Router 
           ctx.trx,
         );
         await redo(ctx, ids);
+        return loanRow(ctx, id);
+      });
+      res.json({ data });
+    }),
+  );
+
+  router.post(
+    '/loans/:id/settle',
+    requirePermission(`${L}.manage`),
+    wrap(async (req, res) => {
+      const id = uuid.parse(req.params['id']);
+      const b = loanSettleInput.parse(req.body);
+      const data = await run(req, async (ctx) => {
+        const loan = await loanRow(ctx, id);
+        if (loan['status'] !== 'active')
+          throw new AppError('INVALID_STATE', 409, 'تُسوّى السلفة النشطة فقط');
+        const { rows } = await sql<{ id: string; amount: string }>`
+          select id, amount::text as amount from loan_installments
+           where loan_id = ${id} and status = 'scheduled'
+           order by due_year, due_month, no for update`.execute(ctx.trx);
+        if (!rows.length) throw new AppError('NOTHING_TO_SETTLE', 409, 'لا أقساط متبقية للتسوية');
+        const ids = rows.map((r) => r.id);
+        const total = rows.reduce((a, r) => a.plus(num(r.amount)), num(0)).toFixed(4);
+        // الأقساط داخل مسودات تُفصل وتُحتسب من جديد؛ والمعتمدة/المقفلة ترفض
+        await detachFromDrafts(ctx, ids);
+        if (b.mode === 'payroll') {
+          // تُدمج في أول قسط بشهر الخصم المختار وتُلغى البقية (تُربط به للتتبع)
+          // Merged into the first installment at the chosen month; the rest are cancelled (linked for tracing)
+          const [first, ...rest] = rows;
+          await sql`update loan_installments
+                       set amount = ${total}::numeric, due_year = ${b.targetYear}, due_month = ${b.targetMonth},
+                           deferred_reason = ${b.reason}
+                     where id = ${first!.id}`.execute(ctx.trx);
+          if (rest.length)
+            await sql`update loan_installments
+                         set status = 'cancelled', deferred_reason = ${b.reason}, moved_to_id = ${first!.id}
+                       where id = any(${rest.map((r) => r.id)}::uuid[])`.execute(ctx.trx);
+        } else {
+          await sql`update loan_installments set status = 'cancelled', deferred_reason = ${b.reason}
+                     where id = any(${ids}::uuid[])`.execute(ctx.trx);
+          await sql`update loans
+                       set settlement_mode = 'cash', settlement_amount = ${total}::numeric,
+                           settlement_reference = ${b.reference ?? null}, settlement_note = ${b.reason},
+                           settled_at = now(), version = version + 1
+                     where id = ${id}`.execute(ctx.trx);
+          // دفعة الصرف غير المنفذة بلا معنى بعد إغلاق السلفة
+          await sql`delete from payments where loan_id = ${id} and kind = 'loan' and status = 'pending'`.execute(
+            ctx.trx,
+          );
+        }
+        await redo(ctx, ids);
+        await refreshLoanStatuses(ctx, [id]);
         return loanRow(ctx, id);
       });
       res.json({ data });

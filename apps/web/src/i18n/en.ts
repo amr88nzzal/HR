@@ -606,6 +606,7 @@ export const en: Messages = {
     daysAbsent: 'Days absent',
     totalWorked: 'Total worked',
     totalLate: 'Total late',
+    totalEarly: 'Total early leave',
     selectEmployee: 'Choose an employee (empty = me)',
     legend: 'Legend',
     override: 'Manual override',
