@@ -8,7 +8,7 @@ export type LetterLanguage = (typeof LETTER_LANGUAGES)[number];
 export type VariableKind = 'text' | 'date' | 'code' | 'image' | 'html';
 export type LetterVariable = {
   key: string;
-  group: 'employee' | 'job' | 'contract' | 'company' | 'document';
+  group: 'employee' | 'job' | 'contract' | 'company' | 'document' | 'action';
   kind: VariableKind;
   labelAr: string;
   labelEn: string;
@@ -223,6 +223,48 @@ export const LETTER_VARIABLES: readonly LetterVariable[] = [
     labelAr: 'أصدرها',
     labelEn: 'Issued by',
   },
+  {
+    key: 'action.title',
+    group: 'action',
+    kind: 'text',
+    labelAr: 'عنوان الإجراء الإداري',
+    labelEn: 'Administrative action title',
+  },
+  {
+    key: 'action.type',
+    group: 'action',
+    kind: 'text',
+    labelAr: 'نوع الإجراء الإداري',
+    labelEn: 'Administrative action type',
+  },
+  {
+    key: 'action.description',
+    group: 'action',
+    kind: 'text',
+    labelAr: 'وصف الإجراء الإداري',
+    labelEn: 'Administrative action description',
+  },
+  {
+    key: 'action.date',
+    group: 'action',
+    kind: 'date',
+    labelAr: 'تاريخ الإجراء',
+    labelEn: 'Action date',
+  },
+  {
+    key: 'action.effectiveDate',
+    group: 'action',
+    kind: 'date',
+    labelAr: 'تاريخ سريان الإجراء',
+    labelEn: 'Action effective date',
+  },
+  {
+    key: 'action.amount',
+    group: 'action',
+    kind: 'text',
+    labelAr: 'مبلغ الإجراء (مع العملة)',
+    labelEn: 'Action amount (with currency)',
+  },
 ];
 
 export const LETTER_VARIABLE_KEYS: ReadonlySet<string> = new Set(
@@ -349,10 +391,15 @@ export const letterPreviewInput = z.object({
   employeeId: z.string().uuid(),
 });
 
-export const issueDocumentInput = z.object({
-  templateId: z.string().uuid(),
-  employeeId: z.string().uuid(),
-});
+export const issueDocumentInput = z
+  .object({
+    /** يمكن حذفه عند الإصدار من إجراء إداري: يُؤخذ قالب نوع الإجراء */
+    templateId: z.string().uuid().optional(),
+    employeeId: z.string().uuid(),
+    /** إصدار من إجراء إداري معتمد: تُضاف متغيرات `action.*` ويُربط الخطاب بالإجراء */
+    adminActionId: z.string().uuid().optional(),
+  })
+  .refine((v) => !!v.templateId || !!v.adminActionId, { message: 'templateId required' });
 
 export const revokeDocumentInput = z.object({ reason: z.string().trim().min(1).max(300) });
 

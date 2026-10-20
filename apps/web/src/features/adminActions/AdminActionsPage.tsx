@@ -253,6 +253,30 @@ export const DetailDrawer = ({ id, onClose }: { id: string; onClose: () => void 
     },
     onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
   });
+  const issue = useMutation({
+    mutationFn: async () =>
+      api.post('/issued-documents', { employeeId: q.data?.employeeId, adminActionId: id }),
+    onSuccess: async () => {
+      notifications.show({ color: 'teal', message: t('adminActions.letterIssued') });
+      await qc.invalidateQueries({ queryKey: ['/admin-actions'] });
+      await qc.invalidateQueries({ queryKey: ['/issued-documents'] });
+    },
+    onError: (e) => notifications.show({ color: 'red', message: errorMessage(e, t) }),
+  });
+  // تنزيل الخطاب الصادر / download the issued letter
+  const download = async (docId: string) => {
+    try {
+      const blob = await api.blob(`/issued-documents/${docId}/content`);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${q.data?.title ?? 'letter'}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      notifications.show({ color: 'red', message: errorMessage(e, t) });
+    }
+  };
   const a = q.data;
   const canWrite = can('admin_actions.action.create') || can('admin_actions.action.propose');
   const canCancel =
@@ -308,6 +332,20 @@ export const DetailDrawer = ({ id, onClose }: { id: string; onClose: () => void 
             >
               {t('adminActions.openApproval')}
             </Button>
+          )}
+          {a.status === 'approved' && (
+            <Group>
+              {!a.issuedDocumentId && a.letterTemplateCode && can('letters.document.issue') && (
+                <Button variant="light" loading={issue.isPending} onClick={() => issue.mutate()}>
+                  {t('adminActions.issueLetter')}
+                </Button>
+              )}
+              {a.issuedDocumentId && can('letters.document.read') && (
+                <Button variant="light" onClick={() => void download(a.issuedDocumentId as string)}>
+                  {t('adminActions.downloadLetter')}
+                </Button>
+              )}
+            </Group>
           )}
           <Group>
             {a.status === 'draft' && canWrite && (

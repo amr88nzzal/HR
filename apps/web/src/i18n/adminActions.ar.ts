@@ -1,10 +1,14 @@
 export const adminActionsNavAr = {
+  myNotifications: 'إشعاراتي',
   adminActions: 'الإجراءات الإدارية',
   adminActionTypes: 'أنواع الإجراءات',
   myAdminActions: 'سجلّي الإداري',
 };
 
 export const adminActionsAr = {
+  issueLetter: 'إصدار الخطاب',
+  downloadLetter: 'تنزيل الخطاب',
+  letterIssued: 'صدر الخطاب',
   employeeTabHint: 'سجلّ الإجراءات الإدارية بحق الموظف.',
   employeeEmpty: 'لا توجد إجراءات إدارية لهذا الموظف.',
   recordWarning: 'تسجيل إنذار',

@@ -154,6 +154,7 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/notification-templates': () => <NotificationTemplatesPage />,
   '/me/payslips': () => <MyPayslipsPage />,
   '/me/admin-actions': () => <MyAdminActionsPage />,
+  '/notifications': () => <NotificationsPage />,
   '/admin-actions': () => <AdminActionsPage />,
   '/admin-actions/types': () => <AdminActionTypesPage />,
   '/reports': () => <ReportsPage />,
@@ -211,13 +212,6 @@ const employeeRoute = createRoute({
   },
 });
 
-/** إشعاراتي: صفحة لكل مستخدم بلا صلاحية (تُفتح من الجرس) */
-const notificationsRoute = createRoute({
-  getParentRoute: () => authRoute,
-  path: '/notifications',
-  component: NotificationsPage,
-});
-
 /** تفاصيل طلب موافقة: متاحة لكل مستخدم مسجل (الخادم يقرر الرؤية) */
 const approvalDetailRoute = createRoute({
   getParentRoute: () => authRoute,
@@ -245,7 +239,6 @@ const routeTree = rootRoute.addChildren([
     passwordRoute,
     ...sectionRoutes,
     employeeRoute,
-    notificationsRoute,
     approvalDetailRoute,
     payrollPeriodRoute,
   ]),

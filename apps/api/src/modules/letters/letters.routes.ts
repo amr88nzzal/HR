@@ -25,7 +25,7 @@ import { requirePermission } from '../identity/index.js';
 import { maskName, newVerifyToken, nextDocNumber, qrDataUrl, verifyUrlOf } from './numbering.js';
 import type { Renderer } from './render.js';
 import { loadLetterhead } from '../brand/index.js';
-import { loadLetterValues } from './values.js';
+import { loadActionValues, loadLetterValues } from './values.js';
 
 const idParam = z.object({ id: z.string().uuid() });
 const verParam = z.object({ id: z.string().uuid(), versionId: z.string().uuid() });
@@ -542,7 +542,24 @@ export const createIssuedDocumentsRouter = (
       const body = issueDocumentInput.parse(req.body);
       if (!render) throw new AppError('RENDER_NOT_CONFIGURED', 503, 'خدمة تحويل PDF غير مهيّأة');
       const data = await run(req, async (ctx) => {
-        const t = await loadTemplate(ctx, body.templateId);
+        // إصدار من إجراء إداري: القالب من نوع الإجراء إن لم يُحدَّد
+        // Issuing from an admin action: template comes from the action type when not given
+        let templateId = body.templateId;
+        if (!templateId && body.adminActionId) {
+          const code = (await loadActionValues(ctx, body.adminActionId, body.employeeId, 'ar'))
+            .templateCode;
+          if (!code)
+            throw new AppError('NO_LETTER_TEMPLATE', 409, 'لم يُحدَّد قالب خطاب لنوع هذا الإجراء');
+          const byCode = await ctx.trx
+            .selectFrom('letterTemplates')
+            .select('id')
+            .where('companyId', '=', ctx.companyId)
+            .where('code', '=', code)
+            .executeTakeFirst();
+          if (!byCode) throw new AppError('NOT_FOUND', 404, 'قالب الخطاب المرتبط بالنوع غير موجود');
+          templateId = byCode.id;
+        }
+        const t = await loadTemplate(ctx, templateId as string);
         if (!t.isActive) throw new AppError('TEMPLATE_INACTIVE', 409, 'القالب معطّل');
         if (!t.activeVersionId)
           throw new AppError('NO_ACTIVE_VERSION', 409, 'لا إصدار مفعّل للقالب');
@@ -552,6 +569,11 @@ export const createIssuedDocumentsRouter = (
           .where('id', '=', t.activeVersionId)
           .executeTakeFirstOrThrow();
         const values = await loadLetterValues(ctx, body.employeeId, t.language);
+        if (body.adminActionId)
+          Object.assign(
+            values,
+            (await loadActionValues(ctx, body.adminActionId, body.employeeId, t.language)).values,
+          );
         const docNumber = await nextDocNumber(ctx, t.code);
         const token = newVerifyToken();
         const url = verifyUrlOf(publicUrl, token);
@@ -631,6 +653,13 @@ export const createIssuedDocumentsRouter = (
           })
           .returning('id')
           .executeTakeFirstOrThrow();
+        if (body.adminActionId)
+          await ctx.trx
+            .updateTable('adminActions')
+            .set({ issuedDocumentId: row.id })
+            .where('companyId', '=', ctx.companyId)
+            .where('id', '=', body.adminActionId)
+            .execute();
         return select(ctx).where('d.id', '=', row.id).executeTakeFirstOrThrow();
       });
       res.status(201).json({ data });

@@ -30,6 +30,7 @@ export type ActionRow = {
   category: ActionCategory;
   payrollEffect: 'none' | 'deduction' | 'bonus';
   requiresAcknowledgment: boolean;
+  letterTemplateCode: string | null;
   status: ActionStatus;
   title: string;
   actionDate: string;
