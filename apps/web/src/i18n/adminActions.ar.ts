@@ -6,6 +6,10 @@ export const adminActionsNavAr = {
 };
 
 export const adminActionsAr = {
+  attachments: 'المرفقات',
+  addAttachment: 'إضافة مرفق',
+  noAttachments: 'لا مرفقات',
+  removeAttachment: 'حذف',
   issueLetter: 'إصدار الخطاب',
   downloadLetter: 'تنزيل الخطاب',
   letterIssued: 'صدر الخطاب',

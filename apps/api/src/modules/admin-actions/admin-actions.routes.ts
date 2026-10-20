@@ -1,4 +1,4 @@
-import { Router, type Request, type RequestHandler, type Response } from 'express';
+import express, { Router, type Request, type RequestHandler, type Response } from 'express';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import {
@@ -8,6 +8,7 @@ import {
   adminActionTypeUpdate,
   adminActionUpdate,
   cancelActionInput,
+  MAX_FILE_BYTES,
   typeRulesError,
 } from '@hrms/shared';
 import type { ApprovalEngine } from '../../approvals/index.js';
@@ -15,6 +16,12 @@ import type { Db } from '../../db/index.js';
 import { withTenant, type Ctx } from '../../db/tenant.js';
 import type { Notifier } from '../../notifications/index.js';
 import { AppError } from '../../shared/errors.js';
+import {
+  readStoredFile,
+  saveStoredFile,
+  validateUpload,
+  type FileDeps,
+} from '../../shared/stored-files.js';
 import { parseSort } from '../../shared/sort.js';
 import { assertEmployeeVisible, employeeScope } from '../employees/index.js';
 import { hasPermission, requirePermission, type AuthContext } from '../identity/index.js';
@@ -239,6 +246,7 @@ export const createAdminActionsRouter = (
   authenticate: RequestHandler,
   engine: ApprovalEngine,
   notifier: Notifier,
+  files: FileDeps,
 ): Router => {
   setAdminActionNotifier(notifier);
   const router = Router();
@@ -320,6 +328,146 @@ export const createAdminActionsRouter = (
         return rows[0];
       });
       res.json({ data });
+    }),
+  );
+
+  // ───────────── المرفقات / Attachments ─────────────
+  // الحد الأقصى لعدد مرفقات الإجراء الواحد / max attachments per action
+  const MAX_ATTACHMENTS = 10;
+  const attachmentParams = z.object({ id: uuid, attId: uuid });
+
+  /** يتحقق من أن الإجراء مرئي للمستخدم ضمن نطاقه / checks the action is visible within the user's scope */
+  const assertActionVisible = async (ctx: Ctx, auth: AuthContext, id: string, perm: string) => {
+    const a = await loadAction(ctx, id);
+    await assertEmployeeVisible(ctx, auth, a.employeeId, perm);
+    return a;
+  };
+
+  router.get(
+    '/:id/attachments',
+    requirePermission(A_READ),
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      const auth = req.auth as AuthContext;
+      const data = await run(req, async (ctx) => {
+        await assertActionVisible(ctx, auth, id, A_READ);
+        return ctx.trx
+          .selectFrom('adminActionAttachments as x')
+          .innerJoin('storedFiles as f', 'f.id', 'x.fileId')
+          .select([
+            'x.id',
+            'f.originalName as name',
+            'f.mimeType',
+            'f.sizeBytes',
+            'x.createdAt',
+            'x.uploadedBy',
+          ])
+          .where('x.companyId', '=', ctx.companyId)
+          .where('x.actionId', '=', id)
+          .orderBy('x.createdAt')
+          .execute();
+      });
+      res.json({ data });
+    }),
+  );
+
+  router.post(
+    '/:id/attachments',
+    express.raw({ type: () => true, limit: MAX_FILE_BYTES }),
+    wrap(async (req, res) => {
+      const { id } = idParam.parse(req.params);
+      const auth = req.auth as AuthContext;
+      const perm = writePerm(auth);
+      const body = req.body as unknown;
+      const buf = Buffer.isBuffer(body) ? body : Buffer.alloc(0);
+      const mime = validateUpload(buf);
+      // الاسم من ترويسة X-File-Name (يرسلها عميل الويب مرمَّزة) أو من ?name
+      // File name from X-File-Name (URI-encoded by the web client) or ?name
+      const header = req.header('x-file-name');
+      const rawName = header ? decodeURIComponent(header) : (req.query['name'] ?? 'attachment');
+      const name = z.string().trim().min(1).max(200).parse(rawName);
+      const data = await run(req, async (ctx) => {
+        const a = await assertActionVisible(ctx, auth, id, perm);
+        if (a.status === 'cancelled' || a.status === 'rejected')
+          throw bad('ACTION_CLOSED', 'لا تُرفق ملفات بإجراء ملغى أو مرفوض', 409);
+        const n = await ctx.trx
+          .selectFrom('adminActionAttachments')
+          .select((eb) => eb.fn.countAll<string>().as('n'))
+          .where('companyId', '=', ctx.companyId)
+          .where('actionId', '=', id)
+          .executeTakeFirstOrThrow();
+        if (Number(n.n) >= MAX_ATTACHMENTS)
+          throw bad('TOO_MANY_ATTACHMENTS', `الحد الأقصى ${MAX_ATTACHMENTS} مرفقات للإجراء`, 409);
+        const file = await saveStoredFile(ctx, files, {
+          buffer: buf,
+          mime,
+          originalName: name,
+          purpose: 'admin_action',
+          encrypt: !!files.crypto,
+        });
+        return ctx.trx
+          .insertInto('adminActionAttachments')
+          .values({
+            companyId: ctx.companyId,
+            actionId: id,
+            fileId: file.id,
+            uploadedBy: ctx.userId ?? null,
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+      });
+      res.status(201).json({ data });
+    }),
+  );
+
+  router.get(
+    '/:id/attachments/:attId/content',
+    requirePermission(A_READ),
+    wrap(async (req, res) => {
+      const { id, attId } = attachmentParams.parse(req.params);
+      const auth = req.auth as AuthContext;
+      const file = await run(req, async (ctx) => {
+        await assertActionVisible(ctx, auth, id, A_READ);
+        const f = await ctx.trx
+          .selectFrom('adminActionAttachments as x')
+          .innerJoin('storedFiles as f', 'f.id', 'x.fileId')
+          .selectAll('f')
+          .where('x.companyId', '=', ctx.companyId)
+          .where('x.actionId', '=', id)
+          .where('x.id', '=', attId)
+          .executeTakeFirst();
+        if (!f) throw new AppError('NOT_FOUND', 404, 'المرفق غير موجود');
+        return f;
+      });
+      const bytes = await readStoredFile(files, file);
+      res.setHeader('Content-Type', file.mimeType);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
+      );
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(bytes);
+    }),
+  );
+
+  router.delete(
+    '/:id/attachments/:attId',
+    wrap(async (req, res) => {
+      const { id, attId } = attachmentParams.parse(req.params);
+      const auth = req.auth as AuthContext;
+      const perm = writePerm(auth);
+      await run(req, async (ctx) => {
+        await assertActionVisible(ctx, auth, id, perm);
+        const r = await ctx.trx
+          .deleteFrom('adminActionAttachments')
+          .where('companyId', '=', ctx.companyId)
+          .where('actionId', '=', id)
+          .where('id', '=', attId)
+          .executeTakeFirst();
+        if (!r.numDeletedRows) throw new AppError('NOT_FOUND', 404, 'المرفق غير موجود');
+      });
+      res.status(204).end();
     }),
   );
 
