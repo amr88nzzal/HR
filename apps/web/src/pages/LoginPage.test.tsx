@@ -48,7 +48,8 @@ describe('شاشة الدخول', () => {
   it('يرسل رمز الشركة المكتوب ويتذكّره', async () => {
     const login = vi.fn().mockResolvedValue(undefined);
     localStorage.removeItem('hr.loginCompany');
-    renderLogin(fakeClient({ login }));
+    const get = vi.fn().mockResolvedValue({ data: { id: 'u1', permissions: [] } });
+    renderLogin(fakeClient({ login, get }));
     await userEvent.type(screen.getByLabelText(/رمز الشركة/), ' Acme ');
     await userEvent.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.test');
     await userEvent.type(screen.getByLabelText(/كلمة المرور/), 'secret');
