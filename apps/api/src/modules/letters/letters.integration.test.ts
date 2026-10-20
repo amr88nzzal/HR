@@ -450,4 +450,82 @@ describe('الوثائق الصادرة 6a: قوالب HTML وإصدار PDF', (
     );
     expect((await get('admin', `/issued-documents/${htmlDoc.id}/docx`)).status).toBe(404);
   });
+  it('إصدار خطاب من إجراء إداري معتمد: متغيرات action.* وربط بالإجراء ومنع التكرار وغير المعتمد', async () => {
+    expect(
+      (
+        await post('admin', '/letter-templates', {
+          code: 'WARN-AR',
+          nameAr: 'خطاب إنذار',
+          language: 'ar',
+          bodyHtml:
+            '<p>{{employee.fullName}}: {{action.type}} — {{action.title}} ({{action.date}})</p>',
+        })
+      ).status,
+    ).toBe(201);
+    const type = await admin
+      .insertInto('adminActionTypes')
+      .values({
+        companyId: acme,
+        code: 'warn_letter',
+        nameAr: 'إنذار كتابي',
+        category: 'warning',
+        payrollEffect: 'none',
+        requiresApproval: false,
+        letterTemplateCode: 'WARN-AR',
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const user = await admin
+      .selectFrom('users')
+      .select('id')
+      .where('companyId', '=', acme)
+      .executeTakeFirstOrThrow();
+    const mk = (status: 'approved' | 'draft', title: string) =>
+      admin
+        .insertInto('adminActions')
+        .values({
+          companyId: acme,
+          employeeId: emp,
+          typeId: type.id,
+          title,
+          actionDate: '2026-10-01',
+          effectiveDate: '2026-10-01',
+          status,
+          createdBy: user.id,
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+    const ok = await mk('approved', 'تأخر متكرر');
+    const draft = await mk('draft', 'مسودة');
+    // غير معتمد: مرفوض
+    const d = await post('admin', '/issued-documents', {
+      employeeId: emp,
+      adminActionId: draft.id,
+    });
+    expect(d.status).toBe(409);
+    expect(d.body.error.code).toBe('ACTION_NOT_APPROVED');
+    // معتمد: القالب من نوع الإجراء بلا templateId
+    const before = rendered.length;
+    const r = await post('admin', '/issued-documents', { employeeId: emp, adminActionId: ok.id });
+    expect(r.status).toBe(201);
+    expect(rendered[before]).toContain('تأخر متكرر');
+    expect(rendered[before]).toContain('إنذار كتابي');
+    const linked = await admin
+      .selectFrom('adminActions')
+      .select('issuedDocumentId')
+      .where('id', '=', ok.id)
+      .executeTakeFirstOrThrow();
+    expect(linked.issuedDocumentId).toBe(r.body.data.id);
+    // لا إصدار مكرر
+    const again = await post('admin', '/issued-documents', {
+      employeeId: emp,
+      adminActionId: ok.id,
+    });
+    expect(again.status).toBe(409);
+    expect(again.body.error.code).toBe('LETTER_ALREADY_ISSUED');
+    // الموظف العادي ممنوع
+    expect(
+      (await post('emp', '/issued-documents', { employeeId: emp, adminActionId: ok.id })).status,
+    ).toBe(403);
+  });
 });

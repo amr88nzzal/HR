@@ -229,7 +229,7 @@ const SORT: Record<string, string> = {
 const LIST_COLS = sql`
   a.id, a.employee_id, employees.employee_no, employees.full_name_ar as employee_name,
   a.type_id, t.code as type_code, t.name_ar as type_name, t.category, t.payroll_effect,
-  t.requires_acknowledgment, a.status, a.title, a.action_date::text as action_date,
+  t.requires_acknowledgment, t.letter_template_code, a.status, a.title, a.action_date::text as action_date,
   a.effective_date::text as effective_date, a.amount::text as amount, a.currency,
   a.payroll_year, a.payroll_month, a.applied_period_id, a.approval_request_id,
   a.issued_document_id, a.acknowledged_at, a.created_at, a.version`;

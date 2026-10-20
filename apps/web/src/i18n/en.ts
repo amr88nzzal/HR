@@ -691,6 +691,7 @@ export const en: Messages = {
       contract: 'Contract',
       company: 'Company',
       document: 'Document',
+      action: 'Administrative action',
     },
     versionNote: 'Version note',
     previewWith: 'Preview with employee',

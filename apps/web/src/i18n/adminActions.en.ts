@@ -1,10 +1,14 @@
 export const adminActionsNavEn = {
+  myNotifications: 'My notifications',
   adminActions: 'Administrative actions',
   adminActionTypes: 'Action types',
   myAdminActions: 'My administrative record',
 };
 
 export const adminActionsEn = {
+  issueLetter: 'Issue letter',
+  downloadLetter: 'Download letter',
+  letterIssued: 'Letter issued',
   employeeTabHint: 'Administrative actions recorded for this employee.',
   employeeEmpty: 'No administrative actions for this employee.',
   recordWarning: 'Record warning',

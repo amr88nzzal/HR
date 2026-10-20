@@ -32,7 +32,7 @@ import {
   type VariableDef,
 } from './types';
 
-const GROUPS = ['employee', 'job', 'contract', 'company', 'document'] as const;
+const GROUPS = ['employee', 'job', 'contract', 'company', 'document', 'action'] as const;
 
 /** محرر القالب: HTML مع دليل المتغيرات بأسماء عربية ومعاينة بموظف حقيقي وإصدارات. */
 const Editor = ({ id, onClose }: { id: string | null; onClose: () => void }) => {

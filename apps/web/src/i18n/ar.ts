@@ -681,6 +681,7 @@ export const ar = {
       contract: 'العقد',
       company: 'الشركة',
       document: 'الوثيقة',
+      action: 'الإجراء الإداري',
     },
     versionNote: 'ملاحظة الإصدار',
     previewWith: 'معاينة بالموظف',

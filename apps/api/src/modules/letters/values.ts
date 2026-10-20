@@ -83,3 +83,42 @@ export const loadLetterValues = async (
     'document.issuedBy': issuer ?? null,
   };
 };
+
+/**
+ * متغيرات الإجراء الإداري (`action.*`) لإصدار خطاب منه، ويتحقق أنه معتمد وللموظف نفسه.
+ * Variables of an administrative action (`action.*`) for issuing a letter from it; checks it is approved and belongs to the employee.
+ */
+export const loadActionValues = async (
+  ctx: Ctx,
+  actionId: string,
+  employeeId: string,
+  language: LetterLanguage,
+): Promise<{ values: Record<string, string | null>; templateCode: string | null }> => {
+  const { rows } = await sql<Row>`
+    select a.status, a.employee_id, a.title, a.description, a.issued_document_id,
+           a.action_date::text as action_date, a.effective_date::text as effective_date,
+           a.amount::text as amount, a.currency,
+           t.name_ar, t.name_en, t.letter_template_code
+      from admin_actions a join admin_action_types t on t.id = a.type_id
+     where a.company_id = ${ctx.companyId} and a.id = ${actionId}`.execute(ctx.trx);
+  const r = rows[0];
+  if (!r) throw new AppError('NOT_FOUND', 404, 'الإجراء الإداري غير موجود');
+  if (r['employeeId'] !== employeeId)
+    throw new AppError('INVALID_REFERENCE', 400, 'الإجراء لا يخص هذا الموظف');
+  if (r['status'] !== 'approved')
+    throw new AppError('ACTION_NOT_APPROVED', 409, 'لا يُصدر خطاب إلا لإجراء معتمد');
+  if (r['issuedDocumentId'])
+    throw new AppError('LETTER_ALREADY_ISSUED', 409, 'صدر خطاب لهذا الإجراء مسبقاً');
+  const en = language === 'en';
+  return {
+    templateCode: r['letterTemplateCode'] ?? null,
+    values: {
+      'action.title': r['title'] ?? null,
+      'action.type': (en ? r['nameEn'] || r['nameAr'] : r['nameAr'] || r['nameEn']) ?? null,
+      'action.description': r['description'] ?? null,
+      'action.date': r['actionDate'] ?? null,
+      'action.effectiveDate': r['effectiveDate'] ?? null,
+      'action.amount': r['amount'] ? `${r['amount']} ${r['currency'] ?? ''}`.trim() : null,
+    },
+  };
+};
