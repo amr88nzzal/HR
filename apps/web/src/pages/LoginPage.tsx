@@ -13,10 +13,23 @@ import { useTranslation } from 'react-i18next';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 
+const COMPANY_KEY = 'hr.loginCompany';
+
 export const LoginPage = () => {
   const { t, i18n } = useTranslation();
   const { login } = useAuth();
-  const company = new URLSearchParams(window.location.search).get('company') ?? undefined;
+  // رمز الشركة: من الرابط أولاً ثم آخر قيمة محفوظة في المتصفح؛ فارغ = الشركة الافتراضية
+  // Company code: from the URL first, then the last value saved in the browser; empty = default company
+  const [companyInput, setCompanyInput] = useState(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get('company');
+    if (fromUrl) return fromUrl;
+    try {
+      return localStorage.getItem(COMPANY_KEY) ?? '';
+    } catch {
+      return '';
+    }
+  });
+  const company = companyInput.trim().toLowerCase() || undefined;
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +41,12 @@ export const LoginPage = () => {
     setError(null);
     try {
       await login({ identifier: identifier.trim(), password, company });
+      try {
+        if (company) localStorage.setItem(COMPANY_KEY, company);
+        else localStorage.removeItem(COMPANY_KEY);
+      } catch {
+        /* التخزين غير متاح / storage unavailable */
+      }
     } catch (err) {
       const code = err instanceof ApiError ? err.code : 'generic';
       const key = `login.errors.${code}`;
@@ -64,13 +83,20 @@ export const LoginPage = () => {
             </Alert>
           )}
           <TextInput
+            label={t('login.company')}
+            description={t('login.companyHint')}
+            value={companyInput}
+            onChange={(e) => setCompanyInput(e.currentTarget.value)}
+            autoComplete="organization"
+            dir="ltr"
+          />
+          <TextInput
             label={t('login.identifier')}
             value={identifier}
             onChange={(e) => setIdentifier(e.currentTarget.value)}
             autoComplete="username"
             dir="ltr"
             required
-            autoFocus
           />
           <PasswordInput
             label={t('login.password')}

@@ -24,9 +24,10 @@ export const ar = {
   },
   login: {
     title: 'تسجيل الدخول',
+    company: 'رمز الشركة',
+    companyHint: 'اتركه فارغاً للشركة الافتراضية',
     identifier: 'البريد الإلكتروني أو اسم المستخدم',
     password: 'كلمة المرور',
-    company: 'رمز الشركة',
     submit: 'دخول',
     errors: {
       INVALID_CREDENTIALS: 'بيانات الدخول غير صحيحة',

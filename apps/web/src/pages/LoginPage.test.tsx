@@ -44,4 +44,24 @@ describe('شاشة الدخول', () => {
     await userEvent.click(screen.getByRole('button', { name: 'دخول' }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('مقفل'));
   });
+
+  it('يرسل رمز الشركة المكتوب ويتذكّره', async () => {
+    const login = vi.fn().mockResolvedValue(undefined);
+    localStorage.removeItem('hr.loginCompany');
+    const get = vi.fn().mockResolvedValue({ data: { id: 'u1', permissions: [] } });
+    renderLogin(fakeClient({ login, get }));
+    await userEvent.type(screen.getByLabelText(/رمز الشركة/), ' Acme ');
+    await userEvent.type(screen.getByLabelText(/البريد الإلكتروني/), 'a@b.test');
+    await userEvent.type(screen.getByLabelText(/كلمة المرور/), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'دخول' }));
+    await waitFor(() =>
+      expect(login).toHaveBeenCalledWith({
+        identifier: 'a@b.test',
+        password: 'secret',
+        company: 'acme',
+      }),
+    );
+    await waitFor(() => expect(localStorage.getItem('hr.loginCompany')).toBe('acme'));
+    localStorage.removeItem('hr.loginCompany');
+  });
 });

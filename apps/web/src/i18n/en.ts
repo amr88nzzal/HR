@@ -26,9 +26,10 @@ export const en: Messages = {
   },
   login: {
     title: 'Sign in',
+    company: 'Company code',
+    companyHint: 'Leave empty for the default company',
     identifier: 'Email or username',
     password: 'Password',
-    company: 'Company code',
     submit: 'Sign in',
     errors: {
       INVALID_CREDENTIALS: 'Incorrect sign-in details',
