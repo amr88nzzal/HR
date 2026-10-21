@@ -99,6 +99,7 @@ describe('البيانات التجريبية', () => {
       'payslips:done',
       'reports:done',
       'brand:done',
+      'payslipTemplates:done',
       'adminActions:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
@@ -221,6 +222,10 @@ describe('البيانات التجريبية', () => {
     // الهوية البصرية: نصوص بلغتين وقالبا الشهادة يستعملان الترويسة
     expect(await n('company_brand')).toBe(1);
     expect(await n('letter_templates', sql`use_letterhead`)).toBe(2);
+
+    // قوالب القسيمة: ثلاثة تصاميم جاهزة وواحد افتراضي
+    expect(await n('payslip_templates')).toBe(3);
+    expect(await n('payslip_templates', sql`is_default`)).toBe(1);
 
     // قسائم منشورة: دورة مقفلة سابقة للدورة التجريبية، قسائمها تظهر للموظف
     expect(await n('payroll_periods', sql`status = 'locked'`)).toBe(1);

@@ -926,6 +926,15 @@ export type OvertimeRequestsTable = Versioned & {
   updatedAt: Generated<Date>;
 };
 
+export type PayslipTemplatesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  nameAr: string;
+  nameEn: string | null;
+  config: ColumnType<Record<string, unknown>, string, string>;
+  isDefault: Generated<boolean>;
+};
+
 export type LetterTemplatesTable = Versioned & {
   id: Generated<string>;
   companyId: string;
@@ -1493,6 +1502,7 @@ export type Database = {
   attendanceRecords: AttendanceRecordsTable;
   attendanceDays: AttendanceDaysTable;
   letterTemplates: LetterTemplatesTable;
+  payslipTemplates: PayslipTemplatesTable;
   letterTemplateVersions: LetterTemplateVersionsTable;
   issuedDocuments: IssuedDocumentsTable;
   payrollBases: PayrollBasesTable;

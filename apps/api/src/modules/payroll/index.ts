@@ -5,6 +5,7 @@ import { createCrudRouter, type CrudConfig } from '../org/index.js';
 import { createLoansRouter } from './loans.routes.js';
 import type { PdfDeps } from './payslip-pdf.routes.js';
 import { createMyPayslipsRouter, createPayslipPdfRouter } from './payslip-pdf.routes.js';
+import { createPayslipTemplatesRouter } from './payslip-templates.routes.js';
 import { createRunsRouter, type RunsDeps } from './runs.routes.js';
 import { createShortfallRouter } from './shortfall.routes.js';
 import { createSalariesRouter } from './salaries.routes.js';
@@ -35,6 +36,7 @@ export const mountPayrollRoutes = (
   deps: RunsDeps & PdfDeps,
 ): void => {
   // الأخصّ أولاً: مسارات الدورات والقسائم ثم CRUD المجموعات والأسباب ثم الإعداد
+  api.use('/payroll/payslip-templates', createPayslipTemplatesRouter(db, authenticate, deps.files));
   api.use('/payroll', createPayslipPdfRouter(db, authenticate, deps));
   api.use('/me/payslips', createMyPayslipsRouter(db, authenticate, deps));
   api.use('/payroll', createRunsRouter(db, authenticate, deps));

@@ -1,3 +1,4 @@
+import { payslipDesignAr } from './payslipDesign.ar';
 import { platformAr } from './platform.ar';
 import { adminActionsNavAr, adminActionsAr } from './adminActions.ar';
 import { brandAr } from './brand.ar';
@@ -24,6 +25,7 @@ export const ar = {
     comingSoon: 'هذه الشاشة قيد التطوير',
   },
   platform: platformAr,
+  payslipDesign: payslipDesignAr,
   login: {
     title: 'تسجيل الدخول',
     company: 'رمز الشركة',

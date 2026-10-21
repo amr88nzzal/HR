@@ -9,13 +9,8 @@ import type { FileDeps } from '../../shared/stored-files.js';
 import { employeeScope } from '../employees/index.js';
 import { requirePermission } from '../identity/index.js';
 import type { Renderer } from '../letters/index.js';
-import {
-  buildPayslipHtml,
-  companyLang,
-  loadPayslipDoc,
-  type Lang,
-  type PayslipDoc,
-} from './payslip-doc.js';
+import { loadPayslipDoc, type Lang, type PayslipDoc } from './payslip-doc.js';
+import { buildPayslipHtml } from './payslip-html.js';
 import { makeRun } from './setup.routes.js';
 
 type Row = Record<string, unknown>;
@@ -49,7 +44,7 @@ const fileName = (d: PayslipDoc) =>
   `payslip-${(d.employeeNo ?? d.employeeId).replace(/[^A-Za-z0-9_-]/g, '_')}-${d.year}-${String(d.month).padStart(2, '0')}.pdf`;
 
 /** PDF القسيمة يُولَّد عند الطلب (لا يُخزَّن) فيطابق دائماً الأرقام الحالية والترويسة الحالية. */
-const pdfOf = async (ctx: Ctx, deps: PdfDeps, d: PayslipDoc, lang: Lang): Promise<Buffer> =>
+const pdfOf = async (ctx: Ctx, deps: PdfDeps, d: PayslipDoc, lang?: Lang): Promise<Buffer> =>
   needRender(deps)(await buildPayslipHtml(ctx, deps.files, d, lang));
 
 /** HR: /payroll/payslips/:id/pdf و/payroll/periods/:id/payslips.zip */
@@ -78,7 +73,7 @@ export const createPayslipPdfRouter = (
           if (!ok.rows.length) throw notFound();
         }
         const d = await loadPayslipDoc(ctx, id);
-        const pdf = await pdfOf(ctx, deps, d, q.lang ?? (await companyLang(ctx)));
+        const pdf = await pdfOf(ctx, deps, d, q.lang);
         return { pdf, name: fileName(d) };
       });
       sendPdf(res, out.pdf, out.name);
@@ -101,7 +96,6 @@ export const createPayslipPdfRouter = (
         if (!rows.length) throw new AppError('NOT_FOUND', 404, 'لا قسائم في الدورة');
         if (rows.length > MAX_ZIP)
           throw new AppError('TOO_MANY', 409, `الحد الأقصى ${MAX_ZIP} قسيمة في الملف الواحد`);
-        const lang = q.lang ?? (await companyLang(ctx));
         const zip = new PizZip();
         const used = new Set<string>();
         for (const r of rows) {
@@ -109,7 +103,7 @@ export const createPayslipPdfRouter = (
           let name = fileName(d);
           for (let n = 2; used.has(name); n++) name = name.replace(/(\.pdf)$/, `-${n}$1`);
           used.add(name);
-          zip.file(name, await pdfOf(ctx, deps, d, lang));
+          zip.file(name, await pdfOf(ctx, deps, d, q.lang));
         }
         return zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' });
       });
@@ -190,7 +184,7 @@ export const createMyPayslipsRouter = (
       const out = await run(req, async (ctx) => {
         const d = await mine(ctx, auth.userId, id);
         return {
-          pdf: await pdfOf(ctx, deps, d, q.lang ?? (await companyLang(ctx))),
+          pdf: await pdfOf(ctx, deps, d, q.lang),
           name: fileName(d),
         };
       });
