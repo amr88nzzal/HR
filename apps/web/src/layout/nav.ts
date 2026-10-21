@@ -241,6 +241,12 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         permission: 'payroll.component.read',
       },
       {
+        key: 'payslipDesign',
+        path: '/payroll/payslip-design',
+        icon: IconFileDescription,
+        permission: 'payroll.payslip_template.read',
+      },
+      {
         key: 'payrollPeriods',
         path: '/payroll/periods',
         icon: IconCash,

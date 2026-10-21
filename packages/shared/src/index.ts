@@ -44,3 +44,4 @@ export * from './loan.js';
 export * from './brand.js';
 export * from './tables.js';
 export * from './admin-actions.js';
+export * from './payslip-template.js';

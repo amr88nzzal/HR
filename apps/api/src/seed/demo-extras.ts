@@ -27,7 +27,7 @@ import {
   runLeaveMaintenance,
   submitRequest,
 } from '../modules/leave/index.js';
-import { buildSchedule } from '@hrms/shared';
+import { buildSchedule, PAYSLIP_PRESETS } from '@hrms/shared';
 import { ensureDefaultTypes } from '../modules/admin-actions/index.js';
 import { createNotifier } from '../notifications/index.js';
 import type { FieldCrypto } from '../shared/crypto.js';
@@ -50,6 +50,7 @@ export type ExtrasPart =
   | 'payslips'
   | 'reports'
   | 'brand'
+  | 'payslipTemplates'
   | 'accounts'
   | 'adminActions';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
@@ -1722,6 +1723,42 @@ const seedLoans = async (ctx: Ctx): Promise<string | undefined> => {
 };
 
 // ───────────────────────── 14) الهوية البصرية (B) ─────────────────────────
+/** قوالب القسيمة: التصاميم الجاهزة الثلاثة، والجانبي هو المستعمل لإظهار الفرق / the three ready designs; side-by-side is the default */
+const seedPayslipTemplates = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('payslipTemplates')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('nameAr', 'like', `${DEMO_PREFIX}%`)
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  const defs = [
+    ['stacked', 'عمودي مبسّط', 'Simple stacked', false],
+    ['side_by_side', 'جانبي (دخل | اقتطاعات)', 'Side by side', true],
+    ['detailed', 'مفصّل (تراكمي وتوقيع)', 'Detailed', false],
+  ] as const;
+  const hasDefault = await trx
+    .selectFrom('payslipTemplates')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('isDefault', '=', true)
+    .executeTakeFirst();
+  for (const [preset, ar, en, def] of defs)
+    await trx
+      .insertInto('payslipTemplates')
+      .values({
+        companyId,
+        nameAr: `${DEMO_PREFIX} ${ar}`,
+        nameEn: `${DEMO_PREFIX} ${en}`,
+        config: JSON.stringify(PAYSLIP_PRESETS[preset]),
+        // لا نزاحم افتراضياً اختاره المستخدم فعلاً / never override a default the user already chose
+        isDefault: def && !hasDefault,
+      })
+      .execute();
+  return undefined;
+};
+
 const seedBrand = async (ctx: Ctx): Promise<string | undefined> => {
   const { trx, companyId } = ctx;
   const marker = await trx
@@ -1979,6 +2016,7 @@ export const seedDemoExtras = async (
     ['payslips', (ctx) => seedPublishedPayslips(ctx)],
     ['reports', (ctx) => seedReports(ctx)],
     ['brand', (ctx) => seedBrand(ctx)],
+    ['payslipTemplates', (ctx) => seedPayslipTemplates(ctx)],
     ['adminActions', (ctx) => seedAdminActions(ctx)],
   ];
   for (const [part, fn] of parts) {

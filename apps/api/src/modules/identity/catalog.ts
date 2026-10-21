@@ -73,6 +73,8 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('payroll', 'period', 'lock', 'قفل دورة الرواتب'),
   def('payroll', 'period', 'reopen', 'إعادة فتح دورة رواتب مقفلة'),
   def('payroll', 'payslip', 'read', 'عرض قسائم الرواتب'),
+  def('payroll', 'payslip_template', 'read', 'عرض قوالب تصميم القسيمة'),
+  def('payroll', 'payslip_template', 'manage', 'إنشاء قوالب القسيمة وتعديلها وتعيين الافتراضي'),
   def('payroll', 'payslip', 'override', 'تجاوز بنود القسيمة يدوياً'),
   def('payroll', 'input', 'read', 'عرض مدخلات الرواتب اليدوية'),
   def('payroll', 'input', 'manage', 'إدارة مدخلات الرواتب اليدوية'),

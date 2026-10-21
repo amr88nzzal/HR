@@ -6,6 +6,7 @@ export const payrollNavAr = {
   brand: 'الهوية البصرية',
   payrollShortfall: 'نقص الدوام',
   payrollLoans: 'قروض وسلف',
+  payslipDesign: 'تصميم القسيمة',
   myPayslips: 'قسائم راتبي',
   reportsCenter: 'التقارير',
 };

@@ -1,3 +1,4 @@
+import { payslipDesignEn } from './payslipDesign.en';
 import { helpEn } from './help.en';
 import { platformEn } from './platform.en';
 import { adminActionsNavEn, adminActionsEn } from './adminActions.en';
@@ -27,6 +28,7 @@ export const en: Messages = {
     comingSoon: 'This screen is under development',
   },
   platform: platformEn,
+  payslipDesign: payslipDesignEn,
   help: helpEn,
   login: {
     title: 'Sign in',

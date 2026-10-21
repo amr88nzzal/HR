@@ -6,6 +6,7 @@ export const payrollNavEn = {
   brand: 'Branding',
   payrollShortfall: 'Shortfall',
   payrollLoans: 'Loans & advances',
+  payslipDesign: 'Payslip design',
   myPayslips: 'My payslips',
   reportsCenter: 'Reports',
 };
