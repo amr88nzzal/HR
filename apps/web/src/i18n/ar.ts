@@ -1,3 +1,4 @@
+import { helpAr } from './help.ar';
 import { platformAr } from './platform.ar';
 import { adminActionsNavAr, adminActionsAr } from './adminActions.ar';
 import { brandAr } from './brand.ar';
@@ -24,6 +25,7 @@ export const ar = {
     comingSoon: 'هذه الشاشة قيد التطوير',
   },
   platform: platformAr,
+  help: helpAr,
   login: {
     title: 'تسجيل الدخول',
     company: 'رمز الشركة',
@@ -56,6 +58,7 @@ export const ar = {
     ...hrNavAr,
     ...payrollNavAr,
     ...adminActionsNavAr,
+    help: 'دليل الاستخدام',
     dashboard: 'الرئيسية',
     org: 'الهيكل التنظيمي',
     branches: 'الفروع',

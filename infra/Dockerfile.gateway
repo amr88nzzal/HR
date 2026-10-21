@@ -9,6 +9,8 @@ COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile --filter @hrms/web...
 COPY packages/shared packages/shared
 COPY apps/web apps/web
+# مقالات الدليل تُضمَّن في الحزمة (apps/web/src/features/help) / guide articles are bundled into the web build
+COPY docs/guide docs/guide
 RUN pnpm --filter @hrms/web build
 
 FROM ${NGINX_IMAGE}

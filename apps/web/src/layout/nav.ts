@@ -3,6 +3,7 @@ import {
   IconBuilding,
   IconBuildingBank,
   IconHome,
+  IconHelpCircle,
   IconHistory,
   IconListCheck,
   IconMailCog,
@@ -62,6 +63,8 @@ export const NAV: (NavLeaf | NavGroup)[] = [
   { key: 'myNotifications', path: '/notifications', icon: IconBell },
   /** بلا صلاحية: يرى الموظف إجراءاته المعتمدة فقط (تُقيَّد في الخادم) */
   { key: 'myAdminActions', path: '/me/admin-actions', icon: IconListCheck },
+  /** بلا صلاحية: الدليل المكتوب لكل الأدوار */
+  { key: 'help', path: '/help', icon: IconHelpCircle },
   /** بلا صلاحية: القائمة نفسها تُحجب في الخادم حسب صلاحيات المستخدم */
   { key: 'reportsCenter', path: '/reports', icon: IconReportAnalytics },
   {
