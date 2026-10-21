@@ -5,6 +5,8 @@ roles: hr, admin
 order: 80
 ---
 
+![دورات الرواتب](images/payroll-periods.png)
+
 **متى أحتاج هذا؟** كل شهر عند إعداد الرواتب.
 
 ## الخطوات

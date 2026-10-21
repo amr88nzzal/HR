@@ -5,6 +5,8 @@ roles: employee, manager, hr, admin
 order: 35
 ---
 
+![شاشة الإشعارات](images/notifications.png)
+
 **متى أحتاج هذا؟** لتصلك الموافقات والقسائم والتنبيهات على هاتفك.
 
 ## الإشعارات داخل النظام
