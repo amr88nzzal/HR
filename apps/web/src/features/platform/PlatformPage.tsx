@@ -293,8 +293,12 @@ export const PlatformPage = () => {
     );
 
   const editing = modal && modal !== 'create' ? modal : null;
-  const set = (k: keyof FormState) => (e: { currentTarget: { value: string } }) =>
-    setForm((f) => ({ ...f, [k]: e.currentTarget.value }));
+  // نقرأ القيمة قبل دالة التحديث: currentTarget يصير null بعد انتهاء معالج الحدث
+  // Read the value before the updater: currentTarget becomes null once the event handler returns
+  const set = (k: keyof FormState) => (e: { currentTarget: { value: string } }) => {
+    const value = e.currentTarget.value;
+    setForm((f) => ({ ...f, [k]: value }));
+  };
 
   return (
     <Stack p="md" maw={1100} mx="auto">
