@@ -22,6 +22,9 @@ import { ComingSoonPage, ForbiddenPage, NotFoundPage } from './pages/SimplePages
 const PlatformPage = lazy(() =>
   import('./features/platform/PlatformPage').then((m) => ({ default: m.PlatformPage })),
 );
+const PayslipDesignPage = lazy(() =>
+  import('./features/payroll/PayslipDesignPage').then((m) => ({ default: m.PayslipDesignPage })),
+);
 const JobsPage = lazy(() =>
   import('./features/admin/JobsPage').then((m) => ({ default: m.JobsPage })),
 );
@@ -263,6 +266,9 @@ const passwordRoute = createRoute({
 });
 
 /** كل مسار قائمة يرتبط بشاشته؛ الحماية بالصلاحية على المسار نفسه (403 بدل الشاشة). */
+/** مسارات الشاشات المسجّلة (للاختبار: لا عنصر قائمة بلا شاشة) / registered screen paths (for the test: no nav item without a screen) */
+export const screenPaths = (): string[] => Object.keys(screens);
+
 const screens: Record<string, () => ReactElement> = {
   '/org/branches': () => <ResourcePage resourceKey="branches" />,
   '/org/departments': () => <ResourcePage resourceKey="departments" />,
@@ -287,6 +293,7 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/channels': () => <ChannelsPage />,
   '/admin/notification-templates': () => <NotificationTemplatesPage />,
   '/me/payslips': () => <MyPayslipsPage />,
+  '/payroll/payslip-design': () => <PayslipDesignPage />,
   '/me/admin-actions': () => <MyAdminActionsPage />,
   '/notifications': () => <NotificationsPage />,
   '/admin-actions': () => <AdminActionsPage />,
