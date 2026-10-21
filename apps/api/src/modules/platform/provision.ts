@@ -1,5 +1,5 @@
 import type { Ctx } from '../../db/tenant.js';
-import { seedDefaultExternalSystems } from '../employees/external.routes.js';
+import { seedDefaultExternalSystems } from '../employees/index.js';
 import { hashPassword, seedDefaultRoles } from '../identity/index.js';
 
 /**
