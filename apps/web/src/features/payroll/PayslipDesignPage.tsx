@@ -6,7 +6,6 @@ import {
   ColorInput,
   Group,
   MultiSelect,
-  NavLink,
   NumberInput,
   Paper,
   Select,
@@ -19,7 +18,7 @@ import {
   Textarea,
   Title,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useElementSize } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -58,6 +57,41 @@ const fullOrder = (enabled: PayslipSection[]): PayslipSection[] => [
   ...enabled,
   ...PAYSLIP_SECTIONS.filter((s) => !enabled.includes(s)),
 ];
+
+const PAGE_W = 794; // عرض A4 بالبكسل (96dpi) / A4 width in px
+const PAGE_H = 1123;
+
+/** معاينة بعرض A4 الحقيقي مصغّرة لتناسب العمود، فتطابق الطباعة / A4-width preview scaled to fit, so it matches print */
+const ScaledPreview = ({ html, title }: { html: string; title: string }) => {
+  const { ref, width } = useElementSize();
+  const scale = width ? Math.min(1, width / PAGE_W) : 1;
+  return (
+    <div
+      ref={ref}
+      dir="ltr"
+      style={{
+        width: '100%',
+        height: PAGE_H * scale,
+        overflow: 'hidden',
+        border: '1px solid #ccc',
+        background: '#fff',
+      }}
+    >
+      <iframe
+        title={title}
+        sandbox=""
+        srcDoc={html}
+        style={{
+          width: PAGE_W,
+          height: PAGE_H,
+          border: 0,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+        }}
+      />
+    </div>
+  );
+};
 
 /** تصميم قسيمة الراتب: قوالب منظَّمة بمعاينة حيّة (انظر docs/guide/articles/payslip-template.md). */
 export const PayslipDesignPage = () => {
@@ -154,46 +188,55 @@ export const PayslipDesignPage = () => {
       <Text size="sm" c="dimmed">
         {t('payslipDesign.hint')}
       </Text>
-      <SimpleGrid cols={{ base: 1, md: 12 }}>
-        <Stack style={{ gridColumn: 'span 3' }}>
-          <Text fw={600}>{t('payslipDesign.templates')}</Text>
-          <NavLink
-            label={t('payslipDesign.builtin')}
-            rightSection={!hasDefault ? <Badge size="xs">{t('payslipDesign.active')}</Badge> : null}
-            active={false}
-            disabled
+      <Group gap="xs" align="flex-end" wrap="wrap">
+        <Button
+          variant="default"
+          size="xs"
+          disabled
+          rightSection={!hasDefault ? <Badge size="xs">{t('payslipDesign.active')}</Badge> : null}
+        >
+          {t('payslipDesign.builtin')}
+        </Button>
+        {templates.map((tp) => (
+          <Button
+            key={tp.id}
+            size="xs"
+            variant={draft?.id === tp.id ? 'filled' : 'light'}
+            onClick={() => open(tp)}
+            rightSection={
+              tp.isDefault ? (
+                <Badge size="xs" color="yellow">
+                  {t('payslipDesign.active')}
+                </Badge>
+              ) : null
+            }
+          >
+            {tp.nameAr}
+          </Button>
+        ))}
+        {canManage && (
+          <Select
+            size="xs"
+            w={240}
+            placeholder="…"
+            aria-label={t('payslipDesign.newFrom')}
+            label={t('payslipDesign.newFrom')}
+            data={PRESET_KEYS.map((k) => ({ value: k, label: t(`payslipDesign.presets.${k}`) }))}
+            value={null}
+            onChange={(v) => v && create(v as (typeof PRESET_KEYS)[number])}
           />
-          {templates.map((tp) => (
-            <NavLink
-              key={tp.id}
-              label={tp.nameAr}
-              active={draft?.id === tp.id}
-              onClick={() => open(tp)}
-              rightSection={
-                tp.isDefault ? <Badge size="xs">{t('payslipDesign.active')}</Badge> : null
-              }
-            />
-          ))}
-          {canManage && (
-            <Select
-              label={t('payslipDesign.newFrom')}
-              placeholder="…"
-              data={PRESET_KEYS.map((k) => ({ value: k, label: t(`payslipDesign.presets.${k}`) }))}
-              value={null}
-              onChange={(v) => v && create(v as (typeof PRESET_KEYS)[number])}
-            />
-          )}
-          {canManage && hasDefault && (
-            <Button
-              variant="default"
-              size="xs"
-              onClick={() => act.mutate(() => api.post('/payroll/payslip-templates/use-builtin'))}
-            >
-              {t('payslipDesign.useBuiltin')}
-            </Button>
-          )}
-        </Stack>
-
+        )}
+        {canManage && hasDefault && (
+          <Button
+            variant="default"
+            size="xs"
+            onClick={() => act.mutate(() => api.post('/payroll/payslip-templates/use-builtin'))}
+          >
+            {t('payslipDesign.useBuiltin')}
+          </Button>
+        )}
+      </Group>
+      <SimpleGrid cols={{ base: 1, md: 12 }}>
         <Paper withBorder p="md" style={{ gridColumn: 'span 5' }}>
           {draft && cfg ? (
             <Stack gap="sm">
@@ -404,7 +447,7 @@ export const PayslipDesignPage = () => {
           )}
         </Paper>
 
-        <Stack style={{ gridColumn: 'span 4' }}>
+        <Stack style={{ gridColumn: 'span 7' }}>
           <SegmentedControl
             value={lang}
             onChange={(v) => setLang(v as 'ar' | 'en')}
@@ -413,12 +456,7 @@ export const PayslipDesignPage = () => {
               { value: 'en', label: t('letters.langEn') },
             ]}
           />
-          <iframe
-            title={t('payslipDesign.preview')}
-            sandbox=""
-            srcDoc={html}
-            style={{ width: '100%', height: 640, border: '1px solid #ccc', background: '#fff' }}
-          />
+          <ScaledPreview html={html} title={t('payslipDesign.preview')} />
         </Stack>
       </SimpleGrid>
     </Stack>
