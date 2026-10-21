@@ -135,7 +135,10 @@ export const PeriodsPage = () => {
           label={t('payroll.run.currency')}
           value={v.currency}
           data={codes}
-          onChange={(e) => setV((p) => ({ ...p, currency: e.currentTarget.value }))}
+          onChange={(e) => {
+            const value = e.currentTarget.value; // قبل دالة التحديث / before the updater
+            setV((p) => ({ ...p, currency: value }));
+          }}
         />
         <NativeSelect
           label={t('payroll.run.group')}
@@ -144,7 +147,10 @@ export const PeriodsPage = () => {
             { value: '', label: t('payroll.run.defaultGroup') },
             ...(groups.data ?? []).map((g) => ({ value: g.id, label: g.nameAr })),
           ]}
-          onChange={(e) => setV((p) => ({ ...p, payGroupId: e.currentTarget.value }))}
+          onChange={(e) => {
+            const value = e.currentTarget.value; // قبل دالة التحديث / before the updater
+            setV((p) => ({ ...p, payGroupId: value }));
+          }}
         />
       </FormModal>
     </Stack>

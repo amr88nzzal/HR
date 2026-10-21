@@ -63,3 +63,39 @@ describe('شاشة إدارة الشركات', () => {
     expect(screen.queryByText('شركة جديدة')).toBeNull();
   });
 });
+
+describe('نموذج الشركة', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    sessionStorage.clear();
+  });
+
+  it('الكتابة في الحقول لا تكسر الصفحة، والإرسال يحمل القيم المكتوبة', async () => {
+    sessionStorage.setItem('hr.platformToken', 't1');
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation((_url, init) =>
+        init?.method === 'POST'
+          ? json(201, { data: { admin: { email: 'a@b.test', temporaryPassword: 'pw-123456789' } } })
+          : json(200, { data: [] }),
+      );
+    render(
+      <MantineProvider>
+        <PlatformPage />
+      </MantineProvider>,
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'شركة جديدة' }));
+    await userEvent.type(await screen.findByLabelText(/رمز الشركة/), 'acme');
+    await userEvent.type(screen.getByLabelText(/الاسم بالعربية/), 'شركة أكمي');
+    await userEvent.type(screen.getByLabelText(/اسم المدير/), 'مدير');
+    await userEvent.type(screen.getByLabelText(/بريد المدير/), 'a@b.test');
+    await userEvent.click(screen.getByRole('button', { name: 'إنشاء' }));
+    expect(await screen.findByText('pw-123456789')).toBeTruthy();
+    const post = fetchMock.mock.calls.find((c) => c[1]?.method === 'POST')!;
+    expect(JSON.parse(post[1]!.body as string)).toMatchObject({
+      slug: 'acme',
+      nameAr: 'شركة أكمي',
+      admin: { email: 'a@b.test', name: 'مدير' },
+    });
+  });
+});

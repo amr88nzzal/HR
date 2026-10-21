@@ -137,7 +137,11 @@ const SettingsForm = ({
               dir="ltr"
               disabled={!canEdit}
               value={String(current[def.key] ?? '')}
-              onChange={(e) => setLocal((s) => ({ ...s, [def.key]: e.currentTarget.value }))}
+              onChange={(e) => {
+                // القيمة قبل دالة التحديث لأن currentTarget يصير null لاحقاً / read the value first: currentTarget is nulled later
+                const value = e.currentTarget.value;
+                setLocal((s) => ({ ...s, [def.key]: value }));
+              }}
               onBlur={() =>
                 local[def.key] !== undefined &&
                 local[def.key] !== values[def.key] &&
