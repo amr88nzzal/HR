@@ -1,4 +1,5 @@
 import { payslipDesignEn } from './payslipDesign.en';
+import { helpEn } from './help.en';
 import { platformEn } from './platform.en';
 import { adminActionsNavEn, adminActionsEn } from './adminActions.en';
 import { brandEn } from './brand.en';
@@ -28,6 +29,7 @@ export const en: Messages = {
   },
   platform: platformEn,
   payslipDesign: payslipDesignEn,
+  help: helpEn,
   login: {
     title: 'Sign in',
     company: 'Company code',
@@ -60,6 +62,7 @@ export const en: Messages = {
     ...hrNavEn,
     ...payrollNavEn,
     ...adminActionsNavEn,
+    help: 'User guide',
     dashboard: 'Home',
     org: 'Organization',
     branches: 'Branches',

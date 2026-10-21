@@ -1,4 +1,5 @@
 import { payslipDesignAr } from './payslipDesign.ar';
+import { helpAr } from './help.ar';
 import { platformAr } from './platform.ar';
 import { adminActionsNavAr, adminActionsAr } from './adminActions.ar';
 import { brandAr } from './brand.ar';
@@ -26,6 +27,7 @@ export const ar = {
   },
   platform: platformAr,
   payslipDesign: payslipDesignAr,
+  help: helpAr,
   login: {
     title: 'تسجيل الدخول',
     company: 'رمز الشركة',
@@ -58,6 +60,7 @@ export const ar = {
     ...hrNavAr,
     ...payrollNavAr,
     ...adminActionsNavAr,
+    help: 'دليل الاستخدام',
     dashboard: 'الرئيسية',
     org: 'الهيكل التنظيمي',
     branches: 'الفروع',

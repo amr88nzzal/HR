@@ -12,6 +12,7 @@ describe('القائمة تُبنى من الصلاحيات', () => {
       'myPayslips',
       'myNotifications',
       'myAdminActions',
+      'help',
       'reportsCenter',
       'approvalsInbox',
       'approvalDelegations',
@@ -23,6 +24,7 @@ describe('القائمة تُبنى من الصلاحيات', () => {
       'myPayslips',
       'myNotifications',
       'myAdminActions',
+      'help',
       'reportsCenter',
       'approvalsInbox',
       'approvalDelegations',
@@ -72,7 +74,7 @@ describe('القائمة تُبنى من الصلاحيات', () => {
         'admin_actions.action.read',
         'admin_actions.type.read',
       ]).length,
-    ).toBe(50);
+    ).toBe(51);
   });
   it('صلاحية المسار', () => {
     expect(permissionForPath('/admin/audit')).toBe('system.audit.read');
