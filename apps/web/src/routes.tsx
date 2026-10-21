@@ -22,6 +22,9 @@ import { ComingSoonPage, ForbiddenPage, NotFoundPage } from './pages/SimplePages
 const PlatformPage = lazy(() =>
   import('./features/platform/PlatformPage').then((m) => ({ default: m.PlatformPage })),
 );
+const HelpPage = lazy(() =>
+  import('./features/help/HelpPage').then((m) => ({ default: m.HelpPage })),
+);
 const JobsPage = lazy(() =>
   import('./features/admin/JobsPage').then((m) => ({ default: m.JobsPage })),
 );
@@ -287,6 +290,7 @@ const screens: Record<string, () => ReactElement> = {
   '/admin/channels': () => <ChannelsPage />,
   '/admin/notification-templates': () => <NotificationTemplatesPage />,
   '/me/payslips': () => <MyPayslipsPage />,
+  '/help': () => <HelpPage />,
   '/me/admin-actions': () => <MyAdminActionsPage />,
   '/notifications': () => <NotificationsPage />,
   '/admin-actions': () => <AdminActionsPage />,
