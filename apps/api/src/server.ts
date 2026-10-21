@@ -126,6 +126,7 @@ const app = createApp({
           storage: createLocalStorage(config.STORAGE_DIR),
           jobs,
           publicUrl: config.PUBLIC_URL,
+          platformAdminKey: config.PLATFORM_ADMIN_KEY,
           render: config.RENDER_URL ? createHttpRenderer(config.RENDER_URL) : undefined,
           mail: {
             provider: createMailProvider({

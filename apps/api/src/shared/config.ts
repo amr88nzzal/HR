@@ -38,6 +38,11 @@ const envSchema = z.object({
   SENTRY_DSN: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   /** اسم النسخة المنشورة (يظهر في البلاغات)؛ مثل git sha */
   APP_RELEASE: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  /** مفتاح مدير المنصة (إنشاء الشركات وإدارتها من /platform)؛ غيابه = الواجهة معطّلة. 32 حرفاً على الأقل */
+  PLATFORM_ADMIN_KEY: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().min(32).optional(),
+  ),
   /** الشركة الافتراضية عند غياب company في طلب الدخول (نشر الشركة الواحدة) */
   DEFAULT_COMPANY_SLUG: z.string().min(1).default('main'),
 });

@@ -1,3 +1,4 @@
+import { platformAr } from './platform.ar';
 import { adminActionsNavAr, adminActionsAr } from './adminActions.ar';
 import { brandAr } from './brand.ar';
 import { loansAr } from './loans.ar';
@@ -22,6 +23,7 @@ export const ar = {
     back: 'رجوع',
     comingSoon: 'هذه الشاشة قيد التطوير',
   },
+  platform: platformAr,
   login: {
     title: 'تسجيل الدخول',
     company: 'رمز الشركة',
