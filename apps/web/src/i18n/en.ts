@@ -1,3 +1,4 @@
+import { platformEn } from './platform.en';
 import { adminActionsNavEn, adminActionsEn } from './adminActions.en';
 import { brandEn } from './brand.en';
 import { loansEn } from './loans.en';
@@ -24,6 +25,7 @@ export const en: Messages = {
     back: 'Back',
     comingSoon: 'This screen is under development',
   },
+  platform: platformEn,
   login: {
     title: 'Sign in',
     company: 'Company code',

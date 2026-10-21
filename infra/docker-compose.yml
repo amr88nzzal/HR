@@ -78,6 +78,7 @@ services:
       APP_RELEASE: ${APP_RELEASE:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       DEFAULT_COMPANY_SLUG: ${DEFAULT_COMPANY_SLUG:-main}
+      PLATFORM_ADMIN_KEY: ${PLATFORM_ADMIN_KEY:-}
       # بريد احتياطي إن لم يُضبط من شاشة قنوات الإشعار (يُستعمل أيضاً لاختبار الإرسال)
       SMTP_URL: ${SMTP_URL:-}
       MAIL_FROM: ${MAIL_FROM:-HRMS <no-reply@localhost>}

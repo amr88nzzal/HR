@@ -19,6 +19,9 @@ import { SetupPage as PayrollSetupPage } from './features/payroll/SetupPage';
 import { ComingSoonPage, ForbiddenPage, NotFoundPage } from './pages/SimplePages';
 
 // الشاشات تُحمَّل عند أول زيارة (تقسيم الحزمة) / screens load on first visit (code-splitting)
+const PlatformPage = lazy(() =>
+  import('./features/platform/PlatformPage').then((m) => ({ default: m.PlatformPage })),
+);
 const JobsPage = lazy(() =>
   import('./features/admin/JobsPage').then((m) => ({ default: m.JobsPage })),
 );
@@ -201,6 +204,19 @@ const verifyRoute = createRoute({
   component: VerifyPage,
 });
 
+/** إدارة الشركات (مدير المنصة): خارج جلسة المستخدمين، بمفتاح مستقل */
+const platformRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/platform',
+  component: function Platform() {
+    return (
+      <Suspense fallback={<Spinner />}>
+        <PlatformPage />
+      </Suspense>
+    );
+  },
+});
+
 /** تفعيل الحساب من رابط الدعوة: خارج الجلسة */
 const acceptInviteRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -352,6 +368,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   verifyRoute,
   acceptInviteRoute,
+  platformRoute,
   authRoute.addChildren([
     indexRoute,
     passwordRoute,

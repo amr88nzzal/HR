@@ -44,6 +44,7 @@ import {
   mountAttendanceRoutes,
 } from './modules/attendance/index.js';
 import { createBrandRouter, createPublicBrandRouter } from './modules/brand/index.js';
+import { createPlatformRouter } from './modules/platform/index.js';
 import { createDashboardRouter } from './modules/dashboard/index.js';
 import { createTablePrefsRouter } from './modules/table-prefs/index.js';
 import {
@@ -85,6 +86,8 @@ export type AppDeps = {
     publicUrl?: string;
     /** عميل Bot API (يُستبدل في الاختبار) */
     telegramApi?: TelegramApi;
+    /** مفتاح مدير المنصة؛ غيابه = مسارات /platform غير موجودة */
+    platformAdminKey?: string;
   };
 };
 
@@ -155,6 +158,15 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
         auth.settings.defaultCompanySlug,
       ),
     );
+    if (auth.platformAdminKey)
+      api.use(
+        '/platform',
+        createPlatformRouter(auth.db, {
+          adminKey: auth.platformAdminKey,
+          jwtSecret: auth.settings.jwtSecret,
+          limit: auth.rateLimit !== false,
+        }),
+      );
     api.use(createIdentityAdminRouter(auth.db, authenticate));
     mountOrgRoutes(api, auth.db, authenticate);
     mountLeaveRoutes(api, auth.db, authenticate);

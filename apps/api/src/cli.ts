@@ -8,7 +8,7 @@ import {
   seedDefaultRoles,
   syncPermissionCatalog,
 } from './modules/identity/index.js';
-import { seedDefaultExternalSystems } from './modules/employees/external.routes.js';
+import { provisionCompanyAdmin } from './modules/platform/index.js';
 import { seedDemo } from './seed/demo.js';
 import { seedDemoExtras } from './seed/demo-extras.js';
 import { seedDemoHistory } from './seed/demo-history.js';
@@ -82,35 +82,12 @@ const main = async (): Promise<void> => {
         return row.id;
       });
       await withTenant(db, { companyId, requestId: 'cli' }, async (ctx) => {
-        await seedDefaultRoles(ctx);
-        await seedDefaultExternalSystems(ctx);
-        const role = await ctx.trx
-          .selectFrom('roles')
-          .select('id')
-          .where('companyId', '=', companyId)
-          .where('code', '=', 'admin')
-          .executeTakeFirstOrThrow();
-        const user = await ctx.trx
-          .insertInto('users')
-          .values({
-            companyId,
-            email,
-            username: opts['username'] ?? null,
-            displayName: opts['name'] ?? email,
-            passwordHash: await hashPassword(password),
-          })
-          .returning('id')
-          .executeTakeFirstOrThrow();
-        await ctx.trx
-          .insertInto('userRoleAssignments')
-          .values({
-            companyId,
-            userId: user.id,
-            roleId: role.id,
-            scopeType: 'company',
-            scopeId: null,
-          })
-          .execute();
+        await provisionCompanyAdmin(ctx, {
+          email,
+          username: opts['username'] ?? null,
+          displayName: opts['name'] ?? email,
+          password,
+        });
       });
       console.log(`create-admin: تم إنشاء ${email} في الشركة ${slug}`);
     } else if (command === 'reset-password') {
