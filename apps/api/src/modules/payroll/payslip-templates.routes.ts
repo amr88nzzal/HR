@@ -159,7 +159,11 @@ export const createPayslipTemplatesRouter = (
         const lh = await loadLetterhead(ctx, files, lang);
         return wrapLetterHtml(renderPayslipBody(SAMPLE, SAMPLE_EXTRAS, b.config, lang), lang, lh);
       });
-      res.json({ data: { html } });
+      // هوامش الصفحة (@page) لا تعمل داخل iframe: نحاكيها في المعاينة فقط كي تطابق الطباعة
+      // @page margins do not apply inside an iframe: emulate them in the preview only so it matches print
+      res.json({
+        data: { html: html.replace('</head>', '<style>body{padding:22mm 20mm}</style></head>') },
+      });
     }),
   );
 
