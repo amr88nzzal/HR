@@ -668,6 +668,15 @@ export const en: Messages = {
     holder: 'Holder',
     company: 'Issuer',
     issuedAt: 'Issue date',
+    payslipTitle: 'Payslip verification',
+    payslipValid: 'Matches the company records',
+    payslipMismatch: 'Does not match the records',
+    payslipMismatchHint:
+      'This payslip is not genuine or was altered after printing. Do not rely on it; contact the company.',
+    payslipHint:
+      'The printed figures match what the company has on record. Amounts are not shown here for privacy.',
+    employee: 'Employee',
+    month: 'Month',
   },
   letters: {
     useLetterhead: 'Wrap automatically with the company letterhead and footer',

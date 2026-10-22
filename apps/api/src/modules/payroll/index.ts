@@ -36,7 +36,10 @@ export const mountPayrollRoutes = (
   deps: RunsDeps & PdfDeps,
 ): void => {
   // الأخصّ أولاً: مسارات الدورات والقسائم ثم CRUD المجموعات والأسباب ثم الإعداد
-  api.use('/payroll/payslip-templates', createPayslipTemplatesRouter(db, authenticate, deps.files));
+  api.use(
+    '/payroll/payslip-templates',
+    createPayslipTemplatesRouter(db, authenticate, deps.files, deps.verify),
+  );
   api.use('/payroll', createPayslipPdfRouter(db, authenticate, deps));
   api.use('/me/payslips', createMyPayslipsRouter(db, authenticate, deps));
   api.use('/payroll', createRunsRouter(db, authenticate, deps));
@@ -51,3 +54,5 @@ export const mountPayrollRoutes = (
 export { makeRun } from './setup.routes.js';
 export { addSalary } from './salaries.routes.js';
 export { companyLang } from './payslip-doc.js';
+
+export { createPublicPayslipVerifyRouter } from './payslip-verify.js';

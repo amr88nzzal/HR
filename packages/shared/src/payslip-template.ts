@@ -28,6 +28,7 @@ export const PAYSLIP_SECTIONS = [
   'ytd',
   'notes',
   'signature',
+  'qr',
 ] as const;
 export type PayslipSection = (typeof PAYSLIP_SECTIONS)[number];
 
@@ -79,7 +80,7 @@ export const PAYSLIP_PRESETS: Record<'stacked' | 'side_by_side' | 'detailed', Pa
   side_by_side: payslipConfigSchema.parse({
     layout: 'side_by_side',
     headerFields: ['employeeName', 'month', 'jobTitle', 'basicSalary', 'hireDate', 'employeeNo'],
-    sections: ['header', 'lines', 'totals', 'loans', 'notes'],
+    sections: ['header', 'lines', 'totals', 'loans', 'notes', 'qr'],
     showPrintedAt: true,
     borders: 'grid',
   }),
@@ -96,7 +97,7 @@ export const PAYSLIP_PRESETS: Record<'stacked' | 'side_by_side' | 'detailed', Pa
       'month',
       'currency',
     ],
-    sections: ['header', 'lines', 'totals', 'loans', 'ytd', 'notes', 'signature'],
+    sections: ['header', 'lines', 'totals', 'loans', 'ytd', 'notes', 'signature', 'qr'],
     showLineCodes: true,
     showPrintedAt: true,
     borders: 'lines',

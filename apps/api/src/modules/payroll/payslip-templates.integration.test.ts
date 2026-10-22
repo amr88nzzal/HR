@@ -1,6 +1,7 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { sql } from 'kysely';
 import { pino } from 'pino';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -9,6 +10,8 @@ import { createDb, type Db } from '../../db/index.js';
 import { withTenant } from '../../db/tenant.js';
 import { startTestPg, type TestPg } from '../../test/pg.js';
 import { createLocalStorage } from '../../shared/storage.js';
+import { loadPayslipDoc } from './payslip-doc.js';
+import { payslipVerifyToken } from './payslip-verify.js';
 import { hashPassword, seedDefaultRoles, syncPermissionCatalog } from '../identity/index.js';
 
 const PASSWORD = 'correct-horse-battery';
@@ -304,5 +307,46 @@ describe('قوالب تصميم قسيمة الراتب', () => {
     expect(r.body.data.html).not.toContain('مكافآت');
     expect(r.body.data.html).not.toContain('<script>alert(1)');
     expect(r.body.data.html).toContain('&lt;script&gt;');
+  });
+  it('QR التحقق: يظهر بقسم qr، والتحقق العام يطابق ثم يرفض بعد أي تعديل ولا يكشف مبالغ', async () => {
+    const cfg = { ...base, sections: [...base.sections, 'qr'] };
+    const withQr = await post('admin', '/payroll/payslip-templates/preview', {
+      config: cfg,
+      payslipId: slip,
+    });
+    expect(withQr.body.data.html).toContain('data:image/png;base64');
+    const without = await post('admin', '/payroll/payslip-templates/preview', {
+      config: base,
+      payslipId: slip,
+    });
+    expect(without.body.data.html).not.toContain('data:image/png;base64');
+
+    const d = await withTenant(admin, { companyId: acme }, (ctx) => loadPayslipDoc(ctx, slip));
+    const token = payslipVerifyToken(settings.jwtSecret, acme, d);
+    const ok = await request(api).get(`/api/v1/public/verify/payslip/${token}`);
+    expect(ok.status).toBe(200);
+    expect(ok.body.data.valid).toBe(true);
+    expect(ok.body.data.company).toBe('شركة أكمي');
+    expect(ok.body.data.holder).toContain('***');
+    expect(JSON.stringify(ok.body)).not.toContain(d.net);
+    expect(JSON.stringify(ok.body)).not.toContain('أحمد');
+
+    // بصمة خاطئة: لا بيانات
+    const [id] = token.split('.') as [string];
+    const forged = await request(api).get(`/api/v1/public/verify/payslip/${id}.${'0'.repeat(32)}`);
+    expect(forged.body.data).toEqual({ valid: false, status: 'mismatch' });
+    // شكل غير صالح ومعرّف غير موجود
+    expect((await request(api).get('/api/v1/public/verify/payslip/xyz')).status).toBe(404);
+    const ghost = `${'0'.repeat(32)}.${'0'.repeat(32)}`;
+    expect((await request(api).get(`/api/v1/public/verify/payslip/${ghost}`)).body.data.valid).toBe(
+      false,
+    );
+
+    // تعديل الصافي بعد الطباعة يُسقط التطابق
+    await admin.executeQuery(
+      sql`update payslips set net_amount = net_amount + 1 where id = ${slip}`.compile(admin),
+    );
+    const tampered = await request(api).get(`/api/v1/public/verify/payslip/${token}`);
+    expect(tampered.body.data).toEqual({ valid: false, status: 'mismatch' });
   });
 });

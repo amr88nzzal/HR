@@ -9,6 +9,7 @@ import { employeeScope } from '../employees/index.js';
 import { requirePermission } from '../identity/index.js';
 import { loadPayslipDoc, type PayslipDoc } from './payslip-doc.js';
 import { buildPayslipHtml } from './payslip-html.js';
+import { payslipQrDataUrl, type VerifyDeps } from './payslip-verify.js';
 import { renderPayslipBody, resolveLang, type PayslipExtras } from './payslip-render.js';
 import { companyLang } from './payslip-doc.js';
 import { wrapLetterHtml } from '@hrms/shared';
@@ -79,7 +80,10 @@ const SAMPLE_EXTRAS: PayslipExtras = {
   basicSalary: '500.000',
   ytd: { gross: '6200.000', deductions: '1815.000', net: '4385.000' },
   printedAt: '21/10/2026, 03:11',
+  qr: null,
 };
+
+const SAMPLE_QR_URL = 'https://example.com/verify/payslip/sample';
 
 const previewInput = z.object({
   config: payslipConfigSchema,
@@ -92,6 +96,7 @@ export const createPayslipTemplatesRouter = (
   db: Db,
   authenticate: RequestHandler,
   files: FileDeps,
+  verify?: VerifyDeps,
 ): Router => {
   const router = Router();
   const run = makeRun(db);
@@ -153,11 +158,22 @@ export const createPayslipTemplatesRouter = (
                                   ${scope ? sql`and ${scope}` : sql``}`.execute(ctx.trx);
           if (!ok.rows.length) throw new AppError('NOT_FOUND', 404, 'القسيمة غير موجودة');
           const d = await loadPayslipDoc(ctx, b.payslipId);
-          return buildPayslipHtml(ctx, files, d, b.lang, b.config);
+          return buildPayslipHtml(ctx, files, d, b.lang, b.config, verify);
         }
         const lang = resolveLang(b.config, b.lang, await companyLang(ctx));
         const lh = await loadLetterhead(ctx, files, lang);
-        return wrapLetterHtml(renderPayslipBody(SAMPLE, SAMPLE_EXTRAS, b.config, lang), lang, lh);
+        // رمز تجريبي ليرى المصمِّم موضعه (لا يُفحص)؛ sample QR so the designer sees its placement (not scannable-valid)
+        const qr = b.config.sections.includes('qr')
+          ? {
+              url: SAMPLE_QR_URL,
+              dataUrl: await payslipQrDataUrl(SAMPLE_QR_URL),
+            }
+          : null;
+        return wrapLetterHtml(
+          renderPayslipBody(SAMPLE, { ...SAMPLE_EXTRAS, qr }, b.config, lang),
+          lang,
+          lh,
+        );
       });
       // هوامش الصفحة (@page) لا تعمل داخل iframe: نحاكيها في المعاينة فقط كي تطابق الطباعة
       // @page margins do not apply inside an iframe: emulate them in the preview only so it matches print

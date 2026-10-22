@@ -46,6 +46,7 @@ export const payslipDesignEn = {
     ytd: 'Year-to-date totals',
     notes: 'Notes',
     signature: 'Employee signature',
+    qr: 'Verification QR',
   },
   required: 'Required',
   up: 'Up',

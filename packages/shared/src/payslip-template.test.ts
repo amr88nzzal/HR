@@ -7,6 +7,8 @@ describe('قالب القسيمة', () => {
     for (const p of Object.values(PAYSLIP_PRESETS))
       expect(payslipConfigSchema.safeParse(p).success).toBe(true);
     expect(PAYSLIP_PRESETS.stacked.sections).toContain('lines');
+    expect(PAYSLIP_PRESETS.detailed.sections).toContain('qr');
+    expect(PAYSLIP_PRESETS.side_by_side.sections).toContain('qr');
   });
 
   it('يرفض الأقسام والحقول المكررة وغياب البنود واللون الخاطئ', () => {
