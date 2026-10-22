@@ -87,6 +87,18 @@ export const payrollEn = {
     reasons: 'Override reasons',
     accounting: 'Accounting accounts',
   },
+  groupMembers: {
+    button: 'Members',
+    title: 'Pay group members',
+    defaultHint: 'This is the default group: every employee without an assignment falls into it.',
+    employee: 'Employee',
+    from: 'From',
+    to: 'To',
+    add: 'Assign',
+    added: 'Assigned',
+    current: 'Current',
+    empty: 'No explicit assignments in this group.',
+  },
   gl: {
     account: 'GL account code',
     accountHint: {
