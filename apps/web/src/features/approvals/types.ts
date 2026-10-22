@@ -18,6 +18,8 @@ export type ApprovalRow = {
 };
 
 export type ApprovalDetail = ApprovalRow & {
+  entityType?: string | null;
+  entityId?: string | null;
   payload: Record<string, unknown>;
   finalNote: string | null;
   currentPosition: number | null;

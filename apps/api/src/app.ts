@@ -207,7 +207,7 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
     api.use('/approval-flows', createApprovalFlowsRouter(auth.db, authenticate));
     api.use('/approval-delegations', createDelegationsRouter(auth.db, authenticate));
     api.use('/approvals', createApprovalsRouter(auth.db, authenticate, engine));
-    api.use('/leave-requests', createLeaveRequestsRouter(auth.db, authenticate, engine));
+    api.use('/leave-requests', createLeaveRequestsRouter(auth.db, authenticate, engine, files));
     api.use(
       '/letter-templates',
       createLetterTemplatesRouter(auth.db, authenticate, files, auth.publicUrl),
