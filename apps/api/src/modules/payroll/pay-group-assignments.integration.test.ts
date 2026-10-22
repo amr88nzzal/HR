@@ -33,11 +33,7 @@ describe('تعيينات مجموعات الدفع', () => {
   const post = (who: string, p: string, body: object = {}) =>
     request(api).post(`/api/v1${p}`).set(as(who)).send(body);
   const get = (who: string, p: string) => request(api).get(`/api/v1${p}`).set(as(who));
-  const put = (who: string, p: string, body: object) =>
-    request(api).put(`/api/v1${p}`).set(as(who)).send(body);
   const del = (who: string, p: string) => request(api).delete(`/api/v1${p}`).set(as(who));
-  const patch = (who: string, p: string, body: object) =>
-    request(api).patch(`/api/v1${p}`).set(as(who)).send(body);
 
   const makeUser = (email: string, roleCode: string) =>
     withTenant(admin, { companyId: acme }, async (ctx) => {
