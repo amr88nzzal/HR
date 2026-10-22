@@ -20,6 +20,8 @@ export type PayslipExtras = {
   ytd: { gross: string; deductions: string; net: string } | null;
   /** نص جاهز بمنطقة الشركة الزمنية / preformatted in the company time zone */
   printedAt: string;
+  /** رمز التحقق (صورة data: ورابطه)؛ null = لا عنوان عام مهيّأ / verification QR; null = no public URL configured */
+  qr: { dataUrl: string; url: string } | null;
 };
 
 const esc = (s: string): string =>
@@ -58,6 +60,7 @@ const T = {
     ytd: 'الأرقام التراكمية للسنة',
     printedAt: 'تاريخ الطباعة',
     signature: 'توقيع الموظف',
+    qrCaption: 'امسح الرمز للتحقق من صحة القسيمة',
     date: 'التاريخ',
     defaultNote: 'صدرت هذه القسيمة إلكترونياً.',
   },
@@ -87,6 +90,7 @@ const T = {
     ytd: 'Year-to-date totals',
     printedAt: 'Printed on',
     signature: 'Employee signature',
+    qrCaption: 'Scan to verify this payslip',
     date: 'Date',
     defaultNote: 'This payslip was issued electronically.',
   },
@@ -222,6 +226,11 @@ export const renderPayslipBody = (
   const signatureSection = (): string =>
     `<table style="${tableCss};margin-top:26px"><tbody><tr><td style="padding:22px 6px 4px;border-top:${line};width:50%">${t.signature}</td><td style="padding:22px 6px 4px;border-top:${line}">${t.date}</td></tr></tbody></table>`;
 
+  const qrSection = (): string =>
+    extras.qr
+      ? `<table style="${tableCss};margin-top:14px"><tbody><tr><td style="width:96px;padding:0;vertical-align:middle"><img src="${extras.qr.dataUrl}" alt="QR" style="width:90px;height:90px;display:block"/></td><td style="padding:0 10px;font-size:0.85em;color:#555;vertical-align:middle">${t.qrCaption}</td></tr></tbody></table>`
+      : '';
+
   const render: Record<PayslipSection, () => string> = {
     header,
     lines: linesSection,
@@ -230,6 +239,7 @@ export const renderPayslipBody = (
     ytd: ytdSection,
     notes: notesSection,
     signature: signatureSection,
+    qr: qrSection,
   };
 
   const title = config.title[lang] || config.title[lang === 'ar' ? 'en' : 'ar'] || t.title;

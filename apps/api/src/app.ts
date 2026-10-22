@@ -53,7 +53,7 @@ import {
   createMyAdminActionsRouter,
 } from './modules/admin-actions/index.js';
 import { createReportsRouter } from './modules/reports/index.js';
-import { mountPayrollRoutes } from './modules/payroll/index.js';
+import { createPublicPayslipVerifyRouter, mountPayrollRoutes } from './modules/payroll/index.js';
 import { createLeaveRequestsRouter, mountLeaveRoutes } from './modules/leave/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
 import type { ErrorReporter } from './shared/error-reporter.js';
@@ -148,6 +148,10 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
       createTelegramWebhookRouter(auth.db, { telegram, logger }),
     );
     // التحقق العام بلا مصادقة (قبل أي راوتر يفرضها)
+    api.use(
+      '/public/verify/payslip',
+      createPublicPayslipVerifyRouter(auth.db, auth.rateLimit !== false, auth.settings.jwtSecret),
+    );
     api.use('/public/verify', createPublicVerifyRouter(auth.db, auth.rateLimit !== false));
     api.use(
       '/public/brand',
@@ -224,6 +228,7 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
       publicUrl: auth.publicUrl,
       files,
       render: auth.render,
+      verify: { publicUrl: auth.publicUrl, secret: auth.settings.jwtSecret },
     });
     api.use('/attendance-corrections', createCorrectionsRouter(auth.db, authenticate, engine));
     api.use('/overtime-requests', createOvertimeRouter(auth.db, authenticate, engine));

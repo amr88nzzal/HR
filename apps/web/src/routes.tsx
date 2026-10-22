@@ -14,6 +14,7 @@ import { isGroup, NAV } from './layout/nav';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { VerifyPage } from './pages/VerifyPage';
+import { VerifyPayslipPage } from './pages/VerifyPayslipPage';
 import { LoginPage } from './pages/LoginPage';
 import { SetupPage as PayrollSetupPage } from './features/payroll/SetupPage';
 import { ComingSoonPage, ForbiddenPage, NotFoundPage } from './pages/SimplePages';
@@ -210,6 +211,13 @@ const verifyRoute = createRoute({
   component: VerifyPage,
 });
 
+/** التحقق العام من قسيمة راتب (QR): خارج الجلسة، بلا مبالغ */
+const verifyPayslipRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/verify/payslip/$token',
+  component: VerifyPayslipPage,
+});
+
 /** إدارة الشركات (مدير المنصة): خارج جلسة المستخدمين، بمفتاح مستقل */
 const platformRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -378,6 +386,7 @@ const payrollPeriodRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   loginRoute,
   verifyRoute,
+  verifyPayslipRoute,
   acceptInviteRoute,
   platformRoute,
   authRoute.addChildren([

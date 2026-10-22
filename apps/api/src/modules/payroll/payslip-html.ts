@@ -9,6 +9,7 @@ import type { Ctx } from '../../db/tenant.js';
 import type { FileDeps } from '../../shared/stored-files.js';
 import { loadLetterhead } from '../brand/index.js';
 import { companyLang, type Lang, type PayslipDoc } from './payslip-doc.js';
+import { payslipQrDataUrl, payslipVerifyUrl, type VerifyDeps } from './payslip-verify.js';
 import { renderPayslipBody, resolveLang, type PayslipExtras } from './payslip-render.js';
 
 type Row = Record<string, unknown>;
@@ -38,8 +39,25 @@ const fmtPrinted = (tz: string): string => {
   }
 };
 
+/** رمز التحقق يُولَّد فقط إذا طلبه القالب وكان العنوان العام مهيّأً / generated only when the template wants it and a public URL exists */
+const loadQr = async (
+  ctx: Ctx,
+  d: PayslipDoc,
+  verify: VerifyDeps | undefined,
+  wantQr: boolean,
+): Promise<PayslipExtras['qr']> => {
+  if (!wantQr || !verify) return null;
+  const url = payslipVerifyUrl(verify, ctx.companyId, d);
+  return url ? { url, dataUrl: await payslipQrDataUrl(url) } : null;
+};
+
 /** بيانات الرأس والتراكمي: تُحمَّل كلها دائماً (استعلامات صغيرة) والقالب يختار ما يعرضه */
-export const loadPayslipExtras = async (ctx: Ctx, d: PayslipDoc): Promise<PayslipExtras> => {
+export const loadPayslipExtras = async (
+  ctx: Ctx,
+  d: PayslipDoc,
+  verify?: VerifyDeps,
+  wantQr = false,
+): Promise<PayslipExtras> => {
   const { rows } = await sql<Row>`
     select e.first_hire_date::text as hire_date, s.basic_amount::text as basic,
            jt.name_ar as jt_ar, jt.name_en as jt_en,
@@ -84,6 +102,7 @@ export const loadPayslipExtras = async (ctx: Ctx, d: PayslipDoc): Promise<Paysli
         }
       : null,
     printedAt: fmtPrinted((r.timezone as string | undefined) ?? 'UTC'),
+    qr: await loadQr(ctx, d, verify, wantQr),
   };
 };
 
@@ -99,10 +118,11 @@ export const buildPayslipHtml = async (
   d: PayslipDoc,
   explicitLang?: Lang,
   config?: PayslipConfig,
+  verify?: VerifyDeps,
 ): Promise<string> => {
   const cfg = config ?? (await loadDefaultConfig(ctx));
   const lang = resolveLang(cfg, explicitLang, await companyLang(ctx));
-  const extras = await loadPayslipExtras(ctx, d);
+  const extras = await loadPayslipExtras(ctx, d, verify, cfg.sections.includes('qr'));
   const lh = await loadLetterhead(ctx, files, lang);
   return wrapLetterHtml(renderPayslipBody(d, extras, cfg, lang), lang, lh);
 };

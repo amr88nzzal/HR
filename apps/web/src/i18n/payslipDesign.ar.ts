@@ -46,6 +46,7 @@ export const payslipDesignAr = {
     ytd: 'الأرقام التراكمية للسنة',
     notes: 'ملاحظات',
     signature: 'توقيع الموظف',
+    qr: 'رمز التحقق QR',
   },
   required: 'إلزامي',
   up: 'للأعلى',

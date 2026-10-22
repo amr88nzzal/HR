@@ -11,6 +11,7 @@ import { requirePermission } from '../identity/index.js';
 import type { Renderer } from '../letters/index.js';
 import { loadPayslipDoc, type Lang, type PayslipDoc } from './payslip-doc.js';
 import { buildPayslipHtml } from './payslip-html.js';
+import type { VerifyDeps } from './payslip-verify.js';
 import { makeRun } from './setup.routes.js';
 
 type Row = Record<string, unknown>;
@@ -25,7 +26,12 @@ const wrap =
   };
 const notFound = () => new AppError('NOT_FOUND', 404, 'القسيمة غير موجودة');
 
-export type PdfDeps = { files: FileDeps; render: Renderer | undefined };
+export type PdfDeps = {
+  files: FileDeps;
+  render: Renderer | undefined;
+  /** لرمز QR في القسيمة؛ غيابه = بلا رمز / for the payslip QR; absent = no QR */
+  verify?: VerifyDeps;
+};
 
 const needRender = (deps: PdfDeps): Renderer => {
   if (!deps.render) throw new AppError('RENDER_NOT_CONFIGURED', 503, 'خدمة تحويل PDF غير مهيّأة');
@@ -45,7 +51,7 @@ const fileName = (d: PayslipDoc) =>
 
 /** PDF القسيمة يُولَّد عند الطلب (لا يُخزَّن) فيطابق دائماً الأرقام الحالية والترويسة الحالية. */
 const pdfOf = async (ctx: Ctx, deps: PdfDeps, d: PayslipDoc, lang?: Lang): Promise<Buffer> =>
-  needRender(deps)(await buildPayslipHtml(ctx, deps.files, d, lang));
+  needRender(deps)(await buildPayslipHtml(ctx, deps.files, d, lang, undefined, deps.verify));
 
 /** HR: /payroll/payslips/:id/pdf و/payroll/periods/:id/payslips.zip */
 export const createPayslipPdfRouter = (
