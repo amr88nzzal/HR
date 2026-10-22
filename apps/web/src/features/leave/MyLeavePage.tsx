@@ -24,6 +24,7 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { errorMessage } from '../../lib/errors';
 import { localName } from '../../lib/names';
 import { useFormat } from '../../lib/useFormat';
+import { LeaveAttachmentsModal } from './LeaveAttachmentsModal';
 import { LeaveRequestModal } from './LeaveRequestModal';
 import {
   LEAVE_STATUS_COLORS,
@@ -123,6 +124,7 @@ const RequestsTable = ({ mode }: { mode: 'me' | 'all' }) => {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [overriding, setOverriding] = useState<LeaveRequestRow | null>(null);
+  const [attaching, setAttaching] = useState<string | null>(null);
   const list = useList<LeaveRequestRow>(mode === 'me' ? '/leave-requests/me' : '/leave-requests', {
     page,
     pageSize: PAGE_SIZE,
@@ -194,27 +196,34 @@ const RequestsTable = ({ mode }: { mode: 'me' | 'all' }) => {
         onPage={setPage}
         actions={(r) => {
           const open = r.status === 'pending' || r.status === 'approved';
-          if (!open) return null;
           return (
             <Group gap="xs" wrap="nowrap">
-              {canManage && (
+              <Button size="compact-xs" variant="default" onClick={() => setAttaching(r.id)}>
+                {t('leave.attachments.title')}
+              </Button>
+              {open && canManage && (
                 <Button size="compact-xs" variant="default" onClick={() => setOverriding(r)}>
                   {t('leave.override')}
                 </Button>
               )}
-              <Button
-                size="compact-xs"
-                color="red"
-                variant="light"
-                onClick={() => confirmCancel(r)}
-              >
-                {t('leave.cancelRequest')}
-              </Button>
+              {open && (
+                <Button
+                  size="compact-xs"
+                  color="red"
+                  variant="light"
+                  onClick={() => confirmCancel(r)}
+                >
+                  {t('leave.cancelRequest')}
+                </Button>
+              )}
             </Group>
           );
         }}
       />
       {overriding && <OverrideModal row={overriding} onClose={() => setOverriding(null)} />}
+      {attaching && (
+        <LeaveAttachmentsModal requestId={attaching} onClose={() => setAttaching(null)} />
+      )}
     </>
   );
 };

@@ -67,7 +67,8 @@ export type SaveFileInput = {
     | 'letter_template'
     | 'brand'
     | 'report'
-    | 'admin_action';
+    | 'admin_action'
+    | 'leave_request';
   encrypt: boolean;
   parentId?: string | null;
   variant?: string | null;

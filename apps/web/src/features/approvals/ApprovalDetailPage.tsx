@@ -13,6 +13,7 @@ import {
   Timeline,
   Title,
 } from '@mantine/core';
+import { LeaveAttachments } from '../leave/LeaveAttachments';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -143,6 +144,15 @@ export const ApprovalDetailPage = () => {
         <Text size="sm">
           <b>{t('approvals.detail.finalNote')}:</b> {d.finalNote}
         </Text>
+      )}
+
+      {d.requestType === 'leave' && d.entityId && (
+        <Card withBorder>
+          <Text fw={600} mb="xs">
+            {t('leave.attachments.title')}
+          </Text>
+          <LeaveAttachments requestId={d.entityId} canEdit={false} />
+        </Card>
       )}
 
       <Card withBorder>

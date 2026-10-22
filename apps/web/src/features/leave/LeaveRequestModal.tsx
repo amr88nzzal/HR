@@ -2,6 +2,7 @@ import {
   Alert,
   Badge,
   Button,
+  FileInput,
   Group,
   Modal,
   Select,
@@ -23,6 +24,7 @@ import { errorMessage } from '../../lib/errors';
 import { localName } from '../../lib/names';
 import { useFormat } from '../../lib/useFormat';
 import { EmployeeSelect } from '../employees/EmployeeSelect';
+import { ACCEPT } from './LeaveAttachments';
 import type { LeaveTypeRow, Preview } from './types';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -42,6 +44,7 @@ export const LeaveRequestModal = ({ onClose }: { onClose: () => void }) => {
   const [firstHalf, setFirstHalf] = useState(false);
   const [lastHalf, setLastHalf] = useState(false);
   const [reason, setReason] = useState('');
+  const [attachment, setAttachment] = useState<File | null>(null);
   const type = types.data?.data.find((x) => x.id === typeId);
   const halfOk = type?.allowHalfDay ?? false;
 
@@ -64,7 +67,24 @@ export const LeaveRequestModal = ({ onClose }: { onClose: () => void }) => {
   const p = ready ? preview.data : undefined;
 
   const submit = useMutation({
-    mutationFn: async () => (await api.post('/leave-requests', body)).data,
+    mutationFn: async () => {
+      const created = (await api.post<{ id: string }>('/leave-requests', body)).data;
+      // المرفق اختياري؛ فشل رفعه لا يُلغي الطلب (يمكن إرفاقه لاحقاً من «إجازاتي»)
+      // The attachment is optional; a failed upload never cancels the request (attach later from My leave)
+      if (attachment) {
+        try {
+          await api.upload(`/leave-requests/${created.id}/attachments`, attachment, {
+            name: attachment.name,
+          });
+        } catch (e) {
+          notifications.show({
+            color: 'orange',
+            message: t('leave.attachments.failed') + errorMessage(e, t),
+          });
+        }
+      }
+      return created;
+    },
     onSuccess: async () => {
       notifications.show({ color: 'green', message: t('leave.submitted') });
       await qc.invalidateQueries({ queryKey: ['/leave-requests'] });
@@ -134,6 +154,19 @@ export const LeaveRequestModal = ({ onClose }: { onClose: () => void }) => {
           rows={2}
           value={reason}
           onChange={(e) => setReason(e.currentTarget.value)}
+        />
+        <FileInput
+          label={t('leave.attachments.add')}
+          description={
+            type?.requiresAttachment
+              ? t('leave.attachments.typeNeeds')
+              : t('leave.attachments.hint')
+          }
+          placeholder={t('leave.attachments.pick')}
+          accept={ACCEPT}
+          value={attachment}
+          onChange={setAttachment}
+          clearable
         />
 
         {ready && preview.isError && <Alert color="red">{errorMessage(preview.error, t)}</Alert>}

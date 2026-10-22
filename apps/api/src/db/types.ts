@@ -480,7 +480,8 @@ export type StoredFilesTable = {
     | 'letter_template'
     | 'brand'
     | 'report'
-    | 'admin_action';
+    | 'admin_action'
+    | 'leave_request';
   parentId: string | null;
   variant: string | null;
   createdBy: string | null;
@@ -1267,6 +1268,14 @@ export type AdminActionAttachmentsTable = {
   uploadedBy: string | null;
   createdAt: Generated<Date>;
 };
+export type LeaveRequestAttachmentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  requestId: string;
+  fileId: string;
+  uploadedBy: string | null;
+  createdAt: Generated<Date>;
+};
 export type UserTablePrefsTable = {
   companyId: string;
   userId: string;
@@ -1538,6 +1547,7 @@ export type Database = {
   adminActionTypes: AdminActionTypesTable;
   adminActions: AdminActionsTable;
   adminActionAttachments: AdminActionAttachmentsTable;
+  leaveRequestAttachments: LeaveRequestAttachmentsTable;
   shortfallPolicies: ShortfallPoliciesTable;
   shortfallDecisions: ShortfallDecisionsTable;
   payslipShortfalls: PayslipShortfallsTable;
