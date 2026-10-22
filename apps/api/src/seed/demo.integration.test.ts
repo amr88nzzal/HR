@@ -100,6 +100,7 @@ describe('البيانات التجريبية', () => {
       'reports:done',
       'brand:done',
       'payslipTemplates:done',
+      'payrollAccounting:done',
       'adminActions:done',
     ]);
     const n = async (table: string, where = sql`true`) =>
@@ -226,6 +227,13 @@ describe('البيانات التجريبية', () => {
     // قوالب القسيمة: ثلاثة تصاميم جاهزة وواحد افتراضي
     expect(await n('payslip_templates')).toBe(3);
     expect(await n('payslip_templates', sql`is_default`)).toBe(1);
+
+    // حسابات المحاسبة: حسابات الشركة وربط المكونات التجريبية كلها
+    expect(await n('payroll_gl_settings')).toBe(1);
+    expect(await n('pay_components', sql`code like 'demo\\_%' and gl_account is null`)).toBe(0);
+    expect(
+      await n('pay_components', sql`kind = 'employer' and gl_offset_account is not null`),
+    ).toBeGreaterThan(0);
 
     // قسائم منشورة: دورة مقفلة سابقة للدورة التجريبية، قسائمها تظهر للموظف
     expect(await n('payroll_periods', sql`status = 'locked'`)).toBe(1);

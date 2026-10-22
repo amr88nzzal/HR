@@ -86,6 +86,14 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('payroll', 'shortfall', 'policy', 'ضبط سياسة نقص الدوام'),
   def('payroll', 'payment', 'read', 'عرض دفعات الرواتب والسلف'),
   def('payroll', 'payment', 'manage', 'تعليم الدفعات مدفوعة وتصديرها'),
+  def(
+    'payroll',
+    'bank_transfer',
+    'export',
+    'تصدير ملف تحويل الرواتب للبنك (يتضمن IBAN كاملاً ويُسجَّل في التدقيق)',
+  ),
+  def('payroll', 'accounting', 'read', 'تصدير قيد اليومية لرواتب الدورة'),
+  def('payroll', 'accounting', 'manage', 'ربط بنود الراتب بحسابات المحاسبة وضبط حسابات الشركة'),
   ...crud('admin_actions', 'type', 'أنواع الإجراءات الإدارية'),
   def(
     'admin_actions',

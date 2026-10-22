@@ -380,6 +380,8 @@ export const createPayrollSetupRouter = (db: Db, authenticate: RequestHandler): 
             roundingDecimals: b.roundingDecimals,
             displayOrder: b.displayOrder,
             isActive: b.isActive,
+            glAccount: b.glAccount,
+            glOffsetAccount: b.kind === 'employer' ? b.glOffsetAccount : null,
           })
           .returningAll()
           .executeTakeFirstOrThrow()
@@ -422,6 +424,9 @@ export const createPayrollSetupRouter = (db: Db, authenticate: RequestHandler): 
           roundingDecimals: b.roundingDecimals ?? cur.roundingDecimals,
           displayOrder: b.displayOrder ?? cur.displayOrder,
           isActive: b.isActive ?? cur.isActive,
+          glAccount: b.glAccount === undefined ? cur.glAccount : b.glAccount,
+          glOffsetAccount:
+            b.glOffsetAccount === undefined ? cur.glOffsetAccount : b.glOffsetAccount,
         };
         const m = parseBody(payComponentInput, merged);
         await refCheck(ctx, m);
@@ -443,6 +448,8 @@ export const createPayrollSetupRouter = (db: Db, authenticate: RequestHandler): 
             roundingDecimals: m.roundingDecimals,
             displayOrder: m.displayOrder,
             isActive: m.isActive,
+            glAccount: m.glAccount,
+            glOffsetAccount: m.kind === 'employer' ? m.glOffsetAccount : null,
             version: sql`version + 1`,
           })
           .where('id', '=', id)

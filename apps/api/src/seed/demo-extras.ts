@@ -51,6 +51,7 @@ export type ExtrasPart =
   | 'reports'
   | 'brand'
   | 'payslipTemplates'
+  | 'payrollAccounting'
   | 'accounts'
   | 'adminActions';
 export type ExtrasResult = { part: ExtrasPart; status: 'done' | 'skipped'; note?: string }[];
@@ -1759,6 +1760,43 @@ const seedPayslipTemplates = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+/** حسابات المحاسبة: ربط مكونات الرواتب التجريبية + حسابات الشركة، فيخرج قيد الرواتب متوازناً بلا UNMAPPED */
+const seedPayrollAccounting = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const marker = await trx
+    .selectFrom('payrollGlSettings')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .executeTakeFirst();
+  if (marker) return 'skip';
+  await trx
+    .insertInto('payrollGlSettings')
+    .values({
+      companyId,
+      salariesPayable: '2200',
+      loansReceivable: '1350',
+      defaultExpense: '5100',
+    })
+    .execute();
+  const comps = await trx
+    .selectFrom('payComponents')
+    .select(['id', 'code', 'kind'])
+    .where('companyId', '=', companyId)
+    .where('code', 'like', 'demo\\_%')
+    .execute();
+  const special: Record<string, string> = { demo_tax_ded: '2310', demo_social: '2320' };
+  for (const c of comps) {
+    const gl =
+      special[c.code] ?? (c.kind === 'earning' ? '5110' : c.kind === 'deduction' ? '2390' : '5140');
+    await trx
+      .updateTable('payComponents')
+      .set({ glAccount: gl, glOffsetAccount: c.kind === 'employer' ? '2320' : null })
+      .where('id', '=', c.id)
+      .execute();
+  }
+  return undefined;
+};
+
 const seedBrand = async (ctx: Ctx): Promise<string | undefined> => {
   const { trx, companyId } = ctx;
   const marker = await trx
@@ -2017,6 +2055,7 @@ export const seedDemoExtras = async (
     ['reports', (ctx) => seedReports(ctx)],
     ['brand', (ctx) => seedBrand(ctx)],
     ['payslipTemplates', (ctx) => seedPayslipTemplates(ctx)],
+    ['payrollAccounting', (ctx) => seedPayrollAccounting(ctx)],
     ['adminActions', (ctx) => seedAdminActions(ctx)],
   ];
   for (const [part, fn] of parts) {

@@ -60,6 +60,22 @@ const baseShape = {
 export const payrollBaseInput = z.object(baseShape);
 export const payrollBaseUpdate = withVersion(baseShape);
 
+/** رمز حساب محاسبي (نص حر قصير: 1010 أو 5100-01)؛ الفارغ = غير مربوط */
+export const glAccount = z
+  .string()
+  .trim()
+  .max(40)
+  .regex(/^[A-Za-z0-9._\- ]*$/, 'رمز حساب غير صالح')
+  .nullish()
+  .transform((v) => v || null);
+
+export const payrollGlSettingsInput = z.object({
+  salariesPayable: glAccount,
+  loansReceivable: glAccount,
+  defaultExpense: glAccount,
+});
+export type PayrollGlSettingsInput = z.infer<typeof payrollGlSettingsInput>;
+
 const componentBase = z.object({
   code,
   nameAr,
@@ -77,6 +93,10 @@ const componentBase = z.object({
   roundingDecimals: z.number().int().min(0).max(4).default(2),
   displayOrder: z.number().int().min(0).max(9999).default(100),
   isActive: z.boolean().default(true),
+  /** حساب المحاسبة: مصروف للدخل وصاحب العمل، والتزام للاستقطاع */
+  glAccount,
+  /** حساب التزام يقابل مصروف صاحب العمل (للنوع employer فقط) */
+  glOffsetAccount: glAccount,
 });
 
 /** تحقق الحقول المطلوبة لكل نوع احتساب، وسلامة الصيغة (دون المراجع، فتُفحص في الخادم). */

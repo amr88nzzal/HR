@@ -8,7 +8,9 @@ import { requirePermission } from '../identity/index.js';
 import { assertEmployeeVisible } from './access.js';
 import { idOf, makeRun } from './children.routes.js';
 
-const AAD = 'employee_bank_accounts.iban';
+/** سياق التشفير لـ IBAN (يُستعمل أيضاً لفكّه في ملف تحويل الرواتب) / encryption context for IBAN (also used by the payroll bank file) */
+export const BANK_IBAN_AAD = 'employee_bank_accounts.iban';
+const AAD = BANK_IBAN_AAD;
 const updateSchema = childUpdateInput(bankAccountInput.shape).extend({
   iban: bankAccountInput.shape.iban.optional(),
 });
