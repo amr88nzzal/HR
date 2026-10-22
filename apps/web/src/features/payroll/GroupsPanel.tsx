@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import { FormModal, firstIssue, useCrud } from './crud';
+import { GroupMembersModal } from './GroupMembersModal';
 import type { Group as PayGroup, Reason } from './runs-types';
 
 type Item = PayGroup | Reason;
@@ -25,6 +26,7 @@ export const SimpleListPanel = ({
   const [editing, setEditing] = useState<Item | 'new' | null>(null);
   const [v, setV] = useState({ code: '', nameAr: '', nameEn: '', isActive: true });
   const [error, setError] = useState<string | null>(null);
+  const [members, setMembers] = useState<PayGroup | null>(null);
   const open = (r: Item | 'new') => {
     setError(null);
     setEditing(r);
@@ -70,6 +72,11 @@ export const SimpleListPanel = ({
               </Table.Td>
               <Table.Td>{r.isActive ? '✓' : '—'}</Table.Td>
               <Table.Td>
+                {kind === 'group' && 'isDefault' in r && can('payroll.group.read') && (
+                  <Button size="xs" variant="subtle" onClick={() => setMembers(r)}>
+                    {t('payroll.groupMembers.button')}
+                  </Button>
+                )}
                 {can(`${perm}.update`) && (
                   <Button size="xs" variant="subtle" onClick={() => open(r)}>
                     {t('payroll.edit')}
@@ -80,6 +87,15 @@ export const SimpleListPanel = ({
           ))}
         </Table.Tbody>
       </Table>
+      {members && (
+        <GroupMembersModal
+          groupId={members.id}
+          groupName={(i18n.language === 'en' && members.nameEn) || members.nameAr}
+          isDefault={members.isDefault}
+          canEdit={can('payroll.group.update')}
+          onClose={() => setMembers(null)}
+        />
+      )}
       <FormModal
         opened={editing !== null}
         title={editing === 'new' ? t('payroll.add') : t('payroll.edit')}

@@ -87,6 +87,18 @@ export const payrollAr = {
     reasons: 'أسباب التجاوز',
     accounting: 'الحسابات المحاسبية',
   },
+  groupMembers: {
+    button: 'الأعضاء',
+    title: 'أعضاء مجموعة الدفع',
+    defaultHint: 'هذه المجموعة الافتراضية: كل موظف بلا تعيين يدخلها تلقائياً.',
+    employee: 'الموظف',
+    from: 'من تاريخ',
+    to: 'إلى',
+    add: 'تعيين',
+    added: 'تم التعيين',
+    current: 'حالي',
+    empty: 'لا تعيينات صريحة في هذه المجموعة.',
+  },
   gl: {
     account: 'رمز الحساب المحاسبي',
     accountHint: {
