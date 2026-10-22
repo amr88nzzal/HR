@@ -72,6 +72,7 @@ export const mountEmployeesRoutes = (
   api.use('/employees/:employeeId/bank-accounts', createBankRouter(db, authenticate, crypto));
 };
 
+export { BANK_IBAN_AAD } from './bank.routes.js';
 export { employeeScope, assertEmployeeVisible } from './access.js';
 export { applyChange } from './employments.routes.js';
 export { seedDefaultExternalSystems } from './external.routes.js';

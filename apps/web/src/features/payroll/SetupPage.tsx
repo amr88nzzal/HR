@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import { BasesPanel } from './BasesPanel';
 import { ComponentsPanel } from './ComponentsPanel';
+import { GlSettingsPanel } from './GlSettingsPanel';
 import { RatesPanel } from './RatesPanel';
 import { SimpleListPanel } from './GroupsPanel';
 import { StructuresPanel } from './StructuresPanel';
@@ -27,6 +28,7 @@ export const SetupPage = () => {
         <SimpleListPanel base="override-reasons" perm="payroll.override_reason" kind="reason" />
       ),
     },
+    { value: 'accounting', perm: 'payroll.accounting.read', body: <GlSettingsPanel /> },
   ].filter((x) => can(x.perm));
   return (
     <Stack>

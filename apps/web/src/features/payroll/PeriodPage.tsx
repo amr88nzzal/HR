@@ -15,6 +15,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
+import { PeriodDocsMenu } from './PeriodDocsMenu';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
@@ -266,6 +267,7 @@ export const PeriodPage = () => {
               {t('payroll.run.lock')}
             </Button>
           )}
+          {p.employeesCount > 0 && <PeriodDocsMenu periodId={periodId} status={p.status} />}
           {can('payroll.payslip.read') && p.employeesCount > 0 && (
             <Button variant="default" loading={zipping} onClick={() => void downloadZip()}>
               {t('payslips.zip')}

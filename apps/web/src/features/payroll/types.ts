@@ -14,6 +14,8 @@ export type Component = {
   displayOrder: number;
   prorate: boolean;
   isActive: boolean;
+  glAccount: string | null;
+  glOffsetAccount: string | null;
   version: number;
 };
 export type Base = {

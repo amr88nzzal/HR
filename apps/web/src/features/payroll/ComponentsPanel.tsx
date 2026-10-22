@@ -39,6 +39,8 @@ const blank = (): Record<string, unknown> => ({
   displayOrder: 100,
   prorate: true,
   isActive: true,
+  glAccount: '',
+  glOffsetAccount: '',
 });
 
 const toBody = (v: Record<string, unknown>) => {
@@ -58,6 +60,8 @@ const toBody = (v: Record<string, unknown>) => {
     displayOrder: v['displayOrder'],
     prorate: v['prorate'],
     isActive: v['isActive'],
+    glAccount: s('glAccount'),
+    glOffsetAccount: v['kind'] === 'employer' ? s('glOffsetAccount') : null,
   };
 };
 
@@ -94,6 +98,8 @@ export const ComponentsPanel = () => {
             fixedAmount: c.fixedAmount ?? '',
             percent: c.percent ?? '',
             formula: c.formula ?? '',
+            glAccount: c.glAccount ?? '',
+            glOffsetAccount: c.glOffsetAccount ?? '',
           },
     );
   };
@@ -322,6 +328,32 @@ export const ComponentsPanel = () => {
             onChange={(e) => set('prorate', e.currentTarget.checked)}
           />
         )}
+        <Group grow align="flex-start">
+          <TextInput
+            label={t('payroll.gl.account')}
+            description={t(`payroll.gl.accountHint.${str('kind') || 'earning'}`)}
+            value={str('glAccount')}
+            maxLength={40}
+            dir="ltr"
+            onChange={(e) => {
+              const value = e.currentTarget.value;
+              set('glAccount', value);
+            }}
+          />
+          {str('kind') === 'employer' && (
+            <TextInput
+              label={t('payroll.gl.offsetAccount')}
+              description={t('payroll.gl.offsetHint')}
+              value={str('glOffsetAccount')}
+              maxLength={40}
+              dir="ltr"
+              onChange={(e) => {
+                const value = e.currentTarget.value;
+                set('glOffsetAccount', value);
+              }}
+            />
+          )}
+        </Group>
         <Switch
           label={t('payroll.active')}
           checked={v['isActive'] === true}

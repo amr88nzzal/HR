@@ -5,6 +5,7 @@ import { createCrudRouter, type CrudConfig } from '../org/index.js';
 import { createLoansRouter } from './loans.routes.js';
 import type { PdfDeps } from './payslip-pdf.routes.js';
 import { createMyPayslipsRouter, createPayslipPdfRouter } from './payslip-pdf.routes.js';
+import { createGlSettingsRouter } from './gl-settings.routes.js';
 import { createPayslipTemplatesRouter } from './payslip-templates.routes.js';
 import { createRunsRouter, type RunsDeps } from './runs.routes.js';
 import { createShortfallRouter } from './shortfall.routes.js';
@@ -40,6 +41,7 @@ export const mountPayrollRoutes = (
     '/payroll/payslip-templates',
     createPayslipTemplatesRouter(db, authenticate, deps.files, deps.verify),
   );
+  api.use('/payroll/gl-settings', createGlSettingsRouter(db, authenticate));
   api.use('/payroll', createPayslipPdfRouter(db, authenticate, deps));
   api.use('/me/payslips', createMyPayslipsRouter(db, authenticate, deps));
   api.use('/payroll', createRunsRouter(db, authenticate, deps));
@@ -53,6 +55,6 @@ export const mountPayrollRoutes = (
 
 export { makeRun } from './setup.routes.js';
 export { addSalary } from './salaries.routes.js';
-export { companyLang } from './payslip-doc.js';
+export { companyLang, fmtAmount } from './payslip-doc.js';
 
 export { createPublicPayslipVerifyRouter } from './payslip-verify.js';

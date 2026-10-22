@@ -52,7 +52,7 @@ import {
   createAdminActionTypesRouter,
   createMyAdminActionsRouter,
 } from './modules/admin-actions/index.js';
-import { createReportsRouter } from './modules/reports/index.js';
+import { createPayrollDocsRouter, createReportsRouter } from './modules/reports/index.js';
 import { createPublicPayslipVerifyRouter, mountPayrollRoutes } from './modules/payroll/index.js';
 import { createLeaveRequestsRouter, mountLeaveRoutes } from './modules/leave/index.js';
 import { createErrorHandler, notFoundHandler } from './shared/errors.js';
@@ -222,6 +222,14 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
     api.use(
       '/reports',
       createReportsRouter(auth.db, authenticate, { files, render: auth.render, jobs: auth.jobs }),
+    );
+    api.use(
+      '/payroll/periods',
+      createPayrollDocsRouter(auth.db, authenticate, {
+        files,
+        render: auth.render,
+        crypto: auth.crypto,
+      }),
     );
     mountPayrollRoutes(api, auth.db, authenticate, {
       notifier: createNotifier(auth.jobs),

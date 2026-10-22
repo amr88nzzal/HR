@@ -1034,6 +1034,15 @@ export type PayComponentsTable = Versioned & {
   roundingDecimals: Generated<number>;
   displayOrder: Generated<number>;
   isActive: Generated<boolean>;
+  glAccount: string | null;
+  glOffsetAccount: string | null;
+};
+export type PayrollGlSettingsTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  salariesPayable: string | null;
+  loansReceivable: string | null;
+  defaultExpense: string | null;
 };
 export type PayComponentBasesTable = {
   companyId: string;
@@ -1508,6 +1517,7 @@ export type Database = {
   payrollBases: PayrollBasesTable;
   rateTables: RateTablesTable;
   payComponents: PayComponentsTable;
+  payrollGlSettings: PayrollGlSettingsTable;
   payComponentBases: PayComponentBasesTable;
   salaryStructures: SalaryStructuresTable;
   salaryStructureComponents: SalaryStructureComponentsTable;
