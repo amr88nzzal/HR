@@ -264,6 +264,12 @@ export const NAV: (NavLeaf | NavGroup)[] = [
         icon: IconCash,
         permission: 'payroll.loan.read',
       },
+      {
+        key: 'payrollLoansGrid',
+        path: '/payroll/loans-grid',
+        icon: IconCash,
+        permission: 'payroll.loan.read',
+      },
     ],
   },
   {

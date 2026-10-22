@@ -6,6 +6,7 @@ export const payrollNavAr = {
   brand: 'الهوية البصرية',
   payrollShortfall: 'نقص الدوام',
   payrollLoans: 'قروض وسلف',
+  payrollLoansGrid: 'جدول السلف والذمم',
   payslipDesign: 'تصميم القسيمة',
   myPayslips: 'قسائم راتبي',
   reportsCenter: 'التقارير',
@@ -85,6 +86,7 @@ export const payrollAr = {
     structures: 'هياكل الرواتب',
     groups: 'مجموعات الدفع',
     reasons: 'أسباب التجاوز',
+    loanTypes: 'أنواع السلف',
     accounting: 'الحسابات المحاسبية',
   },
   groupMembers: {

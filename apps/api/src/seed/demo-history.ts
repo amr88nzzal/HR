@@ -6,6 +6,7 @@ import { createApprovalEngine } from '../approvals/index.js';
 import { recomputeDays } from '../modules/attendance/index.js';
 import { submitRequest } from '../modules/leave/index.js';
 import { calculatePeriod, monthRange } from '../modules/payroll/calc.js';
+import { ensureDefaultLoanTypes } from '../modules/payroll/loan-types.js';
 import { applyLoansOnLock } from '../modules/payroll/loans.js';
 import { ensureDefaultGroup } from '../modules/payroll/runs.routes.js';
 import { createNotifier } from '../notifications/index.js';
@@ -259,12 +260,21 @@ const seedHistoryPayroll = async (ctx: Ctx): Promise<string | undefined> => {
     .execute();
   if (borrowers[0]) {
     const principal = '800';
+    await ensureDefaultLoanTypes(ctx);
+    const loanType = await trx
+      .selectFrom('loanTypes')
+      .select('id')
+      .where('companyId', '=', companyId)
+      .where('code', '=', 'loan')
+      .executeTakeFirstOrThrow();
     const loan = await trx
       .insertInto('loans')
       .values({
         companyId,
         employeeId: borrowers[0].employeeId,
         kind: 'loan',
+        typeId: loanType.id,
+        eventDate: `${oldest.year}-${String(oldest.month).padStart(2, '0')}-01`,
         currency: draft.currency,
         principal,
         installmentsCount: 4,

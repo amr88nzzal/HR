@@ -30,7 +30,16 @@ export type PayslipDoc = {
   payable: string;
   earnings: { code: string; nameAr: string; nameEn: string | null; amount: string }[];
   deductionLines: { code: string; nameAr: string; nameEn: string | null; amount: string }[];
-  loanItems: { amount: string; overCap: boolean; no: number; count: number }[];
+  loanItems: {
+    amount: string;
+    overCap: boolean;
+    no: number;
+    count: number;
+    typeNameAr: string;
+    typeNameEn: string;
+    reference: string | null;
+    eventDate: string;
+  }[];
 };
 
 /** بيانات قسيمة للعرض أو الـ PDF (بلا بنود «تتحمّلها الشركة»). */
@@ -51,9 +60,10 @@ export const loadPayslipDoc = async (ctx: Ctx, slipId: string): Promise<PayslipD
     ctx.trx,
   );
   const { rows: items } = await sql<Row>`
-    select it.amount::text as amount, it.over_cap, i.no, l.installments_count as count
+    select it.amount::text as amount, it.over_cap, i.no, l.installments_count as count,
+           lt.name_ar as type_name_ar, lt.name_en as type_name_en, l.reference, l.event_date::text as event_date
       from payslip_loan_items it join loan_installments i on i.id = it.installment_id
-      join loans l on l.id = i.loan_id
+      join loans l on l.id = i.loan_id join loan_types lt on lt.id = l.type_id
      where it.payslip_id = ${slipId} order by i.due_year, i.due_month, i.no`.execute(ctx.trx);
   const pick = (l: Row) => ({
     code: l.code as string,
@@ -83,6 +93,10 @@ export const loadPayslipDoc = async (ctx: Ctx, slipId: string): Promise<PayslipD
       overCap: Boolean(i.overCap),
       no: Number(i.no),
       count: Number(i.count),
+      typeNameAr: i.typeNameAr as string,
+      typeNameEn: i.typeNameEn as string,
+      reference: (i.reference as string | null) ?? null,
+      eventDate: i.eventDate as string,
     })),
   };
 };

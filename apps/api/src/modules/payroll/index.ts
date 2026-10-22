@@ -1,7 +1,8 @@
 import type { RequestHandler, Router } from 'express';
-import { overrideReasonInput, payGroupInput } from '@hrms/shared';
+import { loanTypeInput, overrideReasonInput, payGroupInput } from '@hrms/shared';
 import type { Db } from '../../db/index.js';
 import { createCrudRouter, type CrudConfig } from '../org/index.js';
+import { ensureDefaultLoanTypes } from './loan-types.js';
 import { createLoansRouter } from './loans.routes.js';
 import type { PdfDeps } from './payslip-pdf.routes.js';
 import { createMyPayslipsRouter, createPayslipPdfRouter } from './payslip-pdf.routes.js';
@@ -10,7 +11,7 @@ import { createPayslipTemplatesRouter } from './payslip-templates.routes.js';
 import { createRunsRouter, type RunsDeps } from './runs.routes.js';
 import { createShortfallRouter } from './shortfall.routes.js';
 import { createSalariesRouter } from './salaries.routes.js';
-import { createPayrollSetupRouter } from './setup.routes.js';
+import { createPayrollSetupRouter, makeRun } from './setup.routes.js';
 
 /** يركّب مسارات الرواتب تحت /api/v1 */
 const CRUDS: Record<string, CrudConfig> = {
@@ -20,6 +21,13 @@ const CRUDS: Record<string, CrudConfig> = {
     create: payGroupInput,
     searchColumns: ['nameAr', 'nameEn', 'code'],
     orderBy: 'code',
+  },
+  'loan-types': {
+    table: 'loanTypes',
+    permission: 'payroll.loan_type',
+    create: loanTypeInput,
+    searchColumns: ['nameAr', 'nameEn', 'code'],
+    orderBy: 'sortOrder',
   },
   'override-reasons': {
     table: 'overrideReasons',
@@ -47,6 +55,12 @@ export const mountPayrollRoutes = (
   api.use('/payroll', createRunsRouter(db, authenticate, deps));
   api.use('/payroll/shortfall', createShortfallRouter(db, authenticate));
   api.use('/payroll', createLoansRouter(db, authenticate));
+  // يزرع أنواع السلف الافتراضية للشركة الجديدة قبل أول قراءة
+  // Seeds the default loan types for a new company before the first read
+  const run = makeRun(db);
+  api.get('/payroll/loan-types', authenticate, (req, _res, next) => {
+    run(req, (ctx) => ensureDefaultLoanTypes(ctx)).then(() => next(), next);
+  });
   for (const [path, cfg] of Object.entries(CRUDS))
     api.use(`/payroll/${path}`, createCrudRouter(db, cfg, authenticate));
   api.use('/payroll', createPayrollSetupRouter(db, authenticate));
@@ -54,6 +68,7 @@ export const mountPayrollRoutes = (
 };
 
 export { makeRun } from './setup.routes.js';
+export { ensureDefaultLoanTypes } from './loan-types.js';
 export { addSalary } from './salaries.routes.js';
 export { companyLang, fmtAmount } from './payslip-doc.js';
 

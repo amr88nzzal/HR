@@ -3,7 +3,14 @@ export type LoanRow = {
   employeeId: string;
   employeeNo: string | null;
   employeeName: string;
-  kind: 'loan' | 'advance';
+  kind: string;
+  typeId?: string;
+  typeCode?: string;
+  typeNameAr?: string;
+  typeNameEn?: string;
+  typeColor?: string;
+  eventDate?: string;
+  reference?: string | null;
   currency: string;
   principal: string;
   installmentsCount: number;

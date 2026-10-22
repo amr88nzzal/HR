@@ -3,7 +3,12 @@ export const loansAr = {
   new: 'سلفة جديدة',
   details: 'تفاصيل السلفة',
   kind: 'النوع',
-  kinds: { loan: 'قرض', advance: 'سلفة' },
+  kinds: { loan: 'قرض', advance: 'سلفة', receivable: 'فاتورة ذمم' },
+  eventDate: 'تاريخ الصرف',
+  invoiceDate: 'تاريخ الفاتورة',
+  bulkNew: 'إدخال فواتير متعددة',
+  addRow: 'إضافة سطر',
+  limitWarning: 'تنبيه: أقساط هذا الشهر تتجاوز الحد المسموح كنسبة من الراتب الأساسي.',
   principal: 'المبلغ',
   count: 'عدد الأقساط',
   reason: 'السبب',
@@ -65,4 +70,29 @@ export const loansAr = {
   unmark: 'إلغاء التعليم',
   exportCsv: 'تصدير CSV',
   noPayments: 'لا دفعات',
+};
+
+export const loansGridAr = {
+  month: 'الشهر',
+  department: 'القسم',
+  branch: 'الفرع',
+  all: 'الكل',
+  legend: 'دليل الألوان',
+  taken: 'المصروف',
+  due: 'المستحق خصمه',
+  closing: 'المتبقي',
+  total: 'المجموع',
+  empty: 'لا سلف أو ذمم في هذا الشهر بحسب المرشحات.',
+};
+export const loanTypesAr = {
+  color: 'اللون',
+  disburses: 'الصرف',
+  cash: 'يُصرف نقداً',
+  credit: 'بالآجل (ذمم)',
+  maxInstallments: 'أقصى عدد أقساط',
+  monthlyLimit: 'حد الأقساط الشهرية %',
+  monthlyLimitHint: 'نسبة من الأساسي؛ تنبيه فقط عند تجاوزها',
+  glAccount: 'الحساب المحاسبي',
+  glHint: 'يُستعمل في قيد المحاسبة؛ فارغ = حساب ذمم السلف العام',
+  disbursesLabel: 'يُصرف مبلغ نقدي للموظف (أوقفه لفواتير الذمم)',
 };

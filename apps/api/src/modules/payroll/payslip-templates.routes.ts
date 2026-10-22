@@ -70,7 +70,18 @@ const SAMPLE: PayslipDoc = {
     { code: 'TAX', nameAr: 'ضريبة الدخل', nameEn: 'Income tax', amount: '135.000' },
     { code: 'LATE', nameAr: 'خصم تأخير', nameEn: 'Late deduction', amount: '0.000' },
   ],
-  loanItems: [{ amount: '46.000', overCap: false, no: 3, count: 10 }],
+  loanItems: [
+    {
+      amount: '46.000',
+      overCap: false,
+      no: 3,
+      count: 10,
+      typeNameAr: 'قرض',
+      typeNameEn: 'Loan',
+      reference: null,
+      eventDate: '2026-01-05',
+    },
+  ],
 };
 const SAMPLE_EXTRAS: PayslipExtras = {
   jobTitle: { ar: 'محاسب', en: 'Accountant' },

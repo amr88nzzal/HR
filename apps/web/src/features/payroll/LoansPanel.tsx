@@ -25,6 +25,8 @@ import { errorMessage } from '../../lib/errors';
 import { EmployeeSelect } from '../employees/EmployeeSelect';
 import { useLookup } from '../employees/shared';
 import type { Installment, LoanDetail, LoanRow } from './loans-types';
+import { useLoanTypes, typeName } from './loan-types-api';
+import { BulkInvoiceModal } from './BulkInvoiceModal';
 import { MarkPaidModal } from './MarkPaidModal';
 
 const statusColor = { active: 'blue', settled: 'teal', cancelled: 'gray' } as const;
@@ -37,37 +39,47 @@ const instColor = {
 const ym = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')}`;
 
 const NewLoanModal = ({ employeeId, onClose }: { employeeId?: string; onClose: () => void }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const qc = useQueryClient();
   const currencies = useLookup('/currencies', 'system.currency.read');
   const now = new Date();
   const [v, setV] = useState({
     employeeId: employeeId ?? '',
-    kind: 'loan',
+    typeId: '',
     currency: '',
     principal: '',
     count: 6,
+    eventDate: now.toISOString().slice(0, 10),
+    reference: '',
     year: now.getFullYear(),
     month: now.getMonth() + 1,
     reason: '',
   });
+  const types = useLoanTypes();
+  const type = (types.data ?? []).find((x) => x.id === v.typeId) ?? types.data?.[0];
+  const count = Math.min(v.count, type?.maxInstallments ?? v.count);
   const codes = currencies.rows.map((r) => String(r['code']));
   const currency = v.currency || codes[0] || '';
   const valid = /^\d{1,14}(\.\d{1,4})?$/.test(v.principal) && Number(v.principal) > 0;
-  const preview = valid ? buildSchedule(v.principal, v.count, v.year, v.month) : [];
+  const preview = valid ? buildSchedule(v.principal, count, v.year, v.month) : [];
   const save = useMutation({
     mutationFn: async () =>
       api.post('/payroll/loans', {
         employeeId: v.employeeId,
-        kind: v.kind,
+        typeId: type?.id,
         currency,
         principal: v.principal,
-        installmentsCount: v.count,
+        installmentsCount: count,
+        eventDate: v.eventDate,
+        reference: v.reference || null,
         firstYear: v.year,
         firstMonth: v.month,
         reason: v.reason || null,
       }),
-    onSuccess: async () => {
+    onSuccess: async (res) => {
+      if ((res.meta?.['warnings'] as string[] | undefined)?.includes('MONTHLY_LIMIT_EXCEEDED'))
+        notifications.show({ color: 'orange', message: t('loans.limitWarning') });
       await qc.invalidateQueries({ queryKey: ['/payroll'] });
       onClose();
     },
@@ -86,9 +98,12 @@ const NewLoanModal = ({ employeeId, onClose }: { employeeId?: string; onClose: (
         <Group grow>
           <NativeSelect
             label={t('loans.kind')}
-            value={v.kind}
-            onChange={(e) => setV({ ...v, kind: e.currentTarget.value })}
-            data={['loan', 'advance'].map((k) => ({ value: k, label: t(`loans.kinds.${k}`) }))}
+            value={type?.id ?? ''}
+            onChange={(e) => setV({ ...v, typeId: e.currentTarget.value })}
+            data={(types.data ?? []).map((x) => ({
+              value: x.id,
+              label: (lang === 'en' && x.nameEn) || x.nameAr,
+            }))}
           />
           <NativeSelect
             label={t('payroll.run.currency')}
@@ -104,11 +119,32 @@ const NewLoanModal = ({ employeeId, onClose }: { employeeId?: string; onClose: (
           />
         </Group>
         <Group grow>
+          <TextInput
+            type="date"
+            label={type && !type.disburses ? t('loans.invoiceDate') : t('loans.eventDate')}
+            value={v.eventDate}
+            onChange={(e) => {
+              const d = e.currentTarget.value;
+              setV({
+                ...v,
+                eventDate: d,
+                year: Number(d.slice(0, 4)) || v.year,
+                month: Number(d.slice(5, 7)) || v.month,
+              });
+            }}
+          />
+          <TextInput
+            label={t('loans.reference')}
+            value={v.reference}
+            onChange={(e) => setV({ ...v, reference: e.currentTarget.value })}
+          />
+        </Group>
+        <Group grow>
           <NumberInput
             label={t('loans.count')}
             min={1}
-            max={120}
-            value={v.count}
+            max={type?.maxInstallments ?? 120}
+            value={count}
             onChange={(n) => setV({ ...v, count: Number(n) || 1 })}
           />
           <NumberInput
@@ -144,7 +180,7 @@ const NewLoanModal = ({ employeeId, onClose }: { employeeId?: string; onClose: (
           </Button>
           <Button
             loading={save.isPending}
-            disabled={!valid || !v.employeeId || !currency}
+            disabled={!valid || !v.employeeId || !currency || !type}
             onClick={() => save.mutate()}
           >
             {t('common.save')}
@@ -429,7 +465,8 @@ const SettleModal = ({ loan, onClose }: { loan: LoanDetail; onClose: () => void 
 };
 
 const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const { can } = useAuth();
   const qc = useQueryClient();
   const manage = can('payroll.loan.manage');
@@ -468,7 +505,7 @@ const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
             <Text
               size="sm"
               dir="ltr"
-            >{`${t(`loans.kinds.${loan.kind}`)} · ${loan.principal} ${loan.currency}`}</Text>
+            >{`${typeName(loan, lang) ?? t(`loans.kinds.${loan.kind}`)} · ${loan.principal} ${loan.currency}`}</Text>
           </Group>
           <Group gap="xl">
             <Text size="sm" dir="ltr">{`${t('loans.repaid')}: ${loan.repaid}`}</Text>
@@ -593,7 +630,9 @@ const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
 
 /** السلف والقروض: القائمة (كلها أو لموظف)، منح سلفة بمعاينة الجدول، تفاصيل الأقساط والتأجيل والإلغاء. */
 export const LoansPanel = ({ employeeId }: { employeeId?: string }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+  const [bulk, setBulk] = useState(false);
   const { can } = useAuth();
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState<string | null>(null);
@@ -607,7 +646,12 @@ export const LoansPanel = ({ employeeId }: { employeeId?: string }) => {
       <Group justify="space-between">
         {!employeeId && <Title order={2}>{t('nav.payrollLoans')}</Title>}
         {can('payroll.loan.create') && (
-          <Button onClick={() => setOpen(true)}>{t('loans.new')}</Button>
+          <Group>
+            <Button variant="default" onClick={() => setBulk(true)}>
+              {t('loans.bulkNew')}
+            </Button>
+            <Button onClick={() => setOpen(true)}>{t('loans.new')}</Button>
+          </Group>
         )}
       </Group>
       <Table withTableBorder striped highlightOnHover>
@@ -615,6 +659,8 @@ export const LoansPanel = ({ employeeId }: { employeeId?: string }) => {
           <Table.Tr>
             {!employeeId && <Table.Th>{t('payroll.run.employee')}</Table.Th>}
             <Table.Th>{t('loans.kind')}</Table.Th>
+            <Table.Th>{t('loans.eventDate')}</Table.Th>
+            <Table.Th>{t('loans.reference')}</Table.Th>
             <Table.Th>{t('loans.principal')}</Table.Th>
             <Table.Th>{t('loans.repaid')}</Table.Th>
             <Table.Th>{t('loans.remaining')}</Table.Th>
@@ -625,7 +671,20 @@ export const LoansPanel = ({ employeeId }: { employeeId?: string }) => {
           {(list.data ?? []).map((l) => (
             <Table.Tr key={l.id} onClick={() => setSel(l.id)} style={{ cursor: 'pointer' }}>
               {!employeeId && <Table.Td>{`${l.employeeNo ?? ''} · ${l.employeeName}`}</Table.Td>}
-              <Table.Td>{t(`loans.kinds.${l.kind}`)}</Table.Td>
+              <Table.Td>
+                <Badge
+                  variant="light"
+                  style={
+                    l.typeColor
+                      ? { backgroundColor: `${l.typeColor}33`, color: 'inherit' }
+                      : undefined
+                  }
+                >
+                  {typeName(l, lang) ?? t(`loans.kinds.${l.kind}`)}
+                </Badge>
+              </Table.Td>
+              <Table.Td dir="ltr">{l.eventDate ?? ''}</Table.Td>
+              <Table.Td dir="ltr">{l.reference ?? ''}</Table.Td>
               <Table.Td dir="ltr">{`${l.principal} ${l.currency}`}</Table.Td>
               <Table.Td dir="ltr">{l.repaid}</Table.Td>
               <Table.Td dir="ltr">{l.remaining}</Table.Td>
@@ -637,6 +696,7 @@ export const LoansPanel = ({ employeeId }: { employeeId?: string }) => {
         </Table.Tbody>
       </Table>
       {(list.data ?? []).length === 0 && <Text c="dimmed">{t('loans.empty')}</Text>}
+      {bulk && <BulkInvoiceModal employeeId={employeeId} onClose={() => setBulk(false)} />}
       {open && <NewLoanModal employeeId={employeeId} onClose={() => setOpen(false)} />}
       {sel && <LoanDrawer id={sel} onClose={() => setSel(null)} />}
     </Stack>

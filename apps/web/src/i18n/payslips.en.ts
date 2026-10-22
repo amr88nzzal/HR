@@ -12,6 +12,7 @@ export const payslipsEn = {
   deductions: 'Deductions',
   view: 'View',
   reveal: 'Show amounts',
+  myLoans: 'My loans & receivables',
   hide: 'Hide amounts',
   zip: 'Download all payslips (ZIP)',
   cmp: {

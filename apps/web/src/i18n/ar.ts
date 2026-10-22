@@ -3,7 +3,7 @@ import { helpAr } from './help.ar';
 import { platformAr } from './platform.ar';
 import { adminActionsNavAr, adminActionsAr } from './adminActions.ar';
 import { brandAr } from './brand.ar';
-import { loansAr } from './loans.ar';
+import { loansAr, loanTypesAr, loansGridAr } from './loans.ar';
 import { shortfallAr } from './shortfall.ar';
 import { payslipsAr } from './payslips.ar';
 import { dashboardAr, reportsAr } from './reports.ar';
@@ -1012,6 +1012,8 @@ export const ar = {
   payroll: payrollAr,
   account: accountAr,
   loans: loansAr,
+  loansGrid: loansGridAr,
+  loanTypes: loanTypesAr,
   adminActions: adminActionsAr,
   shortfall: shortfallAr,
   payslips: payslipsAr,

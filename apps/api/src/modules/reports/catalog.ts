@@ -599,17 +599,18 @@ export const REPORTS: ReportDef[] = [
     orderBy: 'employee_no, created_at, id',
     query: (_a, scope, f) => sql`
       select l.id, l.created_at, employees.employee_no, employees.full_name_ar as name,
-             case l.kind when 'advance' then 'سلفة' else 'قرض' end as kind, l.currency,
+             lt.name_ar as kind, l.currency,
              l.principal::text as principal,
              coalesce(sum(i.amount) filter (where i.status = 'deducted'), 0)::text as repaid,
              (l.principal - coalesce(sum(i.amount) filter (where i.status = 'deducted'), 0))::text as remaining,
              l.installments_count as installments, l.status
         from loans l
         join employees on employees.id = l.employee_id
+        join loan_types lt on lt.id = l.type_id
         left join loan_installments i on i.loan_id = l.id
        where ${scope ?? sql<boolean>`true`}
          ${f['status'] ? sql`and l.status = ${f['status']}` : sql``}
-       group by l.id, employees.employee_no, employees.full_name_ar`,
+       group by l.id, employees.employee_no, employees.full_name_ar, lt.name_ar`,
   },
 ];
 

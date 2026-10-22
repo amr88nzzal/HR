@@ -65,6 +65,7 @@ export const PERMISSION_CATALOG: readonly PermissionDef[] = [
   def('payroll', 'salary', 'read', 'عرض رواتب الموظفين'),
   def('payroll', 'salary', 'manage', 'إدارة رواتب الموظفين'),
   ...crud('payroll', 'group', 'مجموعات الدفع'),
+  ...crud('payroll', 'loan_type', 'أنواع السلف'),
   ...crud('payroll', 'override_reason', 'أسباب التجاوز اليدوي'),
   def('payroll', 'period', 'read', 'عرض دورات الرواتب'),
   def('payroll', 'period', 'create', 'إنشاء دورة رواتب'),
