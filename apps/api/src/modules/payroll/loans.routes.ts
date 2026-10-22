@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   buildSchedule,
   installmentDeferInput,
+  loanBulkInput,
   loanCancelInput,
   loanInput,
   loanListQuery,
@@ -19,6 +20,7 @@ import { AppError } from '../../shared/errors.js';
 import { requirePermission } from '../identity/index.js';
 import { recalcEmployee, type Period } from './calc.js';
 import { deferInstallment, refreshLoanStatuses } from './loans.js';
+import { monthlyLimitWarning, planDates, resolveLoanType } from './loan-types.js';
 import { makeRun } from './setup.routes.js';
 
 type Row = Record<string, unknown>;
@@ -34,12 +36,14 @@ const PAY = 'payroll.payment';
 const loanRow = async (ctx: Ctx, id: string) => {
   const { rows } = await sql<Row>`
     select l.id, l.employee_id, e.employee_no, e.full_name_ar as employee_name, l.kind, l.currency,
+           l.type_id, lt.code as type_code, lt.name_ar as type_name_ar, lt.name_en as type_name_en,
+           lt.color as type_color, l.event_date::text as event_date, l.reference,
            l.principal::text as principal, l.installments_count, l.first_year, l.first_month, l.reason,
            l.status, l.cancel_reason, l.version, l.created_at, l.settlement_mode, l.settlement_amount::text as settlement_amount,
            l.settlement_reference, l.settlement_note, l.settled_at,
            coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id and i.status = 'deducted'), 0)::text as repaid,
            coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id and i.status = 'scheduled'), 0)::text as remaining
-      from loans l join employees e on e.id = l.employee_id
+      from loans l join employees e on e.id = l.employee_id join loan_types lt on lt.id = l.type_id
      where l.id = ${id} and l.company_id = ${ctx.companyId}`.execute(ctx.trx);
   if (!rows[0]) throw new AppError('NOT_FOUND', 404, 'السلفة غير موجودة');
   return rows[0];
@@ -92,17 +96,20 @@ export const createLoansRouter = (db: Db, authenticate: RequestHandler): Router 
       const out = await run(req, async (ctx) => {
         const where = sql`l.company_id = ${ctx.companyId}
           ${q.employeeId ? sql`and l.employee_id = ${q.employeeId}` : sql``}
+          ${q.typeId ? sql`and l.type_id = ${q.typeId}` : sql``}
           ${q.status ? sql`and l.status = ${q.status}` : sql``}`;
         const total = await sql<{
           n: number;
         }>`select count(*)::int as n from loans l where ${where}`.execute(ctx.trx);
         const { rows } = await sql<Row>`
           select l.id, l.employee_id, e.employee_no, e.full_name_ar as employee_name, l.kind, l.currency,
+           l.type_id, lt.code as type_code, lt.name_ar as type_name_ar, lt.name_en as type_name_en,
+           lt.color as type_color, l.event_date::text as event_date, l.reference,
                  l.principal::text as principal, l.installments_count, l.first_year, l.first_month, l.status,
                  coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id and i.status = 'deducted'), 0)::text as repaid,
                  coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id and i.status = 'scheduled'), 0)::text as remaining
-            from loans l join employees e on e.id = l.employee_id
-           where ${where} order by l.created_at desc
+            from loans l join employees e on e.id = l.employee_id join loan_types lt on lt.id = l.type_id
+           where ${where} order by l.event_date desc, l.created_at desc
            limit ${q.pageSize} offset ${(q.page - 1) * q.pageSize}`.execute(ctx.trx);
         return { rows, total: total.rows[0]!.n };
       });
@@ -110,37 +117,122 @@ export const createLoansRouter = (db: Db, authenticate: RequestHandler): Router 
     }),
   );
 
+  /** ينشئ سلفة/قرضاً/فاتورة ذمم مع جدول أقساطها؛ يعيد تنبيه الحد الشهري إن وُجد. */
+  /** Creates a loan/advance/receivable with its schedule; returns the monthly-limit warning if any. */
+  const createOne = async (
+    ctx: Ctx,
+    b: {
+      employeeId: string;
+      currency: string;
+      principal: string;
+      installmentsCount: number;
+      reason?: string | null | undefined;
+      reference?: string | null | undefined;
+      eventDate?: string | undefined;
+      firstYear?: number | undefined;
+      firstMonth?: number | undefined;
+    },
+    type: Awaited<ReturnType<typeof resolveLoanType>>,
+  ): Promise<{ id: string; warning: string | null }> => {
+    if (b.installmentsCount > type.maxInstallments)
+      throw new AppError(
+        'TOO_MANY_INSTALLMENTS',
+        400,
+        'عدد الأقساط يتجاوز الحد المسموح لهذا النوع',
+      );
+    const plan = planDates(b);
+    const warning = await monthlyLimitWarning(
+      ctx,
+      type,
+      b.employeeId,
+      b.principal,
+      b.installmentsCount,
+      plan.firstYear,
+      plan.firstMonth,
+    );
+    const { rows } = await sql<{ id: string }>`
+      insert into loans (company_id, employee_id, kind, type_id, event_date, reference, currency, principal,
+                         installments_count, first_year, first_month, reason, created_by)
+      values (${ctx.companyId}, ${b.employeeId}, ${type.code}, ${type.id}, ${plan.eventDate}::date,
+              ${b.reference ?? null}, ${b.currency}, ${b.principal}, ${b.installmentsCount},
+              ${plan.firstYear}, ${plan.firstMonth}, ${b.reason ?? null}, ${ctx.userId})
+      returning id`.execute(ctx.trx);
+    const id = rows[0]!.id;
+    for (const it of buildSchedule(
+      b.principal,
+      b.installmentsCount,
+      plan.firstYear,
+      plan.firstMonth,
+    ))
+      await sql`insert into loan_installments (company_id, loan_id, no, due_year, due_month, amount)
+                values (${ctx.companyId}, ${id}, ${it.no}, ${it.year}, ${it.month}, ${it.amount})`.execute(
+        ctx.trx,
+      );
+    // دفعة صرف للموظف (معلّقة حتى تُعلَّم مدفوعة)؛ الذمم لا صرف فيها فلا دفعة
+    // A disbursement payment (pending until marked paid); receivables pay nothing out, so no payment row
+    if (type.disburses)
+      await sql`insert into payments (company_id, kind, employee_id, loan_id, amount, currency)
+                values (${ctx.companyId}, 'loan', ${b.employeeId}, ${id}, ${b.principal}, ${b.currency})`.execute(
+        ctx.trx,
+      );
+    return { id, warning };
+  };
+
+  const employeeExists = async (ctx: Ctx, employeeId: string): Promise<void> => {
+    const emp = await sql<Row>`
+      select id from employees where id = ${employeeId} and company_id = ${ctx.companyId}`.execute(
+      ctx.trx,
+    );
+    if (!emp.rows[0]) throw new AppError('NOT_FOUND', 404, 'الموظف غير موجود');
+  };
+
   router.post(
     '/loans',
     requirePermission(`${L}.create`),
     wrap(async (req, res) => {
       const b = loanInput.parse(req.body);
-      const data = await run(req, async (ctx) => {
-        const emp = await sql<Row>`
-          select id from employees where id = ${b.employeeId} and company_id = ${ctx.companyId}`.execute(
-          ctx.trx,
-        );
-        if (!emp.rows[0]) throw new AppError('NOT_FOUND', 404, 'الموظف غير موجود');
-        const { rows } = await sql<{ id: string }>`
-          insert into loans (company_id, employee_id, kind, currency, principal, installments_count,
-                             first_year, first_month, reason, created_by)
-          values (${ctx.companyId}, ${b.employeeId}, ${b.kind}, ${b.currency}, ${b.principal},
-                  ${b.installmentsCount}, ${b.firstYear}, ${b.firstMonth}, ${b.reason ?? null}, ${ctx.userId})
-          returning id`.execute(ctx.trx);
-        const id = rows[0]!.id;
-        for (const it of buildSchedule(b.principal, b.installmentsCount, b.firstYear, b.firstMonth))
-          await sql`insert into loan_installments (company_id, loan_id, no, due_year, due_month, amount)
-                    values (${ctx.companyId}, ${id}, ${it.no}, ${it.year}, ${it.month}, ${it.amount})`.execute(
-            ctx.trx,
-          );
-        // دفعة صرف السلفة للموظف (معلّقة حتى تُعلَّم مدفوعة)
-        await sql`insert into payments (company_id, kind, employee_id, loan_id, amount, currency)
-                  values (${ctx.companyId}, 'loan', ${b.employeeId}, ${id}, ${b.principal}, ${b.currency})`.execute(
-          ctx.trx,
-        );
-        return loanRow(ctx, id);
+      const out = await run(req, async (ctx) => {
+        await employeeExists(ctx, b.employeeId);
+        const type = await resolveLoanType(ctx, b);
+        const { id, warning } = await createOne(ctx, b, type);
+        return { loan: await loanRow(ctx, id), warning };
       });
-      res.status(201).json({ data });
+      res
+        .status(201)
+        .json({ data: out.loan, meta: { warnings: out.warning ? [out.warning] : [] } });
+    }),
+  );
+
+  /** إدخال عدة فواتير/سلف لموظف دفعة واحدة (كل بند سجل مستقل بقسط واحد). */
+  /** Enters several invoices/advances for one employee at once (each item is its own single-installment record). */
+  router.post(
+    '/loans/bulk',
+    requirePermission(`${L}.create`),
+    wrap(async (req, res) => {
+      const b = loanBulkInput.parse(req.body);
+      const out = await run(req, async (ctx) => {
+        await employeeExists(ctx, b.employeeId);
+        const type = await resolveLoanType(ctx, { typeId: b.typeId });
+        const ids: string[] = [];
+        const warnings = new Set<string>();
+        for (const it of b.items) {
+          const { id, warning } = await createOne(
+            ctx,
+            {
+              ...it,
+              principal: it.amount,
+              employeeId: b.employeeId,
+              currency: b.currency,
+              installmentsCount: 1,
+            },
+            type,
+          );
+          ids.push(id);
+          if (warning) warnings.add(warning);
+        }
+        return { ids, warnings: [...warnings] };
+      });
+      res.status(201).json({ data: { ids: out.ids }, meta: { warnings: out.warnings } });
     }),
   );
 

@@ -35,6 +35,19 @@ type Detail = {
   loanItems: { amount: string; overCap: boolean; no: number; count: number }[];
 };
 
+type MyLoan = {
+  id: string;
+  typeNameAr: string;
+  typeNameEn: string;
+  typeColor: string;
+  eventDate: string;
+  reference: string | null;
+  currency: string;
+  principal: string;
+  remaining: string;
+  status: string;
+};
+
 const HIDDEN = '••••••';
 const period = (s: { year: number; month: number }) =>
   `${s.year}-${String(s.month).padStart(2, '0')}`;
@@ -57,6 +70,19 @@ export const MyPayslipsPage = () => {
   const list = useQuery({
     queryKey: ['/me/payslips'],
     queryFn: async () => (await api.get<Slip[]>('/me/payslips')).data,
+    retry: false,
+  });
+  // سلفي وذممي: قراءة فقط، وفشل الجلب لا يعطّل القسائم
+  // My loans and receivables: read only; a failed fetch must not break the payslips
+  const loans = useQuery({
+    queryKey: ['/me/payslips', 'loans'],
+    queryFn: async () => {
+      try {
+        return (await api.get<MyLoan[]>('/me/payslips/loans')).data ?? [];
+      } catch {
+        return [];
+      }
+    },
     retry: false,
   });
   const detail = useQuery({
@@ -122,6 +148,37 @@ export const MyPayslipsPage = () => {
             ))}
           </Table.Tbody>
         </Table>
+      )}
+      {!!loans.data?.length && (
+        <Stack gap="xs">
+          <Title order={4}>{t('payslips.myLoans')}</Title>
+          <Table withTableBorder striped>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t('loans.kind')}</Table.Th>
+                <Table.Th>{t('loans.eventDate')}</Table.Th>
+                <Table.Th>{t('loans.reference')}</Table.Th>
+                <Table.Th>{t('loans.principal')}</Table.Th>
+                <Table.Th>{t('loans.remaining')}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {loans.data.map((l) => (
+                <Table.Tr key={l.id}>
+                  <Table.Td>{(i18n.language === 'en' && l.typeNameEn) || l.typeNameAr}</Table.Td>
+                  <Table.Td dir="ltr">{l.eventDate}</Table.Td>
+                  <Table.Td dir="ltr">{l.reference ?? ''}</Table.Td>
+                  <Table.Td>
+                    <Money value={l.principal} show={show} /> {l.currency}
+                  </Table.Td>
+                  <Table.Td>
+                    <Money value={l.remaining} show={show} /> {l.currency}
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Stack>
       )}
       <Drawer
         opened={openId !== null}

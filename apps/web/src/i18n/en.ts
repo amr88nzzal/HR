@@ -3,7 +3,7 @@ import { helpEn } from './help.en';
 import { platformEn } from './platform.en';
 import { adminActionsNavEn, adminActionsEn } from './adminActions.en';
 import { brandEn } from './brand.en';
-import { loansEn } from './loans.en';
+import { loansEn, loanTypesEn, loansGridEn } from './loans.en';
 import { shortfallEn } from './shortfall.en';
 import { payslipsEn } from './payslips.en';
 import { dashboardEn, reportsEn } from './reports.en';
@@ -1038,6 +1038,8 @@ export const en: Messages = {
   payroll: payrollEn,
   account: accountEn,
   loans: loansEn,
+  loansGrid: loansGridEn,
+  loanTypes: loanTypesEn,
   adminActions: adminActionsEn,
   shortfall: shortfallEn,
   payslips: payslipsEn,

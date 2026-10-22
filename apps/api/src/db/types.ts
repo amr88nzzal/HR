@@ -1342,11 +1342,28 @@ export type CompanyBrandTable = Versioned & {
   taxNo: string | null;
   registrationNo: string | null;
 };
+export type LoanTypesTable = Versioned & {
+  id: Generated<string>;
+  companyId: string;
+  code: string;
+  nameAr: string;
+  nameEn: string;
+  color: Generated<string>;
+  disburses: Generated<boolean>;
+  maxInstallments: Generated<number>;
+  monthlyLimitPercent: string | null;
+  glAccount: string | null;
+  isActive: Generated<boolean>;
+  sortOrder: Generated<number>;
+};
 export type LoansTable = Versioned & {
   id: Generated<string>;
   companyId: string;
   employeeId: string;
-  kind: Generated<'loan' | 'advance'>;
+  kind: Generated<string>;
+  typeId: string;
+  eventDate: ColumnType<Date | string, Date | string, Date | string>;
+  reference: string | null;
   currency: string;
   principal: Dec;
   installmentsCount: number;
@@ -1552,6 +1569,7 @@ export type Database = {
   shortfallDecisions: ShortfallDecisionsTable;
   payslipShortfalls: PayslipShortfallsTable;
   loans: LoansTable;
+  loanTypes: LoanTypesTable;
   loanInstallments: LoanInstallmentsTable;
   payslipLoanItems: PayslipLoanItemsTable;
   payments: PaymentsTable;

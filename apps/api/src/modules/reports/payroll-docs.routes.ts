@@ -406,6 +406,19 @@ export const createPayrollDocsRouter = (
              where s.period_id = ${id} and s.company_id = ${ctx.companyId} and s.status = 'calculated'
           ), gs as (
             select * from payroll_gl_settings where company_id = ${ctx.companyId}
+          ), typed as (
+            -- أقساط السلف مجمّعة بحسب نوع السلفة (حساب النوع، وإلا حساب ذمم السلف العام)
+            -- Installments grouped by loan type (the type's account, else the general loans receivable)
+            select coalesce(lt.gl_account, (select loans_receivable from gs), 'UNMAPPED') as acct,
+                   lt.name_ar, lt.name_en, sum(it.amount) as amt
+              from payslip_loan_items it
+              join payslips s on s.id = it.payslip_id
+              join loan_installments i on i.id = it.installment_id
+              join loans l on l.id = i.loan_id
+              join loan_types lt on lt.id = l.type_id
+             where s.period_id = ${id} and s.company_id = ${ctx.companyId} and s.status = 'calculated'
+               and not it.over_cap
+             group by 1, 2, 3
           )
           select 'debit' as side, 1 as ord,
                  coalesce(b.gl_account, (select default_expense from gs), 'UNMAPPED') as account,
@@ -421,9 +434,14 @@ export const createPayrollDocsRouter = (
             from base b where b.kind = 'deduction'
            group by 3, b.code, b.descr having sum(b.amount) <> 0
           union all
+          select 'credit', 4, t.acct, '',
+                 (case when ${en} then 'Loan installments — ' || t.name_en else 'أقساط — ' || t.name_ar end), t.amt::text
+            from typed t where t.amt <> 0
+          union all
           select 'credit', 4, coalesce((select loans_receivable from gs), 'UNMAPPED'), '',
-                 ${en ? 'Loan installments' : 'أقساط السلف'}, sum(loans_amount)::text
-            from slips having sum(loans_amount) <> 0
+                 ${en ? 'Loan installments' : 'أقساط السلف'},
+                 ((select coalesce(sum(loans_amount), 0) from slips) - (select coalesce(sum(amt), 0) from typed))::text
+           where (select coalesce(sum(loans_amount), 0) from slips) <> (select coalesce(sum(amt), 0) from typed)
           union all
           select 'credit', 5, coalesce((select salaries_payable from gs), 'UNMAPPED'), '',
                  ${en ? 'Net salaries payable' : 'صافي الرواتب المستحقة'}, sum(payable_amount)::text

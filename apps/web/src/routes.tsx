@@ -109,6 +109,9 @@ const IssuedPage = lazy(() =>
 const LoansPanel = lazy(() =>
   import('./features/payroll/LoansPanel').then((m) => ({ default: m.LoansPanel })),
 );
+const LoansGridPage = lazy(() =>
+  import('./features/payroll/LoansGridPage').then((m) => ({ default: m.LoansGridPage })),
+);
 const ShortfallPage = lazy(() =>
   import('./features/payroll/ShortfallPage').then((m) => ({ default: m.ShortfallPage })),
 );
@@ -328,6 +331,7 @@ const screens: Record<string, () => ReactElement> = {
   '/payroll/setup': () => <PayrollSetupPage />,
   '/payroll/periods': () => <PeriodsPage />,
   '/payroll/loans': () => <LoansPanel />,
+  '/payroll/loans-grid': () => <LoansGridPage />,
   '/payroll/shortfall': () => <ShortfallPage />,
   '/attendance/punches': () => <PunchEntryPage />,
   '/attendance/shifts': () => <ShiftsPage />,

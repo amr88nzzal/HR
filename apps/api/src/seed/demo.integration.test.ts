@@ -214,8 +214,8 @@ describe('البيانات التجريبية', () => {
     expect(await n('admin_actions', sql`acknowledged_at is not null`)).toBe(1);
 
     // السلف: ثلاث سلف بأقساطها ودفعات صرف، وأقساط ظاهرة في الدورة (واحدة تتجاوز السقف)
-    expect(await n('loans')).toBe(3);
-    expect(await n('loan_installments')).toBe(10);
+    expect(await n('loans')).toBe(6); // 3 سلف + 3 فواتير ذمم
+    expect(await n('loan_installments')).toBe(13);
     expect(await n('payments', sql`kind = 'loan'`)).toBe(3);
     expect(await n('payslips', sql`loans_amount > 0`)).toBeGreaterThan(0);
     expect(await n('payslip_loan_items', sql`over_cap`)).toBeGreaterThan(0);

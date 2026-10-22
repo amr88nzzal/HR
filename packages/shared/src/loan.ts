@@ -4,7 +4,24 @@ import { money } from './payroll.js';
 
 const uuid = z.string().uuid();
 
-export const LOAN_KINDS = ['loan', 'advance'] as const;
+/** الأنواع الافتراضية (تُزرع لكل شركة)؛ الأنواع الفعلية قابلة للضبط من جدول loan_types. */
+export const LOAN_KINDS = ['loan', 'advance', 'receivable'] as const;
+
+const typeCode = z.string().regex(/^[a-z][a-z0-9_]{1,30}$/, 'رمز غير صالح');
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'لون غير صالح');
+/** نوع سلفة قابل للضبط. / A configurable loan type. */
+export const loanTypeInput = z.object({
+  code: typeCode,
+  nameAr: z.string().trim().min(1).max(100),
+  nameEn: z.string().trim().min(1).max(100),
+  color: hexColor.default('#4c6ef5'),
+  disburses: z.boolean().default(true),
+  maxInstallments: z.number().int().min(1).max(120).default(12),
+  monthlyLimitPercent: z.number().min(0.01).max(100).nullish(),
+  glAccount: z.string().trim().max(40).nullish(),
+  isActive: z.boolean().default(true),
+  sortOrder: z.number().int().min(0).max(1000).default(0),
+});
 
 export type ScheduleItem = { no: number; year: number; month: number; amount: string };
 
@@ -33,22 +50,68 @@ export const buildSchedule = (
   return out;
 };
 
-export const loanInput = z.object({
-  employeeId: uuid,
-  kind: z.enum(LOAN_KINDS).default('loan'),
-  currency: z.string().regex(/^[A-Z]{3}$/),
-  principal: money.refine((v) => num(v).gt(0), 'المبلغ يجب أن يكون أكبر من صفر'),
-  installmentsCount: z.number().int().min(1).max(120),
-  firstYear: z.number().int().min(2000).max(2100),
-  firstMonth: z.number().int().min(1).max(12),
-  reason: z.string().trim().max(300).nullish(),
-});
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'تاريخ غير صالح');
+
+export const loanInput = z
+  .object({
+    employeeId: uuid,
+    /** معرّف النوع، أو رمزه عبر `kind` للتوافق مع الاستدعاءات القديمة. / Type id, or its code via `kind` for old callers. */
+    typeId: uuid.optional(),
+    kind: typeCode.optional(),
+    currency: z.string().regex(/^[A-Z]{3}$/),
+    principal: money.refine((v) => num(v).gt(0), 'المبلغ يجب أن يكون أكبر من صفر'),
+    installmentsCount: z.number().int().min(1).max(120).default(1),
+    /** يوم صرف السلفة أو تاريخ الفاتورة؛ الافتراضي اليوم. / Disbursement or invoice day; defaults to today. */
+    eventDate: isoDay.optional(),
+    /** أول شهر خصم؛ الافتراضي شهر تاريخ الحدث (الذمم تُخصم في شهر الفاتورة). / First deduction month; defaults to the event month. */
+    firstYear: z.number().int().min(2000).max(2100).optional(),
+    firstMonth: z.number().int().min(1).max(12).optional(),
+    reference: z.string().trim().max(120).nullish(),
+    reason: z.string().trim().max(300).nullish(),
+  })
+  .refine((v) => (v.firstYear === undefined) === (v.firstMonth === undefined), {
+    message: 'حدّد السنة والشهر معاً',
+    path: ['firstMonth'],
+  });
 export type LoanInput = z.infer<typeof loanInput>;
+
+/** إدخال فواتير/سلف متعددة لموظف واحد دفعة واحدة. / Several invoices or advances for one employee at once. */
+export const loanBulkInput = z.object({
+  employeeId: uuid,
+  typeId: uuid,
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  items: z
+    .array(
+      z.object({
+        eventDate: isoDay,
+        reference: z.string().trim().max(120).nullish(),
+        amount: money.refine((v) => num(v).gt(0), 'المبلغ يجب أن يكون أكبر من صفر'),
+        reason: z.string().trim().max(300).nullish(),
+      }),
+    )
+    .min(1)
+    .max(100),
+});
+export type LoanBulkInput = z.infer<typeof loanBulkInput>;
+
+/** جدول السلف بحسب أيام الشهر. / Loans grid by day of month. */
+export const loanGridQuery = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+  month: z.coerce.number().int().min(1).max(12),
+  employeeId: uuid.optional(),
+  departmentId: uuid.optional(),
+  branchId: uuid.optional(),
+  typeId: uuid.optional(),
+  status: z.enum(['active', 'settled', 'cancelled']).optional(),
+  format: z.enum(['json', 'xlsx', 'pdf']).default('json'),
+});
+export type LoanGridQuery = z.infer<typeof loanGridQuery>;
 
 export const loanListQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(50),
   employeeId: uuid.optional(),
+  typeId: uuid.optional(),
   status: z.enum(['active', 'settled', 'cancelled']).optional(),
 });
 

@@ -6,6 +6,7 @@ export const payrollNavEn = {
   brand: 'Branding',
   payrollShortfall: 'Shortfall',
   payrollLoans: 'Loans & advances',
+  payrollLoansGrid: 'Loans & receivables grid',
   payslipDesign: 'Payslip design',
   myPayslips: 'My payslips',
   reportsCenter: 'Reports',
@@ -85,6 +86,7 @@ export const payrollEn = {
     structures: 'Salary structures',
     groups: 'Pay groups',
     reasons: 'Override reasons',
+    loanTypes: 'Loan types',
     accounting: 'Accounting accounts',
   },
   groupMembers: {

@@ -12,6 +12,7 @@ export const payslipsAr = {
   deductions: 'الاستقطاعات',
   view: 'عرض',
   reveal: 'إظهار الأرقام',
+  myLoans: 'ذممي وسلفي',
   hide: 'إخفاء الأرقام',
   zip: 'تنزيل كل القسائم (ZIP)',
   cmp: {

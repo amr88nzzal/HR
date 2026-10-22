@@ -3,7 +3,12 @@ export const loansEn = {
   new: 'New loan',
   details: 'Loan details',
   kind: 'Type',
-  kinds: { loan: 'Loan', advance: 'Advance' },
+  kinds: { loan: 'Loan', advance: 'Advance', receivable: 'Receivable invoice' },
+  eventDate: 'Disbursement date',
+  invoiceDate: 'Invoice date',
+  bulkNew: 'Enter several invoices',
+  addRow: 'Add row',
+  limitWarning: "Warning: this month's installments exceed the allowed share of basic salary.",
   principal: 'Amount',
   count: 'Installments',
   reason: 'Reason',
@@ -71,4 +76,29 @@ export const loansEn = {
   unmark: 'Unmark',
   exportCsv: 'Export CSV',
   noPayments: 'No payments',
+};
+
+export const loansGridEn = {
+  month: 'Month',
+  department: 'Department',
+  branch: 'Branch',
+  all: 'All',
+  legend: 'Colour legend',
+  taken: 'Taken',
+  due: 'Due this month',
+  closing: 'Remaining',
+  total: 'Total',
+  empty: 'No loans or receivables this month for the selected filters.',
+};
+export const loanTypesEn = {
+  color: 'Colour',
+  disburses: 'Payout',
+  cash: 'Paid in cash',
+  credit: 'On credit (receivable)',
+  maxInstallments: 'Max installments',
+  monthlyLimit: 'Monthly installments limit %',
+  monthlyLimitHint: 'Share of basic salary; a warning only when exceeded',
+  glAccount: 'GL account',
+  glHint: 'Used in the accounting journal; empty = the general loans receivable account',
+  disbursesLabel: 'Cash is paid out to the employee (turn off for receivable invoices)',
 };

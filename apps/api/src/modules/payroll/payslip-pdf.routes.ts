@@ -7,7 +7,7 @@ import type { Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
 import type { FileDeps } from '../../shared/stored-files.js';
 import { employeeScope } from '../employees/index.js';
-import { requirePermission } from '../identity/index.js';
+import { requirePermission, type AuthContext } from '../identity/index.js';
 import type { Renderer } from '../letters/index.js';
 import { loadPayslipDoc, type Lang, type PayslipDoc } from './payslip-doc.js';
 import { buildPayslipHtml } from './payslip-html.js';
@@ -152,6 +152,23 @@ export const createMyPayslipsRouter = (
     if (!ok.rows.length) throw notFound();
     return loadPayslipDoc(ctx, slipId);
   };
+
+  /** ذممي وسلفي: سجلات الموظف نفسه مع المتبقي (قراءة فقط). / My own loans and receivables with the remaining balance (read only). */
+  router.get('/loans', (req, res, next) => {
+    run(req, async (ctx) => {
+      const emp = await myEmployee(ctx, (req.auth as AuthContext).userId);
+      const { rows } = await sql`
+        select l.id, lt.name_ar as type_name_ar, lt.name_en as type_name_en, lt.color as type_color,
+               l.event_date::text as event_date, l.reference, l.currency, l.principal::text as principal,
+               l.status, l.installments_count,
+               coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id
+                          and i.status in ('scheduled', 'deferred')), 0)::text as remaining
+          from loans l join loan_types lt on lt.id = l.type_id
+         where l.employee_id = ${emp} and l.company_id = ${ctx.companyId} and l.status <> 'cancelled'
+         order by l.event_date desc, l.created_at desc limit 200`.execute(ctx.trx);
+      return rows;
+    }).then((data) => res.json({ data }), next);
+  });
 
   router.get(
     '/',

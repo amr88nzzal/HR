@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { BasesPanel } from './BasesPanel';
 import { ComponentsPanel } from './ComponentsPanel';
 import { GlSettingsPanel } from './GlSettingsPanel';
+import { LoanTypesPanel } from './LoanTypesPanel';
 import { RatesPanel } from './RatesPanel';
 import { SimpleListPanel } from './GroupsPanel';
 import { StructuresPanel } from './StructuresPanel';
@@ -28,6 +29,7 @@ export const SetupPage = () => {
         <SimpleListPanel base="override-reasons" perm="payroll.override_reason" kind="reason" />
       ),
     },
+    { value: 'loanTypes', perm: 'payroll.loan_type.read', body: <LoanTypesPanel /> },
     { value: 'accounting', perm: 'payroll.accounting.read', body: <GlSettingsPanel /> },
   ].filter((x) => can(x.perm));
   return (

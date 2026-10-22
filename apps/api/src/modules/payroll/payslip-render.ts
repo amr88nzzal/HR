@@ -203,7 +203,7 @@ export const renderPayslipBody = (
     const notes = d.loanItems
       .map(
         (i) =>
-          `<div style="font-size:0.9em;color:#444;margin-top:2px">${t.loanLine} ${ltr(`${i.no}/${i.count}`)}: ${amt(i.amount)}${i.overCap ? ` — ${t.deferred}` : ''}</div>`,
+          `<div style="font-size:0.9em;color:#444;margin-top:2px">${esc(lang === 'ar' ? i.typeNameAr : i.typeNameEn)}${i.reference ? ` ${ltr(esc(i.reference))}` : ''} ${ltr(i.eventDate)}${i.count > 1 ? ` · ${t.loanLine} ${ltr(`${i.no}/${i.count}`)}` : ''}: ${amt(i.amount)}${i.overCap ? ` — ${t.deferred}` : ''}</div>`,
       )
       .join('');
     const row = (title: string, v: string, strong = false) =>

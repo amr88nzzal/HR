@@ -19,6 +19,7 @@ import {
 } from '../modules/attendance/index.js';
 import { hashPassword } from '../modules/identity/index.js';
 import { createEmployeeAccount } from '../modules/employees/accounts.js';
+import { ensureDefaultLoanTypes } from '../modules/payroll/loan-types.js';
 import { calculatePeriod, monthRange } from '../modules/payroll/calc.js';
 import { ensureDefaultGroup } from '../modules/payroll/runs.routes.js';
 import {
@@ -1658,23 +1659,88 @@ const seedLoans = async (ctx: Ctx): Promise<string | undefined> => {
     .limit(3)
     .execute();
   if (salaried.length < 3) return 'skip لا رواتب تجريبية كافية';
+  await ensureDefaultLoanTypes(ctx);
+  const types = new Map(
+    (
+      await trx
+        .selectFrom('loanTypes')
+        .select(['id', 'code', 'disburses'])
+        .where('companyId', '=', companyId)
+        .execute()
+    ).map((t) => [t.code, t]),
+  );
+  const day = (d: number) =>
+    `${period.year}-${String(period.month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  // فواتير الذمم: شراء بالآجل يُخصم كاملاً في شهر الفاتورة، بلا صرف نقدي
+  // Receivable invoices: a credit purchase deducted in full in the invoice month, with no cash paid out
   const plans = [
-    { kind: 'loan' as const, principal: '1200', count: 6, reason: `${DEMO_PREFIX} قرض سيارة` },
-    { kind: 'advance' as const, principal: '300', count: 1, reason: `${DEMO_PREFIX} سلفة طارئة` },
     {
-      kind: 'loan' as const,
+      kind: 'loan',
+      emp: 0,
+      day: 3,
+      principal: '1200',
+      count: 6,
+      reason: `${DEMO_PREFIX} قرض سيارة`,
+      ref: null,
+    },
+    {
+      kind: 'advance',
+      emp: 1,
+      day: 8,
+      principal: '300',
+      count: 1,
+      reason: `${DEMO_PREFIX} سلفة طارئة`,
+      ref: null,
+    },
+    {
+      kind: 'loan',
+      emp: 2,
+      day: 12,
       principal: '9000',
       count: 3,
       reason: `${DEMO_PREFIX} قرض كبير (يتجاوز السقف)`,
+      ref: null,
+    },
+    {
+      kind: 'receivable',
+      emp: 0,
+      day: 5,
+      principal: '85',
+      count: 1,
+      reason: `${DEMO_PREFIX} فاتورة صيدلية`,
+      ref: 'INV-1001',
+    },
+    {
+      kind: 'receivable',
+      emp: 0,
+      day: 18,
+      principal: '140',
+      count: 1,
+      reason: `${DEMO_PREFIX} فاتورة بقالة`,
+      ref: 'INV-1002',
+    },
+    {
+      kind: 'receivable',
+      emp: 1,
+      day: 18,
+      principal: '60',
+      count: 1,
+      reason: `${DEMO_PREFIX} فاتورة مطعم`,
+      ref: 'INV-1003',
     },
   ];
-  for (const [i, pl] of plans.entries()) {
+  for (const pl of plans) {
+    const type = types.get(pl.kind)!;
+    const employeeId = salaried[pl.emp]!.employeeId;
     const loan = await trx
       .insertInto('loans')
       .values({
         companyId,
-        employeeId: salaried[i]!.employeeId,
+        employeeId,
         kind: pl.kind,
+        typeId: type.id,
+        eventDate: day(pl.day),
+        reference: pl.ref,
         currency: period.currency,
         principal: pl.principal,
         installmentsCount: pl.count,
@@ -1697,17 +1763,18 @@ const seedLoans = async (ctx: Ctx): Promise<string | undefined> => {
           amount: it.amount,
         })
         .execute();
-    await trx
-      .insertInto('payments')
-      .values({
-        companyId,
-        kind: 'loan',
-        employeeId: salaried[i]!.employeeId,
-        loanId: loan.id,
-        amount: pl.principal,
-        currency: period.currency,
-      })
-      .execute();
+    if (type.disburses)
+      await trx
+        .insertInto('payments')
+        .values({
+          companyId,
+          kind: 'loan',
+          employeeId,
+          loanId: loan.id,
+          amount: pl.principal,
+          currency: period.currency,
+        })
+        .execute();
   }
   // أعد احتساب الدورة المسودة لتظهر الأقساط في عمودها
   await calculatePeriod(ctx, {
