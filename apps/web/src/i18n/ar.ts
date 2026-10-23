@@ -3,6 +3,7 @@ import { helpAr } from './help.ar';
 import { platformAr } from './platform.ar';
 import { adminActionsNavAr, adminActionsAr } from './adminActions.ar';
 import { brandAr } from './brand.ar';
+import { navLabelsAr } from './nav-labels';
 import { loansAr, loanTypesAr, loansGridAr } from './loans.ar';
 import { shortfallAr } from './shortfall.ar';
 import { payslipsAr } from './payslips.ar';
@@ -80,7 +81,6 @@ export const ar = {
     notificationTemplates: 'قوالب الإشعارات',
     channels: 'قنوات الإشعار',
     approvalsGroup: 'الموافقات',
-    approvalsInbox: 'طلبات الموافقة',
     approvalDelegations: 'تفويض الموافقات',
     leaveGroup: 'الإجازات',
     myLeave: 'إجازاتي',
@@ -93,11 +93,7 @@ export const ar = {
     attendanceGroup: 'الحضور',
     myAttendance: 'حضوري',
     attendanceDaily: 'اللوحة اليومية',
-    attendanceRequests: 'طلبات الحضور',
     lettersGroup: 'الوثائق الصادرة',
-    issuedDocuments: 'سجل الوثائق',
-    letterTemplates: 'قوالب الوثائق',
-    attendanceAdjustments: 'تعديلات وإضافي',
     attendancePunches: 'إدخال البصمات',
     attendanceImport: 'استيراد البصمات',
     importProfiles: 'ملفات الاستيراد',
@@ -105,6 +101,7 @@ export const ar = {
     attendanceSchedules: 'جداول الدوام',
     holidays: 'العطل الرسمية',
     approvalFlows: 'سلاسل الموافقة',
+    ...navLabelsAr,
   },
   leave: {
     allDepartments: 'كل الأقسام',
@@ -1028,6 +1025,7 @@ export const ar = {
   account: accountAr,
   loans: loansAr,
   loansGrid: loansGridAr,
+  navSearch: { title: 'بحث في القائمة', placeholder: 'ابحث عن شاشة…', empty: 'لا نتائج مطابقة' },
   navPrefs: {
     menu: 'عرض القائمة الجانبية',
     modes: { full: 'كاملة', icons: 'أيقونات فقط', hidden: 'مخفية' },

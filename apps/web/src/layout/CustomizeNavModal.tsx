@@ -165,6 +165,7 @@ export const CustomizeNavModal = ({
                 isGroup(n) ? (
                   <Paper key={n.key} withBorder p="xs">
                     <Row id={n.key} label={t('navPrefs.dragGroup')}>
+                      <n.icon size={16} />
                       <Text fw={600} size="sm">
                         {t(`nav.${n.key}`)}
                       </Text>
