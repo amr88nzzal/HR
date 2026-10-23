@@ -46,7 +46,7 @@ import {
 import { createBrandRouter, createPublicBrandRouter } from './modules/brand/index.js';
 import { createPlatformRouter } from './modules/platform/index.js';
 import { createDashboardRouter } from './modules/dashboard/index.js';
-import { createTablePrefsRouter } from './modules/table-prefs/index.js';
+import { createNavPrefsRouter, createTablePrefsRouter } from './modules/table-prefs/index.js';
 import {
   createAdminActionsRouter,
   createAdminActionTypesRouter,
@@ -223,6 +223,7 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
     api.use('/company-brand', createBrandRouter(auth.db, authenticate, files));
     api.use('/dashboard', createDashboardRouter(auth.db, authenticate));
     api.use('/table-prefs', createTablePrefsRouter(auth.db, authenticate));
+    api.use('/nav-prefs', createNavPrefsRouter(auth.db, authenticate));
     api.use(
       '/reports',
       createReportsRouter(auth.db, authenticate, { files, render: auth.render, jobs: auth.jobs }),

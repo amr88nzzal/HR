@@ -1,4 +1,14 @@
-import { Collapse, NavLink, UnstyledButton, Group, Text } from '@mantine/core';
+import {
+  ActionIcon,
+  Collapse,
+  Divider,
+  Group,
+  NavLink,
+  Stack,
+  Text,
+  Tooltip,
+  UnstyledButton,
+} from '@mantine/core';
 import { IconChevronDown, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,10 +45,16 @@ export const activeLeafPath = (nav: (NavLeaf | NavGroup)[], pathname: string): s
 /** القائمة الجانبية: المجموعات تُطوى وتُفتح بالنقر وتُحفظ حالتها، والمجموعة الحالية تُفتح تلقائياً. */
 export const SidebarNav = ({
   nav,
+  favorites = [],
+  compact = false,
   pathname,
   onGo,
 }: {
   nav: (NavLeaf | NavGroup)[];
+  /** عناصر المفضلة: تظهر في أعلى القائمة كمجموعة «المفضلة». / Favourite items, shown first as a "Favourites" group. */
+  favorites?: NavLeaf[];
+  /** وضع الأيقونات فقط: بلا نصوص ولا طيّ، والاسم في تلميح. / Icons-only mode: no labels or folding, the name is in a tooltip. */
+  compact?: boolean;
   pathname: string;
   onGo: (to: string) => void;
 }) => {
@@ -72,9 +88,40 @@ export const SidebarNav = ({
     />
   );
 
+  const all: (NavLeaf | NavGroup)[] = favorites.length
+    ? [{ key: 'favorites', items: favorites }, ...nav]
+    : nav;
+
+  if (compact)
+    return (
+      <Stack gap={2} align="center" data-compact="true">
+        {all.map((n, i) => {
+          const items = isGroup(n) ? n.items : [n];
+          return (
+            <Stack key={n.key} gap={2} align="center" w="100%">
+              {i > 0 && <Divider w="70%" my={4} />}
+              {items.map((l) => (
+                <Tooltip key={l.path} label={t(`nav.${l.key}`)} position={rtl ? 'left' : 'right'}>
+                  <ActionIcon
+                    size="lg"
+                    variant={l.path === activePath ? 'light' : 'subtle'}
+                    aria-label={t(`nav.${l.key}`)}
+                    aria-current={l.path === activePath ? 'page' : undefined}
+                    onClick={() => onGo(l.path)}
+                  >
+                    <l.icon size={20} />
+                  </ActionIcon>
+                </Tooltip>
+              ))}
+            </Stack>
+          );
+        })}
+      </Stack>
+    );
+
   return (
     <>
-      {nav.map((n) => {
+      {all.map((n) => {
         if (!isGroup(n)) return leaf(n);
         const open = !collapsed.includes(n.key);
         const Chevron = open ? IconChevronDown : rtl ? IconChevronLeft : IconChevronRight;

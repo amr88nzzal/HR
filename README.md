@@ -106,3 +106,5 @@ DATABASE_URL=... pnpm --filter @hrms/api migrate up     # أو down
 - **نسخ احتياطي:** `docker compose -f infra/docker-compose.yml --env-file .env --profile backup up -d backup` (يتطلب `BACKUP_PASSPHRASE_FILE`؛ انظر `.env.example`).
 - **مراقبة:** `SENTRY_DSN` (GlitchTip/Sentry) و`APP_RELEASE`؛ `/health/ready` للفحص الخارجي.
 - **اختبارات الأمان والأداء:** `security.integration.test.ts` و`perf.integration.test.ts` ضمن اختبارات التكامل.
+
+- **القائمة الجانبية:** زر ☰ في الأعلى يبدّل بين الكاملة والأيقونات فقط والمخفية، و«تخصيص القائمة…» لسحب المجموعات والعناصر وإخفائها وتثبيت المفضلة؛ تُحفظ لكل مستخدم في الخادم (`/nav-prefs`). لا تحتاج بيانات تجريبية.
