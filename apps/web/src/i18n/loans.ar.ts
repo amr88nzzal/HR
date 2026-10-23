@@ -73,6 +73,12 @@ export const loansAr = {
 };
 
 export const loansGridAr = {
+  prev: 'الشهر السابق',
+  next: 'الشهر التالي',
+  thisMonth: 'هذا الشهر',
+  filters: 'الفلاتر',
+  reset: 'مسح الفلاتر',
+  employees: 'عدد الموظفين',
   month: 'الشهر',
   department: 'القسم',
   branch: 'الفرع',

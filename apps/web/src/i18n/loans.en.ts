@@ -79,6 +79,12 @@ export const loansEn = {
 };
 
 export const loansGridEn = {
+  prev: 'Previous month',
+  next: 'Next month',
+  thisMonth: 'This month',
+  filters: 'Filters',
+  reset: 'Clear filters',
+  employees: 'Employees',
   month: 'Month',
   department: 'Department',
   branch: 'Branch',
