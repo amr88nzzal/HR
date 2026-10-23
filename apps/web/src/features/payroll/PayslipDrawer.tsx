@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
+import { printSlip } from './payslipPrint';
 import { errorMessage } from '../../lib/errors';
 import type { Reason, SlipDetail, SlipLine } from './runs-types';
 
@@ -95,6 +96,15 @@ export const PayslipDrawer = ({
       {d && (
         <Stack>
           {d.error && <Text c="red">{d.error}</Text>}
+          <Group justify="flex-end">
+            <Button
+              size="compact-sm"
+              variant="default"
+              onClick={() => printSlip(slipId, i18n.language).catch(fail)}
+            >
+              {t('hr.emp.payslips.print')}
+            </Button>
+          </Group>
           <Table withTableBorder>
             <Table.Tbody>
               {d.lines.map((l) => (
