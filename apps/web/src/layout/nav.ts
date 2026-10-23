@@ -42,6 +42,7 @@ import {
   IconClockHour4,
   IconCalendarWeek,
 } from '@tabler/icons-react';
+import type { NavPref } from '@hrms/shared';
 import type { ComponentType } from 'react';
 
 export type NavLeaf = {
@@ -419,4 +420,48 @@ export const permissionForPath = (path: string): string | undefined => {
     if (leaf) return leaf.permission;
   }
   return undefined;
+};
+
+// ───────────────────────── تفضيلات المستخدم ─────────────────────────
+type Entry = NavLeaf | NavGroup;
+/** مفتاح المدخل في الترتيب: مفتاح المجموعة، أو مفتاح العنصر المنفرد. / Order key: the group key, or a standalone leaf's key. */
+export const entryKey = (n: Entry): string => n.key;
+
+/** يرتّب حسب القائمة المحفوظة؛ ما لم يُذكر يبقى بترتيبه الافتراضي بعد المذكور (فتظهر الميزات الجديدة في آخر القائمة). */
+const sortBy = <T>(items: T[], key: (x: T) => string, order: readonly string[]): T[] => {
+  const rank = new Map(order.map((k, i) => [k, i]));
+  return items
+    .map((x, i) => ({ x, i }))
+    .sort((a, b) => (rank.get(key(a.x)) ?? 1e6 + a.i) - (rank.get(key(b.x)) ?? 1e6 + b.i))
+    .map((o) => o.x);
+};
+
+/** الترتيب وحده (بلا إخفاء): تستعمله نافذة التخصيص كي ترى المخفي أيضاً. / Order only (no hiding): the customise dialog uses it so hidden items stay visible there. */
+export const orderNav = (nav: Entry[], pref: Pick<NavPref, 'groupOrder' | 'itemOrder'>): Entry[] =>
+  sortBy(nav, entryKey, pref.groupOrder).map((n) =>
+    isGroup(n) ? { ...n, items: sortBy(n.items, (l) => l.path, pref.itemOrder[n.key] ?? []) } : n,
+  );
+
+export type NavView = { favorites: NavLeaf[]; nav: Entry[] };
+
+/**
+ * يطبّق تفضيلات المستخدم على القائمة المسموحة له: ترتيب، ثم إخفاء، ثم مفضلة.
+ * المفضلة تُحلّ من كل العناصر المسموحة (ولو أُخفيت من مكانها الأصلي)، والعنصر الذي لم يعد مسموحاً يسقط تلقائياً.
+ * Applies the user's prefs to the permitted nav: order, then hide, then favourites.
+ * Favourites resolve from every permitted item (even hidden in place); an item no longer permitted just drops out.
+ */
+export const applyNavPrefs = (nav: Entry[], pref: NavPref): NavView => {
+  const ordered = orderNav(nav, pref);
+  const hidden = new Set(pref.hidden);
+  const all = new Map(ordered.flatMap((n) => (isGroup(n) ? n.items : [n])).map((l) => [l.path, l]));
+  const favorites = pref.favorites.flatMap((p) => {
+    const l = all.get(p);
+    return l ? [l] : [];
+  });
+  const visible = ordered.flatMap((n): Entry[] => {
+    if (!isGroup(n)) return hidden.has(n.path) ? [] : [n];
+    const items = n.items.filter((l) => !hidden.has(l.path));
+    return items.length ? [{ ...n, items }] : [];
+  });
+  return { favorites, nav: visible };
 };

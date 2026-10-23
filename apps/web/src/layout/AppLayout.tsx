@@ -9,9 +9,12 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import { BrandLogo } from '../components/BrandLogo';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import {
+  IconAdjustments,
+  IconCheck,
   IconLanguage,
+  IconLayoutSidebar,
   IconLogout,
   IconMoon,
   IconPassword,
@@ -19,12 +22,15 @@ import {
   IconUserCircle,
 } from '@tabler/icons-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { setLang, type Lang } from '../i18n';
 import { NotificationBell } from '../features/notifications/NotificationBell';
-import { visibleNav } from './nav';
+import { useNavPrefs } from '../lib/useNavPrefs';
+import { NAV_MODES } from '@hrms/shared';
+import { CustomizeNavModal } from './CustomizeNavModal';
+import { applyNavPrefs, visibleNav } from './nav';
 import { SidebarNav } from './SidebarNav';
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
@@ -35,6 +41,13 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const [opened, { toggle, close }] = useDisclosure();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const nav = visibleNav(me?.permissions ?? []);
+  const { pref, save, reset } = useNavPrefs();
+  const [customizing, setCustomizing] = useState(false);
+  const view = applyNavPrefs(nav, pref);
+  const desktop = useMediaQuery('(min-width: 48em)', true);
+  // الأيقونات فقط للشاشات الواسعة؛ على الجوال تبقى القائمة كاملة لأنها درج منزلق
+  // Icons-only is for wide screens; on mobile the menu stays full since it is a slide-over drawer
+  const compact = pref.mode === 'icons' && desktop;
 
   const go = (to: string) => {
     close();
@@ -45,13 +58,47 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   return (
     <AppShell
       header={{ height: 56 }}
-      navbar={{ width: 260, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      navbar={{
+        width: compact ? 64 : 260,
+        breakpoint: 'sm',
+        collapsed: { mobile: !opened, desktop: pref.mode === 'hidden' },
+      }}
       padding="md"
     >
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group wrap="nowrap">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="menu" />
+            <Menu position="bottom-start" withinPortal>
+              <Menu.Target>
+                <ActionIcon
+                  variant="subtle"
+                  visibleFrom="sm"
+                  aria-label={t('navPrefs.menu')}
+                  title={t('navPrefs.menu')}
+                >
+                  <IconLayoutSidebar size={20} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {NAV_MODES.map((m) => (
+                  <Menu.Item
+                    key={m}
+                    rightSection={pref.mode === m ? <IconCheck size={14} /> : null}
+                    onClick={() => save({ ...pref, mode: m })}
+                  >
+                    {t(`navPrefs.modes.${m}`)}
+                  </Menu.Item>
+                ))}
+                <Menu.Divider />
+                <Menu.Item
+                  leftSection={<IconAdjustments size={16} />}
+                  onClick={() => setCustomizing(true)}
+                >
+                  {t('navPrefs.customize')}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
             <BrandLogo />
             <Title order={4}>{t('app.name')}</Title>
           </Group>
@@ -97,9 +144,24 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       </AppShell.Header>
       <AppShell.Navbar p="xs">
         <ScrollArea>
-          <SidebarNav nav={nav} pathname={pathname} onGo={go} />
+          <SidebarNav
+            nav={view.nav}
+            favorites={view.favorites}
+            compact={compact}
+            pathname={pathname}
+            onGo={go}
+          />
         </ScrollArea>
       </AppShell.Navbar>
+      {customizing && (
+        <CustomizeNavModal
+          nav={nav}
+          pref={pref}
+          onSave={save}
+          onReset={reset}
+          onClose={() => setCustomizing(false)}
+        />
+      )}
       <AppShell.Main>{children}</AppShell.Main>
     </AppShell>
   );

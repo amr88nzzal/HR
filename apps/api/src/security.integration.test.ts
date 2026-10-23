@@ -86,6 +86,8 @@ const AUTH_ONLY: RegExp[] = [
   // ترويسة الطباعة: اسم الشركة وبيانات التواصل لأي مستخدم مسجّل
   /^get \/api\/v1\/company-brand\/print-header$/,
   /^(get|put|delete) \/api\/v1\/table-prefs\/:tableId$/,
+  // تفضيلات القائمة الجانبية: لكل مستخدم مسجّل وتخصه وحده
+  /^(get|put|delete) \/api\/v1\/nav-prefs\/?$/,
   /^(get|post) \/api\/v1\/me\/admin-actions(\/|\/:id\/acknowledge)?$/,
   // سجلاتي الإدارية: للموظف المرتبط بحسابه فقط (الاستعلام مقيّد بحسابه في الخادم)
   /^(get|post) \/api\/v1\/me\/admin-actions(\/:id\/acknowledge)?$/,

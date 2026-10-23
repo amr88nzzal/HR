@@ -189,6 +189,32 @@ describe('أدوات الجداول: الفرز من الخادم وتفضيلا
     expect((await request(api).get('/api/v1/table-prefs/employees')).status).toBe(401);
   });
 
+  it('تفضيلات القائمة الجانبية: افتراضي ثم حفظ لكل مستخدم ثم استعادة', async () => {
+    const def = { mode: 'full', groupOrder: [], itemOrder: {}, hidden: [], favorites: [] };
+    expect((await get('admin', '/nav-prefs')).body.data).toEqual(def);
+    const body = {
+      mode: 'icons',
+      groupOrder: ['leaveGroup', 'admin'],
+      itemOrder: { admin: ['/admin/users', '/admin/roles'] },
+      hidden: ['/admin/jobs'],
+      favorites: ['/', '/reports'],
+    };
+    expect((await put('admin', '/nav-prefs', body)).status).toBe(200);
+    expect((await get('admin', '/nav-prefs')).body.data).toEqual(body);
+    expect((await get('hr', '/nav-prefs')).body.data).toEqual(def);
+    expect((await put('admin', '/nav-prefs', { mode: 'wide' })).status).toBe(400);
+    expect(
+      (
+        await put('admin', '/nav-prefs', {
+          favorites: Array.from({ length: 13 }, (_, i) => `/p${i}`),
+        })
+      ).status,
+    ).toBe(400);
+    expect((await request(api).delete('/api/v1/nav-prefs').set(as('admin'))).status).toBe(204);
+    expect((await get('admin', '/nav-prefs')).body.data).toEqual(def);
+    expect((await request(api).get('/api/v1/nav-prefs')).status).toBe(401);
+  });
+
   it('ترويسة الطباعة: اسم الشركة لأي مستخدم موثَّق، ومرفوضة بلا توكن', async () => {
     const r = await get('hr', '/company-brand/print-header');
     expect(r.status).toBe(200);
