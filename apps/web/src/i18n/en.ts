@@ -3,6 +3,7 @@ import { helpEn } from './help.en';
 import { platformEn } from './platform.en';
 import { adminActionsNavEn, adminActionsEn } from './adminActions.en';
 import { brandEn } from './brand.en';
+import { navLabelsEn } from './nav-labels';
 import { loansEn, loanTypesEn, loansGridEn } from './loans.en';
 import { shortfallEn } from './shortfall.en';
 import { payslipsEn } from './payslips.en';
@@ -82,7 +83,6 @@ export const en: Messages = {
     notificationTemplates: 'Notification templates',
     channels: 'Notification channels',
     approvalsGroup: 'Approvals',
-    approvalsInbox: 'Approval requests',
     approvalDelegations: 'Approval delegation',
     leaveGroup: 'Leave',
     myLeave: 'My leave',
@@ -95,11 +95,7 @@ export const en: Messages = {
     attendanceGroup: 'Attendance',
     myAttendance: 'My attendance',
     attendanceDaily: 'Daily board',
-    attendanceRequests: 'Attendance requests',
     lettersGroup: 'Issued documents',
-    issuedDocuments: 'Documents log',
-    letterTemplates: 'Document templates',
-    attendanceAdjustments: 'Corrections & overtime',
     attendancePunches: 'Enter punches',
     attendanceImport: 'Import punches',
     importProfiles: 'Import profiles',
@@ -107,6 +103,7 @@ export const en: Messages = {
     attendanceSchedules: 'Work schedules',
     holidays: 'Public holidays',
     approvalFlows: 'Approval flows',
+    ...navLabelsEn,
   },
   leave: {
     allDepartments: 'All departments',
@@ -1040,6 +1037,7 @@ export const en: Messages = {
   account: accountEn,
   loans: loansEn,
   loansGrid: loansGridEn,
+  navSearch: { title: 'Search menu', placeholder: 'Find a screen…', empty: 'No matching results' },
   navPrefs: {
     menu: 'Sidebar display',
     modes: { full: 'Full', icons: 'Icons only', hidden: 'Hidden' },
