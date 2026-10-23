@@ -2,14 +2,16 @@ import {
   ActionIcon,
   AppShell,
   Burger,
+  Button,
   Group,
+  Kbd,
   Menu,
   ScrollArea,
   Title,
   useMantineColorScheme,
 } from '@mantine/core';
 import { BrandLogo } from '../components/BrandLogo';
-import { useDisclosure, useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useHotkeys, useMediaQuery } from '@mantine/hooks';
 import {
   IconAdjustments,
   IconCheck,
@@ -18,18 +20,22 @@ import {
   IconLogout,
   IconMoon,
   IconPassword,
+  IconSearch,
   IconSun,
   IconUserCircle,
 } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { setLang, type Lang } from '../i18n';
 import { NotificationBell } from '../features/notifications/NotificationBell';
 import { useNavPrefs } from '../lib/useNavPrefs';
 import { NAV_MODES } from '@hrms/shared';
 import { CustomizeNavModal } from './CustomizeNavModal';
+import { NavSearchModal } from './NavSearchModal';
 import { applyNavPrefs, visibleNav } from './nav';
 import { SidebarNav } from './SidebarNav';
 
@@ -43,6 +49,17 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const nav = visibleNav(me?.permissions ?? []);
   const { pref, save, reset } = useNavPrefs();
   const [customizing, setCustomizing] = useState(false);
+  const [searching, search] = useDisclosure(false);
+  useHotkeys([['mod+K', () => search.open()]], [], true);
+  // عدّاد الموافقات المعلّقة لشارة «صندوق الموافقات»؛ فشله لا يعطّل القائمة
+  // Pending-approvals count for the inbox badge; a failure must not break the sidebar
+  const inbox = useQuery({
+    queryKey: ['/approvals', 'inbox-count'],
+    retry: false,
+    refetchInterval: 60_000,
+    queryFn: async () => (await api.get<{ count: number }>('/approvals/inbox/count')).data.count,
+  });
+  const badges: Record<string, number> = inbox.data ? { '/approvals': inbox.data } : {};
   const view = applyNavPrefs(nav, pref);
   const desktop = useMediaQuery('(min-width: 48em)', true);
   // الأيقونات فقط للشاشات الواسعة؛ على الجوال تبقى القائمة كاملة لأنها درج منزلق
@@ -143,16 +160,43 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         </Group>
       </AppShell.Header>
       <AppShell.Navbar p="xs">
-        <ScrollArea>
+        {compact ? (
+          <ActionIcon
+            variant="default"
+            size="lg"
+            mb="xs"
+            mx="auto"
+            aria-label={t('navSearch.title')}
+            title={`${t('navSearch.title')} (Ctrl+K)`}
+            onClick={search.open}
+          >
+            <IconSearch size={18} />
+          </ActionIcon>
+        ) : (
+          <Button
+            variant="default"
+            mb="xs"
+            justify="space-between"
+            leftSection={<IconSearch size={16} />}
+            rightSection={<Kbd size="xs">Ctrl K</Kbd>}
+            aria-label={t('navSearch.title')}
+            onClick={search.open}
+          >
+            {t('navSearch.placeholder')}
+          </Button>
+        )}
+        <AppShell.Section grow component={ScrollArea}>
           <SidebarNav
             nav={view.nav}
             favorites={view.favorites}
             compact={compact}
+            badges={badges}
             pathname={pathname}
             onGo={go}
           />
-        </ScrollArea>
+        </AppShell.Section>
       </AppShell.Navbar>
+      <NavSearchModal nav={nav} opened={searching} onClose={search.close} onGo={go} />
       {customizing && (
         <CustomizeNavModal
           nav={nav}
