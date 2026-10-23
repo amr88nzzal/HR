@@ -16,7 +16,11 @@ import { makeRun } from './setup.routes.js';
 
 type Row = Record<string, unknown>;
 const uuid = z.string().uuid();
-const langQuery = z.object({ lang: z.enum(['ar', 'en']).optional() });
+const langQuery = z.object({
+  lang: z.enum(['ar', 'en']).optional(),
+  /** inline=1: يُفتح في تبويب للعرض والطباعة بدل التنزيل. / inline=1: open in a tab to view and print instead of downloading. */
+  inline: z.enum(['0', '1']).optional(),
+});
 const SLIP = 'payroll.payslip.read';
 const MAX_ZIP = 500;
 const wrap =
@@ -38,9 +42,9 @@ const needRender = (deps: PdfDeps): Renderer => {
   return deps.render;
 };
 
-const sendPdf = (res: Response, pdf: Buffer, name: string) => {
+const sendPdf = (res: Response, pdf: Buffer, name: string, inline = false) => {
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+  res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${name}"`);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-store');
   res.send(pdf);
@@ -82,7 +86,41 @@ export const createPayslipPdfRouter = (
         const pdf = await pdfOf(ctx, deps, d, q.lang);
         return { pdf, name: fileName(d) };
       });
-      sendPdf(res, out.pdf, out.name);
+      sendPdf(res, out.pdf, out.name, q.inline === '1');
+    }),
+  );
+
+  /**
+   * قسائم موظف واحد حسب الأشهر (لتبويب القسائم في بطاقة الموظف وطباعة قسيمة شهر محدد).
+   * بصلاحية قراءة القسائم ونطاقها؛ الموظف خارج النطاق يعطي 404 لا قائمة فارغة.
+   * One employee's payslips by month (for the employee card tab and printing a chosen month).
+   * Needs the payslip read permission and its scope; an out-of-scope employee gets 404, not an empty list.
+   */
+  router.get(
+    '/employees/:employeeId/payslips',
+    requirePermission(SLIP),
+    wrap(async (req, res) => {
+      const employeeId = uuid.parse(req.params['employeeId']);
+      const auth = req.auth as NonNullable<Request['auth']>;
+      const data = await run(req, async (ctx) => {
+        const scope = employeeScope(auth, SLIP);
+        const ok = await sql`select 1 from employees where employees.id = ${employeeId}
+                              and employees.company_id = ${ctx.companyId} ${scope ? sql`and ${scope}` : sql``}`.execute(
+          ctx.trx,
+        );
+        if (!ok.rows.length) throw new AppError('NOT_FOUND', 404, 'الموظف غير موجود');
+        const { rows } = await sql<Row>`
+          select s.id, p.year, p.month, p.status as period_status, s.currency,
+                 s.gross_amount::text as gross, s.deductions_amount::text as deductions,
+                 s.net_amount::text as net, s.loans_amount::text as loans,
+                 s.payable_amount::text as payable
+            from payslips s join payroll_periods p on p.id = s.period_id
+           where s.employee_id = ${employeeId} and s.company_id = ${ctx.companyId}
+             and s.status = 'calculated'
+           order by p.year desc, p.month desc`.execute(ctx.trx);
+        return rows;
+      });
+      res.json({ data });
     }),
   );
 
@@ -211,7 +249,7 @@ export const createMyPayslipsRouter = (
           name: fileName(d),
         };
       });
-      sendPdf(res, out.pdf, out.name);
+      sendPdf(res, out.pdf, out.name, q.inline === '1');
     }),
   );
   return router;

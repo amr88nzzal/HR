@@ -24,6 +24,7 @@ import { errorMessage } from '../../lib/errors';
 import { localName } from '../../lib/names';
 import { IssuePanel } from '../letters/IssuePanel';
 import { EmployeeActionsPanel } from '../adminActions/EmployeeActionsPanel';
+import { EmployeePayslipsTab } from '../payroll/EmployeePayslipsTab';
 import { LoansPanel } from '../payroll/LoansPanel';
 import { SalaryTab } from '../payroll/SalaryTab';
 import { DocumentsPanel } from '../archive/DocumentsPanel';
@@ -197,6 +198,12 @@ export const EmployeePage = () => {
       label: t('hr.emp.tabs.salary'),
       show: can('payroll.salary.read'),
       body: <SalaryTab employeeId={employeeId} />,
+    },
+    {
+      value: 'payslips',
+      label: t('hr.emp.tabs.payslips'),
+      show: can('payroll.payslip.read'),
+      body: <EmployeePayslipsTab employeeId={employeeId} />,
     },
     {
       value: 'loans',

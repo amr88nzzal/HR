@@ -5,6 +5,10 @@ import { startTestPg, type TestPg } from '../test/pg.js';
 import { seedDefaultRoles, syncPermissionCatalog } from '../modules/identity/index.js';
 import { randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createLocalStorage } from '../shared/storage.js';
 import { createFieldCrypto } from '../shared/crypto.js';
 import { seedDemo } from './demo.js';
 import { seedDemoExtras } from './demo-extras.js';
@@ -80,7 +84,15 @@ describe('البيانات التجريبية', () => {
   it('الطبقات الموسَّعة تغطي كل الوحدات وتُضاف مرة واحدة فقط', async () => {
     const k = () => randomBytes(32).toString('base64');
     const crypto = createFieldCrypto({ keysSpec: `k1:${k()}`, currentKeyId: 'k1', digestKey: k() });
-    const first = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
+    const files = {
+      storage: createLocalStorage(mkdtempSync(join(tmpdir(), 'demo-files-'))),
+      crypto,
+    };
+    const first = await seedDemoExtras(admin, companyId, {
+      crypto,
+      password: 'Demo-pass-12345',
+      files,
+    });
     expect(first.map((p) => `${p.part}:${p.status}`)).toEqual([
       'details:done',
       'lifecycle:done',
@@ -247,7 +259,25 @@ describe('البيانات التجريبية', () => {
     // تخطيطات التقارير: افتراضي لمستخدمين تجريبيين
     expect(await n('report_layouts', sql`is_default and name like 'DEMO%'`)).toBeGreaterThan(0);
 
-    const again = await seedDemoExtras(admin, companyId, { crypto, password: 'Demo-pass-12345' });
+    // الهوية البصرية: شعار (4 خانات) وختم، وشهادتا العمل تحويان رمز QR
+    const brand = await sql<{ n: string }>`select (
+        (logo_ar_file_id is not null)::int + (logo_en_file_id is not null)::int +
+        (logo_dark_ar_file_id is not null)::int + (logo_dark_en_file_id is not null)::int +
+        (stamp_file_id is not null)::int)::text as n
+      from company_brand where company_id = ${companyId}`.execute(admin);
+    expect(brand.rows[0]?.n).toBe('5');
+    expect(
+      await n(
+        'letter_template_versions',
+        sql`status = 'active' and body_html like '%{{document.qr}}%'`,
+      ),
+    ).toBe(2);
+
+    const again = await seedDemoExtras(admin, companyId, {
+      crypto,
+      password: 'Demo-pass-12345',
+      files,
+    });
     expect(again.every((p) => p.status === 'skipped')).toBe(true);
     expect(await n('employee_addresses')).toBe(30);
   });

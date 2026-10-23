@@ -12,6 +12,7 @@ import { provisionCompanyAdmin } from './modules/platform/index.js';
 import { seedDemo } from './seed/demo.js';
 import { seedDemoExtras } from './seed/demo-extras.js';
 import { seedDemoHistory } from './seed/demo-history.js';
+import { createLocalStorage } from './shared/storage.js';
 import { createFieldCrypto } from './shared/crypto.js';
 
 /**
@@ -146,7 +147,11 @@ const main = async (): Promise<void> => {
           : undefined;
       if (!crypto)
         console.log('  تنبيه: لا مفاتيح ENCRYPTION_*؛ ستُتخطى الحسابات البنكية والحقل الحساس');
-      const extras = await seedDemoExtras(db, company.id, { crypto, password });
+      const files = {
+        storage: createLocalStorage(process.env['STORAGE_DIR'] ?? './data/files'),
+        crypto,
+      };
+      const extras = await seedDemoExtras(db, company.id, { crypto, password, files });
       const history = await seedDemoHistory(db, company.id);
       for (const e of [...extras, ...history])
         console.log(

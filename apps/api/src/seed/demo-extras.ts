@@ -32,6 +32,8 @@ import { buildSchedule, PAYSLIP_PRESETS } from '@hrms/shared';
 import { ensureDefaultTypes } from '../modules/admin-actions/index.js';
 import { createNotifier } from '../notifications/index.js';
 import type { FieldCrypto } from '../shared/crypto.js';
+import { saveStoredFile, type FileDeps } from '../shared/stored-files.js';
+import { demoBrandImages } from './demo-brand-assets.js';
 import { DEMO_EMAIL_DOMAIN, DEMO_PREFIX } from './demo.js';
 
 export type ExtrasPart =
@@ -1189,16 +1191,86 @@ const seedAdjustments = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
+/**
+ * كتلة التحقق الافتراضية في أسفل كل شهادة: رمز QR ورقم الوثيقة ورابط التحقق وختم الشركة.
+ * (الرمز يظهر «—» إن لم يُضبط PUBLIC_URL، والختم إن لم يُرفع من «الهوية البصرية».)
+ * The default verification block at the foot of each certificate: QR, document number, verify link and company stamp.
+ * (The QR shows "—" when PUBLIC_URL is unset, the stamp when none is uploaded in the brand screen.)
+ */
+const QR_BLOCK = {
+  ar: '\n<table style="border:none;width:100%;margin-top:28px"><tr><td style="border:none;width:130px;vertical-align:bottom">{{document.qr}}</td><td style="border:none;vertical-align:bottom;font-size:10pt;line-height:1.6">رقم الوثيقة: {{document.number}}<br/>للتحقق من صحتها امسح الرمز أو افتح: {{document.verifyUrl}}</td><td style="border:none;width:150px;text-align:center;vertical-align:bottom">{{company.stamp}}</td></tr></table>',
+  en: '\n<table style="border:none;width:100%;margin-top:28px"><tr><td style="border:none;width:130px;vertical-align:bottom">{{document.qr}}</td><td style="border:none;vertical-align:bottom;font-size:10pt;line-height:1.6">Document no.: {{document.number}}<br/>To verify, scan the code or open: {{document.verifyUrl}}</td><td style="border:none;width:150px;text-align:center;vertical-align:bottom">{{company.stamp}}</td></tr></table>',
+} as const;
+const withQr = (lang: 'ar' | 'en', body: string): string =>
+  body.includes('{{document.qr}}') ? body : body + QR_BLOCK[lang];
+
 /** قالبا شهادة عمل (عربي وإنجليزي) بإصدارين؛ إصدار الوثائق نفسه يحتاج حاوية render. */
+/**
+ * شهادات بُذرت سابقاً بلا QR: يُضاف لكل قالب تجريبي إصدار جديد فعّال يحوي كتلة التحقق (والإصدارات القديمة تبقى للتاريخ).
+ * Certificates seeded earlier without a QR: each demo template gets a new active version with the verification block (old versions stay for history).
+ */
+const upgradeCertificatesWithQr = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const templates = await trx
+    .selectFrom('letterTemplates')
+    .select(['id', 'language', 'activeVersionId'])
+    .where('companyId', '=', companyId)
+    .where('code', 'in', ['DEMO-CERT-AR', 'DEMO-CERT-EN'])
+    .execute();
+  let n = 0;
+  for (const t of templates) {
+    if (!t.activeVersionId) continue;
+    const cur = await trx
+      .selectFrom('letterTemplateVersions')
+      .select(['bodyHtml', 'versionNo'])
+      .where('id', '=', t.activeVersionId)
+      .executeTakeFirst();
+    if (!cur?.bodyHtml || cur.bodyHtml.includes('{{document.qr}}')) continue;
+    const lang = t.language === 'en' ? 'en' : 'ar';
+    const body = withQr(lang, cur.bodyHtml);
+    const max = await trx
+      .selectFrom('letterTemplateVersions')
+      .select((eb) => eb.fn.max('versionNo').as('m'))
+      .where('templateId', '=', t.id)
+      .executeTakeFirstOrThrow();
+    await trx
+      .updateTable('letterTemplateVersions')
+      .set({ status: 'draft' })
+      .where('id', '=', t.activeVersionId)
+      .execute();
+    const v = await trx
+      .insertInto('letterTemplateVersions')
+      .values({
+        companyId,
+        templateId: t.id,
+        versionNo: Number(max.m ?? cur.versionNo) + 1,
+        bodyHtml: body,
+        contentHash: createHash('sha256').update(body).digest('hex'),
+        status: 'active',
+        note: 'إضافة رمز QR والختم',
+        activatedAt: new Date(),
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await trx
+      .updateTable('letterTemplates')
+      .set({ activeVersionId: v.id })
+      .where('id', '=', t.id)
+      .execute();
+    n += 1;
+  }
+  return n ? `${n} قالب بـ QR` : 'skip';
+};
+
 const seedLetters = async (ctx: Ctx): Promise<string | undefined> => {
   const { trx, companyId } = ctx;
   const marker = await trx
     .selectFrom('letterTemplates')
-    .select('id')
+    .select(['id', 'activeVersionId', 'language'])
     .where('companyId', '=', companyId)
     .where('code', '=', 'DEMO-CERT-AR')
     .executeTakeFirst();
-  if (marker) return 'skip';
+  if (marker) return upgradeCertificatesWithQr(ctx);
   const bodies = {
     ar: [
       '<div style="text-align:center"><h1>شهادة عمل</h1></div>\n<p>تشهد {{company.name}} بأن السيد/ة {{employee.fullName}} (الرقم الوظيفي {{employee.employeeNo}}) يعمل لديها بوظيفة {{job.title}} في {{job.department}} منذ تاريخ {{employee.hireDate}}، وما زال على رأس عمله حتى تاريخه.</p>\n<p>أُعطيت هذه الشهادة بناءً على طلبه دون أدنى مسؤولية على الشركة.</p>\n<p>التاريخ: {{document.today}}</p>',
@@ -1230,8 +1302,8 @@ const seedLetters = async (ctx: Ctx): Promise<string | undefined> => {
           companyId,
           templateId: t.id,
           versionNo: i + 1,
-          bodyHtml: body,
-          contentHash: createHash('sha256').update(body).digest('hex'),
+          bodyHtml: withQr(lang, body),
+          contentHash: createHash('sha256').update(withQr(lang, body)).digest('hex'),
           status: i === 0 ? 'active' : 'draft',
           note: i === 0 ? 'الإصدار الأول' : 'نسخة بجدول (مسودة)',
           activatedAt: i === 0 ? new Date() : null,
@@ -1864,15 +1936,50 @@ const seedPayrollAccounting = async (ctx: Ctx): Promise<string | undefined> => {
   return undefined;
 };
 
-const seedBrand = async (ctx: Ctx): Promise<string | undefined> => {
+/** يحفظ صور الهوية التجريبية (شعار عربي/إنجليزي/داكن وختم) ويربطها بصف الهوية. / Saves the demo brand images and links them to the brand row. */
+const seedBrandImages = async (ctx: Ctx, files: FileDeps): Promise<void> => {
+  const img = await demoBrandImages();
+  const save = async (slot: string, buffer: Buffer) =>
+    (
+      await saveStoredFile(ctx, files, {
+        buffer,
+        mime: 'image/png',
+        originalName: `${slot}.png`,
+        purpose: 'brand',
+        encrypt: false,
+      })
+    ).id;
+  await ctx.trx
+    .updateTable('companyBrand')
+    .set({
+      logoArFileId: await save('logo_ar', img.logo),
+      logoEnFileId: await save('logo_en', img.logo),
+      logoDarkArFileId: await save('logo_dark_ar', img.logoDark),
+      logoDarkEnFileId: await save('logo_dark_en', img.logoDark),
+      stampFileId: await save('stamp', img.stamp),
+    })
+    .where('companyId', '=', ctx.companyId)
+    .execute();
+};
+
+const seedBrand = async (ctx: Ctx, files?: FileDeps): Promise<string | undefined> => {
   const { trx, companyId } = ctx;
   const marker = await trx
     .selectFrom('companyBrand')
-    .select('companyId')
+    .select(['companyId', 'logoArFileId', 'stampFileId'])
     .where('companyId', '=', companyId)
     .executeTakeFirst();
-  if (marker) return 'skip';
-  // نصوص الترويسة فقط؛ الشعارات تُرفع من «الهوية البصرية» (لا ملفات مرفقة في البذر)
+  // الصف موجود: نضيف الصور فقط إن غابت (تشغيل سابق بلا تخزين) وكان التخزين متاحاً
+  // The row exists: add only the images if missing (an earlier run had no storage) and storage is available
+  if (marker) {
+    if (files?.storage && !marker.logoArFileId && !marker.stampFileId) {
+      await seedBrandImages(ctx, files);
+      return 'شعار وختم';
+    }
+    return 'skip';
+  }
+  // نصوص الترويسة، والصور إن توفّر التخزين (وإلا تُرفع من «الهوية البصرية»)
+  // Letterhead texts, plus the images when storage is available (otherwise upload them from the brand screen)
   await trx
     .insertInto('companyBrand')
     .values({
@@ -1890,6 +1997,7 @@ const seedBrand = async (ctx: Ctx): Promise<string | undefined> => {
       registrationNo: '12345',
     })
     .execute();
+  if (files?.storage) await seedBrandImages(ctx, files);
   // قوالب الشهادات التجريبية تستعمل الترويسة تلقائياً
   await trx
     .updateTable('letterTemplates')
@@ -2100,7 +2208,7 @@ const seedAdminActions = async (ctx: Ctx): Promise<string | undefined> => {
 export const seedDemoExtras = async (
   db: Db,
   companyId: string,
-  opts: { crypto?: FieldCrypto | undefined; password: string },
+  opts: { crypto?: FieldCrypto | undefined; password: string; files?: FileDeps | undefined },
 ): Promise<ExtrasResult> => {
   const out: ExtrasResult = [];
   const parts: [ExtrasPart, (ctx: Ctx) => Promise<string | undefined>][] = [
@@ -2120,7 +2228,7 @@ export const seedDemoExtras = async (
     ['loans', (ctx) => seedLoans(ctx)],
     ['payslips', (ctx) => seedPublishedPayslips(ctx)],
     ['reports', (ctx) => seedReports(ctx)],
-    ['brand', (ctx) => seedBrand(ctx)],
+    ['brand', (ctx) => seedBrand(ctx, opts.files)],
     ['payslipTemplates', (ctx) => seedPayslipTemplates(ctx)],
     ['payrollAccounting', (ctx) => seedPayrollAccounting(ctx)],
     ['adminActions', (ctx) => seedAdminActions(ctx)],
