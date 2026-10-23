@@ -62,7 +62,7 @@ vi.mock('../../api/client', () => ({
 }));
 
 describe('جدول السلف والذمم', () => {
-  it('يدمج اسم الموظف على صفوف أنواعه ويعرض مجموع اليوم', async () => {
+  it('صف واحد للموظف وخلية اليوم تجمع كل الأنواع مع ملخص علوي', async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { container } = render(
       <QueryClientProvider client={qc}>
@@ -73,8 +73,10 @@ describe('جدول السلف والذمم', () => {
     );
     expect(await screen.findByText('أحمد')).toBeTruthy();
     expect(screen.getAllByText('أحمد')).toHaveLength(1);
-    expect(container.querySelector('td[rowspan="2"]')).toBeTruthy();
-    expect(screen.getAllByText('385').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
+    expect(screen.getAllByText('385').length).toBeGreaterThan(1);
+    expect(container.querySelector('td[style*="linear-gradient"]')).toBeTruthy();
+    expect(screen.getByText('عدد الموظفين')).toBeTruthy();
     expect(screen.getAllByText('فاتورة ذمم').length).toBeGreaterThan(0);
   });
 });
