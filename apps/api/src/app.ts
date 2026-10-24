@@ -3,6 +3,7 @@ import type { Logger } from 'pino';
 import type { ApiEnvelope, Health } from '@hrms/shared';
 import type { Db } from './db/index.js';
 import {
+  clearSnapshotCache,
   createAuthRouter,
   createAuthenticate,
   createIdentityAdminRouter,
@@ -173,6 +174,7 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
           adminKey: auth.platformAdminKey,
           jwtSecret: auth.settings.jwtSecret,
           limit: auth.rateLimit !== false,
+          onSuspend: clearSnapshotCache,
         }),
       );
     api.use(createIdentityAdminRouter(auth.db, authenticate));

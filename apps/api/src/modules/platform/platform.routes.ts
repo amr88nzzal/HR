@@ -1,4 +1,3 @@
-import { clearSnapshotCache } from '../identity/permissions.service.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Router, type Request, type RequestHandler, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -16,6 +15,8 @@ export type PlatformDeps = {
   adminKey: string;
   jwtSecret: string;
   limit: boolean;
+  /** يُستدعى بعد تعليق شركة (لمسح ذاكرة الصلاحيات المؤقتة) / called after a company is suspended (to clear the cached grants) */
+  onSuspend?: () => void;
 };
 
 const SESSION_HOURS = 2;
@@ -231,7 +232,7 @@ export const createPlatformRouter = (db: Db, deps: PlatformDeps): Router => {
       // Suspending ends every live session (company-status checks on refresh and per request block any return)
       if (b.status === 'suspended') {
         await sql`select platform_revoke_company_sessions(${id})`.execute(db);
-        clearSnapshotCache(); // لا تبقى لقطة صلاحيات مخزّنة لمستخدمي الشركة / no cached grants survive
+        deps.onSuspend?.(); // لا تبقى لقطة صلاحيات مخزّنة لمستخدمي الشركة / no cached grants survive
       }
       res.json({ data: (await list()).find((c) => c.id === id) });
     }),
