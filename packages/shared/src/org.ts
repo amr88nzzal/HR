@@ -139,6 +139,31 @@ export const SETTING_DEFS = {
   createAccountOnHire: { schema: z.boolean(), default: false },
   /** أقصى نسبة % من صافي الراتب تُخصم تلقائياً لأقساط السلف؛ ما زاد يُرحَّل */
   loanMaxNetPercent: { schema: z.number().int().min(1).max(100), default: 50 },
+  /**
+   * طرق التحقق العام من قسيمة الراتب (رابط/QR) وما يُعرض: مطابقة الأرقام المطبوعة، OTP بتلغرام/بريد،
+   * قيمة سرية (تاريخ الميلاد أو حقل مخصص كالرقم الوطني)، وإظهار الاسم كاملاً أو مقنّعاً.
+   * Public payslip verification methods and what is shown: printed-figures match, OTP via Telegram/email,
+   * a secret value (birth date or a custom field such as the national id), and the full or masked name.
+   */
+  payslipVerify: {
+    schema: z.object({
+      figures: z.boolean(),
+      otpTelegram: z.boolean(),
+      otpEmail: z.boolean(),
+      secretField: z.enum(['none', 'birthDate', 'custom']),
+      /** مفتاح الحقل المخصص حين secretField = custom / custom-field key when secretField = custom */
+      secretCustomKey: z.string().trim().max(80),
+      fullName: z.boolean(),
+    }),
+    default: {
+      figures: true,
+      otpTelegram: false,
+      otpEmail: false,
+      secretField: 'none',
+      secretCustomKey: '',
+      fullName: false,
+    },
+  },
 } as const;
 export type SettingKey = keyof typeof SETTING_DEFS;
 export const settingKeys = Object.keys(SETTING_DEFS) as SettingKey[];

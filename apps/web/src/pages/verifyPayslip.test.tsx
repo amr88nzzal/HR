@@ -21,6 +21,7 @@ vi.mock('../api/client', () => ({
                 holder: 'أح*** ال***',
                 year: 2026,
                 month: 9,
+                methods: { figures: true, otpTelegram: false, otpEmail: false, secret: null },
               }
             : { valid: false, status: 'mismatch' },
       };

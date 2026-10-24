@@ -53,6 +53,7 @@ export type ExtrasPart =
   | 'payslips'
   | 'reports'
   | 'brand'
+  | 'payslipVerify'
   | 'payslipTemplates'
   | 'payrollAccounting'
   | 'accounts'
@@ -1962,6 +1963,40 @@ const seedBrandImages = async (ctx: Ctx, files: FileDeps): Promise<void> => {
     .execute();
 };
 
+/**
+ * إعداد التحقق العام من القسيمة للتجربة: مطابقة الأرقام + تاريخ الميلاد كقيمة سرية (بلا OTP لعدم وجود قناة).
+ * Demo public-verification setting: printed-figures match + birth date as the secret (no OTP: no channel in the demo).
+ */
+const seedPayslipVerify = async (ctx: Ctx): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  const has = await trx
+    .selectFrom('settings')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where('scopeType', '=', 'company')
+    .where('key', '=', 'payslipVerify')
+    .executeTakeFirst();
+  if (has) return 'skip';
+  await trx
+    .insertInto('settings')
+    .values({
+      companyId,
+      scopeType: 'company',
+      scopeId: null,
+      key: 'payslipVerify',
+      value: JSON.stringify({
+        figures: true,
+        otpTelegram: false,
+        otpEmail: false,
+        secretField: 'birthDate',
+        secretCustomKey: '',
+        fullName: false,
+      }),
+    })
+    .execute();
+  return 'مطابقة الأرقام + تاريخ الميلاد';
+};
+
 const seedBrand = async (ctx: Ctx, files?: FileDeps): Promise<string | undefined> => {
   const { trx, companyId } = ctx;
   const marker = await trx
@@ -2229,6 +2264,7 @@ export const seedDemoExtras = async (
     ['payslips', (ctx) => seedPublishedPayslips(ctx)],
     ['reports', (ctx) => seedReports(ctx)],
     ['brand', (ctx) => seedBrand(ctx, opts.files)],
+    ['payslipVerify', (ctx) => seedPayslipVerify(ctx)],
     ['payslipTemplates', (ctx) => seedPayslipTemplates(ctx)],
     ['payrollAccounting', (ctx) => seedPayrollAccounting(ctx)],
     ['adminActions', (ctx) => seedAdminActions(ctx)],

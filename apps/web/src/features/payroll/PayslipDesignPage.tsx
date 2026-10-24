@@ -33,6 +33,7 @@ import {
 import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../lib/errors';
+import { PayslipVerifySettings } from './PayslipVerifySettings';
 
 type Template = {
   id: string;
@@ -459,6 +460,7 @@ export const PayslipDesignPage = () => {
           <ScaledPreview html={html} title={t('payslipDesign.preview')} />
         </Stack>
       </SimpleGrid>
+      {can('system.setting.read') && <PayslipVerifySettings />}
     </Stack>
   );
 };
