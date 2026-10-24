@@ -54,7 +54,7 @@ export const mountPayrollRoutes = (
   api.use('/me/payslips', createMyPayslipsRouter(db, authenticate, deps));
   api.use('/payroll', createRunsRouter(db, authenticate, deps));
   api.use('/payroll/shortfall', createShortfallRouter(db, authenticate));
-  api.use('/payroll', createLoansRouter(db, authenticate));
+  api.use('/payroll', createLoansRouter(db, authenticate, deps.files));
   // يزرع أنواع السلف الافتراضية للشركة الجديدة قبل أول قراءة
   // Seeds the default loan types for a new company before the first read
   const run = makeRun(db);

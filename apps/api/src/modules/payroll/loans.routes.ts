@@ -1,4 +1,4 @@
-import { Router, type Request, type RequestHandler, type Response } from 'express';
+import express, { Router, type Request, type RequestHandler, type Response } from 'express';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import {
@@ -9,6 +9,7 @@ import {
   loanInput,
   loanListQuery,
   loanSettleInput,
+  MAX_FILE_BYTES,
   num,
   paymentBulkInput,
   paymentListQuery,
@@ -17,6 +18,12 @@ import {
 import type { Db } from '../../db/index.js';
 import type { Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
+import {
+  readStoredFile,
+  saveStoredFile,
+  validateUpload,
+  type FileDeps,
+} from '../../shared/stored-files.js';
 import { requirePermission } from '../identity/index.js';
 import { recalcEmployee, type Period } from './calc.js';
 import { deferInstallment, refreshLoanStatuses } from './loans.js';
@@ -40,7 +47,8 @@ const loanRow = async (ctx: Ctx, id: string) => {
            lt.color as type_color, l.event_date::text as event_date, l.reference,
            l.principal::text as principal, l.installments_count, l.first_year, l.first_month, l.reason,
            l.status, l.cancel_reason, l.version, l.created_at, l.settlement_mode, l.settlement_amount::text as settlement_amount,
-           l.settlement_reference, l.settlement_note, l.settled_at,
+           l.settlement_reference, l.settlement_note, l.settled_at, lt.requires_attachment,
+           (select count(*)::int from loan_attachments a where a.loan_id = l.id) as attachments_count,
            coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id and i.status = 'deducted'), 0)::text as repaid,
            coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id and i.status = 'scheduled'), 0)::text as remaining
       from loans l join employees e on e.id = l.employee_id join loan_types lt on lt.id = l.type_id
@@ -82,7 +90,11 @@ const redo = async (ctx: Ctx, installmentIds: string[]): Promise<void> => {
   for (const r of rows) await recalcEmployee(ctx, r as unknown as Period, r.employeeId as string);
 };
 
-export const createLoansRouter = (db: Db, authenticate: RequestHandler): Router => {
+export const createLoansRouter = (
+  db: Db,
+  authenticate: RequestHandler,
+  files: FileDeps,
+): Router => {
   const router = Router();
   const run = makeRun(db);
   router.use(authenticate);
@@ -106,6 +118,8 @@ export const createLoansRouter = (db: Db, authenticate: RequestHandler): Router 
            l.type_id, lt.code as type_code, lt.name_ar as type_name_ar, lt.name_en as type_name_en,
            lt.color as type_color, l.event_date::text as event_date, l.reference,
                  l.principal::text as principal, l.installments_count, l.first_year, l.first_month, l.status,
+                 lt.requires_attachment,
+                 (select count(*)::int from loan_attachments a where a.loan_id = l.id) as attachments_count,
                  coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id and i.status = 'deducted'), 0)::text as repaid,
                  coalesce((select sum(i.amount) from loan_installments i where i.loan_id = l.id and i.status = 'scheduled'), 0)::text as remaining
             from loans l join employees e on e.id = l.employee_id join loan_types lt on lt.id = l.type_id
@@ -233,6 +247,131 @@ export const createLoansRouter = (db: Db, authenticate: RequestHandler): Router 
         return { ids, warnings: [...warnings] };
       });
       res.status(201).json({ data: { ids: out.ids }, meta: { warnings: out.warnings } });
+    }),
+  );
+
+  // ───── مرفقات السلفة/الفاتورة (اختيارية دائماً؛ التنبيه في الواجهة عند «يتطلب مرفقاً») ─────
+  const attParams = z.object({ id: uuid, attId: uuid });
+  const MAX_ATTACHMENTS = 5;
+  const loanExists = async (ctx: Ctx, id: string) => {
+    const r = await ctx.trx
+      .selectFrom('loans')
+      .select('id')
+      .where('companyId', '=', ctx.companyId)
+      .where('id', '=', id)
+      .executeTakeFirst();
+    if (!r) throw new AppError('NOT_FOUND', 404, 'السلفة غير موجودة');
+  };
+  router.get(
+    '/loans/:id/attachments',
+    requirePermission(`${L}.read`),
+    wrap(async (req, res) => {
+      const id = uuid.parse(req.params['id']);
+      const data = await run(req, async (ctx) => {
+        await loanExists(ctx, id);
+        return ctx.trx
+          .selectFrom('loanAttachments as x')
+          .innerJoin('storedFiles as f', 'f.id', 'x.fileId')
+          .select(['x.id', 'f.originalName as name', 'f.mimeType', 'f.sizeBytes', 'x.createdAt'])
+          .where('x.companyId', '=', ctx.companyId)
+          .where('x.loanId', '=', id)
+          .orderBy('x.createdAt')
+          .execute();
+      });
+      res.json({ data });
+    }),
+  );
+  router.post(
+    '/loans/:id/attachments',
+    requirePermission(`${L}.create`),
+    express.raw({ type: () => true, limit: MAX_FILE_BYTES }),
+    wrap(async (req, res) => {
+      const id = uuid.parse(req.params['id']);
+      const body = req.body as unknown;
+      const buf = Buffer.isBuffer(body) ? body : Buffer.alloc(0);
+      const mime = validateUpload(buf, ['application/pdf', 'image/jpeg', 'image/png']);
+      // الاسم من X-File-Name (مرمَّز URI من عميل الويب) أو ?name / name from X-File-Name or ?name
+      const header = req.header('x-file-name');
+      const rawName = header ? decodeURIComponent(header) : (req.query['name'] ?? 'attachment');
+      const name = z.string().trim().min(1).max(200).parse(rawName);
+      const data = await run(req, async (ctx) => {
+        await loanExists(ctx, id);
+        const n = await ctx.trx
+          .selectFrom('loanAttachments')
+          .select((eb) => eb.fn.countAll<string>().as('n'))
+          .where('companyId', '=', ctx.companyId)
+          .where('loanId', '=', id)
+          .executeTakeFirstOrThrow();
+        if (Number(n.n) >= MAX_ATTACHMENTS)
+          throw new AppError(
+            'TOO_MANY_ATTACHMENTS',
+            409,
+            `الحد الأقصى ${MAX_ATTACHMENTS} مرفقات للسلفة`,
+          );
+        const file = await saveStoredFile(ctx, files, {
+          buffer: buf,
+          mime,
+          originalName: name,
+          purpose: 'loan',
+          encrypt: !!files.crypto,
+        });
+        return ctx.trx
+          .insertInto('loanAttachments')
+          .values({
+            companyId: ctx.companyId,
+            loanId: id,
+            fileId: file.id,
+            uploadedBy: ctx.userId ?? null,
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+      });
+      res.status(201).json({ data });
+    }),
+  );
+  router.get(
+    '/loans/:id/attachments/:attId/content',
+    requirePermission(`${L}.read`),
+    wrap(async (req, res) => {
+      const { id, attId } = attParams.parse(req.params);
+      const file = await run(req, async (ctx) => {
+        const f = await ctx.trx
+          .selectFrom('loanAttachments as x')
+          .innerJoin('storedFiles as f', 'f.id', 'x.fileId')
+          .selectAll('f')
+          .where('x.companyId', '=', ctx.companyId)
+          .where('x.loanId', '=', id)
+          .where('x.id', '=', attId)
+          .executeTakeFirst();
+        if (!f) throw new AppError('NOT_FOUND', 404, 'المرفق غير موجود');
+        return f;
+      });
+      const bytes = await readStoredFile(files, file);
+      res.setHeader('Content-Type', file.mimeType);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
+      );
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.send(bytes);
+    }),
+  );
+  router.delete(
+    '/loans/:id/attachments/:attId',
+    requirePermission(`${L}.create`),
+    wrap(async (req, res) => {
+      const { id, attId } = attParams.parse(req.params);
+      await run(req, async (ctx) => {
+        const r = await ctx.trx
+          .deleteFrom('loanAttachments')
+          .where('companyId', '=', ctx.companyId)
+          .where('loanId', '=', id)
+          .where('id', '=', attId)
+          .executeTakeFirst();
+        if (!r.numDeletedRows) throw new AppError('NOT_FOUND', 404, 'المرفق غير موجود');
+      });
+      res.status(204).end();
     }),
   );
 

@@ -17,6 +17,8 @@ export type LoanRow = {
   firstYear: number;
   firstMonth: number;
   status: 'active' | 'settled' | 'cancelled';
+  requiresAttachment?: boolean;
+  attachmentsCount?: number;
   repaid: string;
   remaining: string;
 };

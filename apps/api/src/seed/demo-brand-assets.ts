@@ -49,3 +49,22 @@ export const demoBrandImages = async (): Promise<DemoBrandImages> => {
     stamp: await png(stampSvg()),
   };
 };
+
+/** صورة فاتورة تجريبية بأشكال هندسية (ورقة وأسطر وشريط إجمالي) بلا نص. / A demo invoice picture in geometric shapes (page, lines, total bar), no text. */
+export const demoInvoiceImage = (): Promise<Buffer> => {
+  const lines = Array.from(
+    { length: 6 },
+    (_, i) =>
+      `<rect x="60" y="${190 + i * 44}" width="${i % 2 ? 260 : 330}" height="14" rx="7" fill="#cbd5e1"/><rect x="380" y="${190 + i * 44}" width="60" height="14" rx="7" fill="#94a3b8"/>`,
+  ).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="640" viewBox="0 0 500 640">
+  <rect width="500" height="640" fill="#e2e8f0"/>
+  <rect x="20" y="20" width="460" height="600" rx="14" fill="#ffffff"/>
+  <rect x="60" y="56" width="120" height="44" rx="10" fill="#0f766e"/>
+  <rect x="300" y="64" width="140" height="12" rx="6" fill="#94a3b8"/><rect x="340" y="86" width="100" height="12" rx="6" fill="#cbd5e1"/>
+  <rect x="60" y="140" width="380" height="2" fill="#e2e8f0"/>${lines}
+  <rect x="60" y="480" width="380" height="2" fill="#e2e8f0"/>
+  <rect x="270" y="510" width="170" height="40" rx="10" fill="#fd7e14"/>
+</svg>`;
+  return sharp(Buffer.from(svg), { density: 144 }).png().toBuffer();
+};

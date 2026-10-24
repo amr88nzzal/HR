@@ -1,6 +1,7 @@
 import {
   ActionIcon,
   Button,
+  FileInput,
   Group,
   Modal,
   NativeSelect,
@@ -18,9 +19,10 @@ import { api } from '../../api/client';
 import { errorMessage } from '../../lib/errors';
 import { EmployeeSelect } from '../employees/EmployeeSelect';
 import { useLookup } from '../employees/shared';
+import { LOAN_ACCEPT, uploadLoanFile } from './LoanAttachments';
 import { useLoanTypes } from './loan-types-api';
 
-type Item = { eventDate: string; reference: string; amount: string };
+type Item = { eventDate: string; reference: string; amount: string; file: File | null };
 const today = () => new Date().toISOString().slice(0, 10);
 
 /**
@@ -41,7 +43,9 @@ export const BulkInvoiceModal = ({
   const [emp, setEmp] = useState(employeeId ?? '');
   const [typeId, setTypeId] = useState('');
   const [currency, setCurrency] = useState('');
-  const [items, setItems] = useState<Item[]>([{ eventDate: today(), reference: '', amount: '' }]);
+  const [items, setItems] = useState<Item[]>([
+    { eventDate: today(), reference: '', amount: '', file: null },
+  ]);
   const codes = currencies.rows.map((r) => String(r['code']));
   const cur = currency || codes[0] || '';
   const type =
@@ -69,6 +73,16 @@ export const BulkInvoiceModal = ({
     onSuccess: async (res) => {
       if ((res.meta?.['warnings'] as string[] | undefined)?.includes('MONTHLY_LIMIT_EXCEEDED'))
         notifications.show({ color: 'orange', message: t('loans.limitWarning') });
+      // المرفقات اختيارية: تُرفع بترتيب البنود بعد الإنشاء، وفشل أحدها لا يُلغي الفواتير
+      // Attachments are optional: uploaded in item order after creation; a failure never undoes the invoices
+      const ids = (res.data as { ids?: string[] } | undefined)?.ids ?? [];
+      for (const [i, it] of items.entries()) {
+        const id = ids[i];
+        if (it.file && id)
+          await uploadLoanFile(id, it.file).catch((e) =>
+            notifications.show({ color: 'red', message: errorMessage(e, t) }),
+          );
+      }
       await qc.invalidateQueries({ queryKey: ['/payroll'] });
       onClose();
     },
@@ -107,6 +121,7 @@ export const BulkInvoiceModal = ({
               <Table.Th>{t('loans.invoiceDate')}</Table.Th>
               <Table.Th>{t('loans.reference')}</Table.Th>
               <Table.Th>{t('loans.principal')}</Table.Th>
+              <Table.Th>{t('loans.attachments.column')}</Table.Th>
               <Table.Th w={1} />
             </Table.Tr>
           </Table.Thead>
@@ -134,6 +149,15 @@ export const BulkInvoiceModal = ({
                   />
                 </Table.Td>
                 <Table.Td>
+                  <FileInput
+                    aria-label={t('loans.attachments.file')}
+                    accept={LOAN_ACCEPT}
+                    value={it.file}
+                    onChange={(f) => set(n, { file: f })}
+                    clearable
+                  />
+                </Table.Td>
+                <Table.Td>
                   <ActionIcon
                     variant="subtle"
                     color="red"
@@ -153,7 +177,9 @@ export const BulkInvoiceModal = ({
             variant="subtle"
             leftSection={<IconPlus size={16} />}
             disabled={items.length >= 100}
-            onClick={() => setItems([...items, { eventDate: today(), reference: '', amount: '' }])}
+            onClick={() =>
+              setItems([...items, { eventDate: today(), reference: '', amount: '', file: null }])
+            }
           >
             {t('loans.addRow')}
           </Button>

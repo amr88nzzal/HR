@@ -21,6 +21,7 @@ const EMPTY = {
   nameEn: '',
   color: '#4c6ef5',
   disburses: true,
+  requiresAttachment: false,
   maxInstallments: 12,
   monthlyLimitPercent: '' as number | '',
   glAccount: '',
@@ -48,6 +49,7 @@ export const LoanTypesPanel = () => {
             nameEn: r.nameEn,
             color: r.color,
             disburses: r.disburses,
+            requiresAttachment: r.requiresAttachment,
             maxInstallments: r.maxInstallments,
             monthlyLimitPercent: r.monthlyLimitPercent ? Number(r.monthlyLimitPercent) : '',
             glAccount: r.glAccount ?? '',
@@ -181,6 +183,12 @@ export const LoanTypesPanel = () => {
           label={t('loanTypes.disbursesLabel')}
           checked={v.disburses}
           onChange={(e) => setV({ ...v, disburses: e.currentTarget.checked })}
+        />
+        <Switch
+          label={t('loanTypes.requiresAttachment')}
+          description={t('loanTypes.requiresAttachmentHint')}
+          checked={v.requiresAttachment}
+          onChange={(e) => setV({ ...v, requiresAttachment: e.currentTarget.checked })}
         />
         <Switch
           label={t('payroll.active')}

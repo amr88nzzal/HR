@@ -8,6 +8,7 @@ export type LoanType = {
   nameEn: string;
   color: string;
   disburses: boolean;
+  requiresAttachment: boolean;
   maxInstallments: number;
   monthlyLimitPercent: string | null;
   glAccount: string | null;
