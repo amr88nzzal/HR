@@ -1,7 +1,7 @@
 import { Router, type Request, type RequestHandler, type Response } from 'express';
 import { sql } from 'kysely';
 import ExcelJS from 'exceljs';
-import { loanGridQuery, num, wrapLetterHtml, type LoanGridQuery } from '@hrms/shared';
+import { loanGridQuery, num, wrapLetterHtml, type LoanGridQuery, type Num } from '@hrms/shared';
 import type { Db } from '../../db/index.js';
 import type { Ctx } from '../../db/tenant.js';
 import { AppError } from '../../shared/errors.js';
@@ -211,11 +211,83 @@ const tint = (hex: string): string => {
   return [1, 3, 5].map((i) => mix(n(i)).toString(16).padStart(2, '0')).join('');
 };
 
+/** خلية يوم لموظف: أجزاء بحسب النوع / One employee-day cell: parts by type. */
+type Part = { nameAr: string; nameEn: string; color: string; amount: Num; refs: string[] };
+type EmpRow = {
+  employeeNo: string;
+  employeeName: string;
+  currency: string;
+  days: Record<string, Part[]>;
+  /** إجماليات كل نوع (للتلميح/الملاحظة) / per-type totals (for the tooltip/note) */
+  types: { nameAr: string; nameEn: string; taken: string; due: string; closing: string }[];
+  taken: Num;
+  due: Num;
+  closing: Num;
+};
+
+/** صف واحد لكل (موظف، عملة) بدل صف لكل نوع، لتطابق شاشة الشبكة. / One row per (employee, currency), matching the on-screen grid. */
+export const mergeEmployees = (g: Grid): EmpRow[] => {
+  const out = new Map<string, EmpRow>();
+  for (const r of g.rows) {
+    const key = `${r.employeeId}|${r.currency}`;
+    const e = out.get(key) ?? {
+      employeeNo: r.employeeNo,
+      employeeName: r.employeeName,
+      currency: r.currency,
+      days: {},
+      types: [],
+      taken: num('0'),
+      due: num('0'),
+      closing: num('0'),
+    };
+    for (const [d, c] of Object.entries(r.cells))
+      (e.days[d] ??= []).push({
+        nameAr: r.typeNameAr,
+        nameEn: r.typeNameEn,
+        color: r.color,
+        amount: num(c.amount),
+        refs: c.refs,
+      });
+    e.types.push({
+      nameAr: r.typeNameAr,
+      nameEn: r.typeNameEn,
+      taken: r.taken,
+      due: r.due,
+      closing: r.closing,
+    });
+    e.taken = e.taken.plus(num(r.taken));
+    e.due = e.due.plus(num(r.due));
+    e.closing = e.closing.plus(num(r.closing));
+    out.set(key, e);
+  }
+  return [...out.values()];
+};
+
+const partName = (p: { nameAr: string; nameEn: string }, lang: 'ar' | 'en'): string =>
+  (lang === 'en' && p.nameEn) || p.nameAr;
+const sumParts = (parts: Part[]): Num => parts.reduce((a, p) => a.plus(p.amount), num('0'));
+/** لون الخلية في Excel: لون أكبر نوع مبلغاً (لا تقسيم داخل الخلية) / Excel cell colour: the largest type's colour (no split inside a cell). */
+const dominant = (parts: Part[]): Part =>
+  parts.reduce((m, p) => (p.amount.greaterThan(m.amount) ? p : m), parts[0] as Part);
+/** خلفية PDF مقسَّمة بألوان الأنواع بنسبة مبالغها / PDF background split by type colours in proportion to amounts. */
+const splitBg = (parts: Part[]): string => {
+  const total = sumParts(parts);
+  if (parts.length === 1 || total.isZero()) return `#${tint((parts[0] as Part).color)}`;
+  let acc = 0;
+  const stops = parts.map((p) => {
+    const from = acc;
+    acc += p.amount.div(total).times(100).toNumber();
+    return `#${tint(p.color)} ${from.toFixed(2)}% ${acc.toFixed(2)}%`;
+  });
+  return `linear-gradient(to right, ${stops.join(', ')})`;
+};
+
 export const gridHtml = (g: Grid, lang: 'ar' | 'en'): string => {
   const t = L[lang];
-  const cell = 'padding:2px 3px;border:1px solid #bbb;text-align:center';
-  const money = (v: string) => (num(v).isZero() ? '' : esc(fmtAmount(v)));
-  const head = `<tr style="background:#0f766e;color:#fff"><th style="${cell}">${t.emp}</th><th style="${cell}">${t.type}</th>${g.days
+  const cell = 'padding:3px 3px;border:1px solid #bbb;text-align:center';
+  const money = (v: string | Num) =>
+    num(v.toString()).isZero() ? '' : esc(fmtAmount(v.toString()));
+  const head = `<tr style="background:#0f766e;color:#fff"><th style="${cell}">${t.emp}</th>${g.days
     .map(
       (d) =>
         `<th style="${cell};${d.kind !== 'work' ? `background:${d.kind === 'weekend' ? '#6b7280' : '#b42318'}` : ''}">${d.day}</th>`,
@@ -223,33 +295,24 @@ export const gridHtml = (g: Grid, lang: 'ar' | 'en'): string => {
     .join(
       '',
     )}<th style="${cell}">${t.taken}</th><th style="${cell}">${t.due}</th><th style="${cell}">${t.closing}</th></tr>`;
-  const byEmp = new Map<string, GridRow[]>();
-  for (const r of g.rows) byEmp.set(r.employeeId, [...(byEmp.get(r.employeeId) ?? []), r]);
-  const body = [...byEmp.values()]
-    .map((list) =>
-      list
-        .map((r, i) => {
-          const name =
-            i === 0
-              ? `<td rowspan="${list.length}" style="${cell};font-weight:bold;vertical-align:middle">${esc(r.employeeName)}<br/><span style="font-weight:normal;color:#555">${esc(r.employeeNo)}</span></td>`
-              : '';
-          const tc = `#${tint(r.color)}`;
-          const cells = g.days
-            .map((d) => {
-              const c = r.cells[String(d.day)];
-              const bg = c ? tc : SHADE[d.kind];
-              return `<td style="${cell};background:${bg}">${c ? money(c.amount) : ''}</td>`;
-            })
-            .join('');
-          return `<tr>${name}<td style="${cell};background:${tc};font-weight:600">${esc(lang === 'ar' ? r.typeNameAr : r.typeNameEn)}</td>${cells}<td style="${cell}">${money(r.taken)}</td><td style="${cell}">${money(r.due)}</td><td style="${cell}">${money(r.closing)}</td></tr>`;
+  const multi = Object.keys(g.totals).length > 1;
+  const body = mergeEmployees(g)
+    .map((r) => {
+      const name = `<td style="${cell};font-weight:bold;text-align:start;white-space:nowrap">${esc(r.employeeName)}<br/><span style="font-weight:normal;color:#555">${esc(r.employeeNo)}${multi ? ` · ${esc(r.currency)}` : ''}</span></td>`;
+      const cells = g.days
+        .map((d) => {
+          const parts = r.days[String(d.day)];
+          const bg = parts ? splitBg(parts) : SHADE[d.kind];
+          return `<td style="${cell};background:${bg};font-weight:${parts ? 600 : 400}">${parts ? money(sumParts(parts)) : ''}</td>`;
         })
-        .join(''),
-    )
+        .join('');
+      return `<tr>${name}${cells}<td style="${cell}">${money(r.taken)}</td><td style="${cell}">${money(r.due)}</td><td style="${cell}">${money(r.closing)}</td></tr>`;
+    })
     .join('');
   const foot = Object.entries(g.totals)
     .map(
       ([cur, tt]) =>
-        `<tr style="background:#f1f1f1;font-weight:bold"><td colspan="2" style="${cell}">${t.total} ${esc(cur)}</td>${g.days
+        `<tr style="background:#f1f1f1;font-weight:bold"><td style="${cell}">${t.total} ${esc(cur)}</td>${g.days
           .map((d) => `<td style="${cell}">${money(tt.perDay[String(d.day)] ?? '0')}</td>`)
           .join(
             '',
@@ -262,7 +325,7 @@ export const gridHtml = (g: Grid, lang: 'ar' | 'en'): string => {
         `<span style="display:inline-block;margin-inline-end:12px"><span style="display:inline-block;width:10px;height:10px;background:#${tint(ty.color)};border:1px solid ${ty.color};vertical-align:middle"></span> ${esc(lang === 'ar' ? ty.nameAr : ty.nameEn)}</span>`,
     )
     .join('');
-  return `<style>@page{size:A4 landscape;margin:8mm}</style><div style="font-size:7pt">
+  return `<style>@page{size:A4 landscape;margin:8mm} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style><div style="font-size:7pt">
 <h2 style="text-align:center;margin:0 0 4px">${t.title}</h2>
 <div style="text-align:center;margin-bottom:6px">${t.month}: <span dir="ltr" style="unicode-bidi:isolate">${g.year}-${pad(g.month)}</span></div>
 <table style="width:100%;border-collapse:collapse"><thead>${head}</thead><tbody>${body}${foot}</tbody></table>
@@ -273,12 +336,11 @@ export const gridWorkbook = async (g: Grid, lang: 'ar' | 'en'): Promise<Buffer> 
   const t = L[lang];
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet(t.title.slice(0, 31), {
-    views: [{ rightToLeft: lang === 'ar', state: 'frozen', xSplit: 2, ySplit: 1 }],
+    views: [{ rightToLeft: lang === 'ar', state: 'frozen', xSplit: 1, ySplit: 1 }],
     pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
   const nDays = g.days.length;
-  const header = [t.emp, t.type, ...g.days.map((d) => d.day), t.taken, t.due, t.closing];
-  ws.addRow(header);
+  ws.addRow([t.emp, ...g.days.map((d) => d.day), t.taken, t.due, t.closing]);
   const argb = (hex: string) => `FF${hex.replace('#', '').toUpperCase()}`;
   const fill = (hex: string): ExcelJS.Fill => ({
     type: 'pattern',
@@ -289,48 +351,46 @@ export const gridWorkbook = async (g: Grid, lang: 'ar' | 'en'): Promise<Buffer> 
   hr.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   hr.alignment = { horizontal: 'center', vertical: 'middle' };
   hr.eachCell((c, n) => {
-    const d = g.days[n - 3];
+    const d = g.days[n - 2];
     c.fill = fill(
       d?.kind === 'weekend' ? '#6b7280' : d?.kind === 'holiday' ? '#b42318' : '#0f766e',
     );
   });
   const money = '#,##0.00;-#,##0.00;;';
-  let rowNo = 2;
-  const byEmp = new Map<string, GridRow[]>();
-  for (const r of g.rows) byEmp.set(r.employeeId, [...(byEmp.get(r.employeeId) ?? []), r]);
-  for (const list of byEmp.values()) {
-    const start = rowNo;
-    for (const r of list) {
-      const row = ws.addRow([
-        `${r.employeeName} (${r.employeeNo})`,
-        lang === 'ar' ? r.typeNameAr : r.typeNameEn,
-        ...g.days.map((d) => {
-          const c = r.cells[String(d.day)];
-          return c ? Number(c.amount) : null;
-        }),
-        Number(r.taken),
-        Number(r.due),
-        Number(r.closing),
-      ]);
-      row.getCell(2).fill = fill(`#${tint(r.color)}`);
-      g.days.forEach((d, i) => {
-        const c = row.getCell(3 + i);
-        c.numFmt = money;
-        c.alignment = { horizontal: 'center' };
-        c.fill = fill(r.cells[String(d.day)] ? `#${tint(r.color)}` : SHADE[d.kind]);
-      });
-      for (let k = 0; k < 3; k++) row.getCell(3 + nDays + k).numFmt = money;
-      rowNo++;
-    }
-    // دمج خلية اسم الموظف عبر صفوف أنواعه / merge the employee cell across the employee's type rows
-    if (list.length > 1) ws.mergeCells(start, 1, rowNo - 1, 1);
-    ws.getCell(start, 1).alignment = { vertical: 'middle', wrapText: true };
-    ws.getCell(start, 1).font = { bold: true };
+  const multi = Object.keys(g.totals).length > 1;
+  for (const r of mergeEmployees(g)) {
+    const row = ws.addRow([
+      `${r.employeeName} (${r.employeeNo}${multi ? ` · ${r.currency}` : ''})`,
+      ...g.days.map((d) => {
+        const parts = r.days[String(d.day)];
+        return parts ? sumParts(parts).toNumber() : null;
+      }),
+      r.taken.toNumber(),
+      r.due.toNumber(),
+      r.closing.toNumber(),
+    ]);
+    row.getCell(1).font = { bold: true };
+    g.days.forEach((d, i) => {
+      const c = row.getCell(2 + i);
+      const parts = r.days[String(d.day)];
+      c.numFmt = money;
+      c.alignment = { horizontal: 'center' };
+      c.fill = fill(parts ? `#${tint(dominant(parts).color)}` : SHADE[d.kind]);
+      // التفصيل بحسب النوع في ملاحظة الخلية (لا تقسيم لوني داخل الخلية في Excel)
+      // Breakdown by type goes in a cell note (Excel cannot split a cell's colour)
+      if (parts && parts.length > 0)
+        c.note = parts
+          .map(
+            (p) =>
+              `${partName(p, lang)}: ${fmtAmount(p.amount.toString())}${p.refs.length ? ` (${p.refs.join(', ')})` : ''}`,
+          )
+          .join('\n');
+    });
+    for (let k = 0; k < 3; k++) row.getCell(2 + nDays + k).numFmt = money;
   }
   for (const [cur, tt] of Object.entries(g.totals)) {
     const row = ws.addRow([
       `${t.total} ${cur}`,
-      '',
       ...g.days.map((d) => (tt.perDay[String(d.day)] ? Number(tt.perDay[String(d.day)]) : null)),
       Number(tt.taken),
       Number(tt.due),
@@ -339,14 +399,20 @@ export const gridWorkbook = async (g: Grid, lang: 'ar' | 'en'): Promise<Buffer> 
     row.font = { bold: true };
     row.eachCell((c, n) => {
       c.fill = fill('#f1f1f1');
-      if (n > 2) c.numFmt = money;
+      if (n > 1) c.numFmt = money;
     });
-    ws.mergeCells(row.number, 1, row.number, 2);
   }
-  ws.getColumn(1).width = 28;
-  ws.getColumn(2).width = 14;
-  for (let i = 0; i < nDays; i++) ws.getColumn(3 + i).width = 7;
-  for (let k = 0; k < 3; k++) ws.getColumn(3 + nDays + k).width = 13;
+  ws.getColumn(1).width = 30;
+  for (let i = 0; i < nDays; i++) ws.getColumn(2 + i).width = 7;
+  for (let k = 0; k < 3; k++) ws.getColumn(2 + nDays + k).width = 13;
+  // دليل الألوان أسفل الجدول / colour legend under the table
+  ws.addRow([]);
+  const lg = ws.addRow([t.legend]);
+  lg.font = { bold: true };
+  for (const ty of g.types) {
+    const r = ws.addRow([lang === 'ar' ? ty.nameAr : ty.nameEn]);
+    r.getCell(1).fill = fill(`#${tint(ty.color)}`);
+  }
   return Buffer.from(await wb.xlsx.writeBuffer());
 };
 
