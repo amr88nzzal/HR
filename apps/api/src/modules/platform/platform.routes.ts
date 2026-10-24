@@ -1,3 +1,4 @@
+import { clearSnapshotCache } from '../identity/permissions.service.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Router, type Request, type RequestHandler, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -225,6 +226,12 @@ export const createPlatformRouter = (db: Db, deps: PlatformDeps): Router => {
         throw exists
           ? new AppError('VERSION_CONFLICT', 409, 'تغيّرت بيانات الشركة، حدّث الصفحة وأعد المحاولة')
           : new AppError('NOT_FOUND', 404, 'الشركة غير موجودة');
+      }
+      // التعليق يُنهي كل الجلسات القائمة (والتحقق من حالة الشركة عند التحديث والطلب يمنع العودة)
+      // Suspending ends every live session (company-status checks on refresh and per request block any return)
+      if (b.status === 'suspended') {
+        await sql`select platform_revoke_company_sessions(${id})`.execute(db);
+        clearSnapshotCache(); // لا تبقى لقطة صلاحيات مخزّنة لمستخدمي الشركة / no cached grants survive
       }
       res.json({ data: (await list()).find((c) => c.id === id) });
     }),

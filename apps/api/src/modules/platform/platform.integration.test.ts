@@ -113,6 +113,36 @@ describe('إدارة الشركات على مستوى المنصة', () => {
     expect(r.body.data[1].employeeCount).toBe(0);
   });
 
+  it('تعليق الشركة يُنهي جلسات مستخدميها: التحديث والطلبات بتوكن قائم', async () => {
+    const list = (await request(api).get('/api/v1/platform/companies').set(auth())).body.data;
+    const acme = list.find((c: { slug: string }) => c.slug === 'acme');
+    const tmp = await request(api)
+      .post('/api/v1/platform/companies')
+      .set(auth())
+      .send(body('susp'));
+    const a = tmp.body.data.admin;
+    const login = await request(api)
+      .post('/api/v1/auth/login')
+      .send({ identifier: a.email, password: a.temporaryPassword, company: 'susp' });
+    const cookie = login.headers['set-cookie']?.[0]?.split(';')[0] as string;
+    const bearer = { Authorization: `Bearer ${login.body.data.accessToken}` };
+    expect((await request(api).get('/api/v1/employees').set(bearer)).status).toBe(200);
+    const c = tmp.body.data.company;
+    await request(api).patch(`/api/v1/platform/companies/${c.id}`).set(auth()).send({
+      nameAr: c.nameAr,
+      nameEn: c.nameEn,
+      timezone: c.timezone,
+      defaultLocale: c.defaultLocale,
+      status: 'suspended',
+      version: c.version,
+    });
+    expect((await request(api).get('/api/v1/employees').set(bearer)).status).toBe(401);
+    expect((await request(api).post('/api/v1/auth/refresh').set('Cookie', cookie)).status).toBe(
+      401,
+    );
+    expect(acme.slug).toBe('acme');
+  });
+
   it('الإيقاف يمنع الدخول، والإصدار القديم يتعارض، والتفعيل يعيده', async () => {
     const list = (await request(api).get('/api/v1/platform/companies').set(auth())).body.data;
     const acme = list.find((c: { slug: string }) => c.slug === 'acme');

@@ -51,10 +51,17 @@ export const createAuthenticate =
               .where('id', '=', claims.userId)
               .executeTakeFirst();
             if (!user) return { grants: [], permissionsVersion: 0, active: false };
+            // توكن الوصول يبقى صالحاً دقائق؛ الشركة المعلّقة تُرفض فوراً (ضمن مهلة الذاكرة المؤقتة 30ث)
+            // The access token lives for minutes; a suspended company is rejected at once (within the 30s cache window)
+            const company = await ctx.trx
+              .selectFrom('companies')
+              .select('status')
+              .where('id', '=', claims.companyId)
+              .executeTakeFirst();
             return {
               grants: await loadGrants(ctx, claims.userId),
               permissionsVersion: user.permissionsVersion,
-              active: user.status === 'active',
+              active: user.status === 'active' && company?.status === 'active',
             };
           },
         );
