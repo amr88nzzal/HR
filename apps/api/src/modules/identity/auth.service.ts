@@ -214,6 +214,13 @@ export const refresh = async (
       .where('id', '=', row.userId)
       .executeTakeFirst();
     if (!user || user.status !== 'active') return { error: fail };
+    // شركة معلّقة: لا تجديد للجلسة / suspended company: no session renewal
+    const company = await ctx.trx
+      .selectFrom('companies')
+      .select('status')
+      .where('id', '=', companyId)
+      .executeTakeFirst();
+    if (company?.status !== 'active') return { error: fail };
 
     const session = await issueSession(ctx, settings, user, client, row.familyId);
     await ctx.trx

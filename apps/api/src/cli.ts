@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises';
 import { sql } from 'kysely';
 import { installJobSchema } from './jobs/install.js';
 import { createDb } from './db/index.js';
@@ -147,10 +148,16 @@ const main = async (): Promise<void> => {
           : undefined;
       if (!crypto)
         console.log('  تنبيه: لا مفاتيح ENCRYPTION_*؛ ستُتخطى الحسابات البنكية والحقل الحساس');
-      const files = {
-        storage: createLocalStorage(process.env['STORAGE_DIR'] ?? './data/files'),
-        crypto,
-      };
+      // مخزن الملفات للشعار والختم؛ إن لم يكن قابلاً للكتابة تُتخطى الصور بدل فشل الأمر كله
+      // File store for the logo/stamp; when not writable the images are skipped instead of failing the whole command
+      const storageDir = process.env['STORAGE_DIR'] ?? './data/files';
+      const files = await mkdir(storageDir, { recursive: true }).then(
+        () => ({ storage: createLocalStorage(storageDir), crypto }),
+        () => {
+          console.log(`  تنبيه: ${storageDir} غير قابل للكتابة؛ ستُتخطى صور الشعار والختم`);
+          return undefined;
+        },
+      );
       const extras = await seedDemoExtras(db, company.id, { crypto, password, files });
       const history = await seedDemoHistory(db, company.id);
       for (const e of [...extras, ...history])
