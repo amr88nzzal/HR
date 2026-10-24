@@ -1,9 +1,15 @@
+import { randomBytes } from 'node:crypto';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { pino } from 'pino';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import { createDb, type Db } from '../../db/index.js';
 import { withTenant } from '../../db/tenant.js';
+import { createFieldCrypto } from '../../shared/crypto.js';
+import { createLocalStorage } from '../../shared/storage.js';
 import { startTestPg, type TestPg } from '../../test/pg.js';
 import { hashPassword, seedDefaultRoles, syncPermissionCatalog } from '../identity/index.js';
 
@@ -85,7 +91,18 @@ describe('أنواع السلف وفواتير الذمم وجدول الأيا�
     await withTenant(admin, { companyId: acme }, (ctx) => seedDefaultRoles(ctx));
     api = createApp({
       logger: pino({ level: 'silent' }),
-      auth: { db: app, settings, cookieSecure: false, rateLimit: false },
+      auth: {
+        db: app,
+        settings,
+        cookieSecure: false,
+        rateLimit: false,
+        crypto: createFieldCrypto({
+          keysSpec: `k1:${randomBytes(32).toString('base64')}`,
+          currentKeyId: 'k1',
+          digestKey: randomBytes(32).toString('base64'),
+        }),
+        storage: createLocalStorage(mkdtempSync(path.join(tmpdir(), 'hrms-loans-'))),
+      },
     });
     await makeUser('admin@acme.test', 'admin');
     tokens['admin'] = await login('admin@acme.test');
@@ -270,5 +287,67 @@ describe('أنواع السلف وفواتير الذمم وجدول الأيا�
       });
     expect(res.status).toBe(200);
     expect((res.body as Buffer).subarray(0, 2).toString()).toBe('PK');
+  });
+
+  it('مرفقات الفاتورة: رفع وتنزيل وحذف، والنوع «يتطلب مرفقاً» يظهر في القائمة', async () => {
+    const t = await typeId('receivable');
+    await withTenant(admin, { companyId: acme }, (ctx) =>
+      ctx.trx
+        .updateTable('loanTypes')
+        .set({ requiresAttachment: true })
+        .where('id', '=', t)
+        .execute(),
+    );
+    const loan = await post('admin', '/payroll/loans', {
+      employeeId: emp,
+      typeId: t,
+      currency: 'SAR',
+      principal: '40',
+      eventDate: '2026-03-07',
+      reference: 'INV-ATT',
+    });
+    const id = loan.body.data.id as string;
+    expect(loan.body.data).toMatchObject({ requiresAttachment: true, attachmentsCount: 0 });
+    const PDF = Buffer.from('%PDF-1.4\n%invoice content');
+    const up = await request(api)
+      .post(`/api/v1/payroll/loans/${id}/attachments`)
+      .set(as('admin'))
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-File-Name', encodeURIComponent('فاتورة.pdf'))
+      .send(PDF);
+    expect(up.status).toBe(201);
+    const list = await get('admin', `/payroll/loans/${id}/attachments`);
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data[0]).toMatchObject({ name: 'فاتورة.pdf', mimeType: 'application/pdf' });
+    const dl = await request(api)
+      .get(`/api/v1/payroll/loans/${id}/attachments/${list.body.data[0].id}/content`)
+      .set(as('admin'))
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on('data', (c: Buffer) => chunks.push(c));
+        r.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(dl.status).toBe(200);
+    expect((dl.body as Buffer).equals(PDF)).toBe(true);
+    // نوع ملف غير مسموح يُرفض
+    const bad = await request(api)
+      .post(`/api/v1/payroll/loans/${id}/attachments`)
+      .set(as('admin'))
+      .set('Content-Type', 'application/octet-stream')
+      .send(Buffer.from('MZ not allowed'));
+    expect(bad.status).toBeGreaterThanOrEqual(400);
+    const one = (await get('admin', `/payroll/loans/${id}`)).body.data;
+    expect(one.attachmentsCount).toBe(1);
+    const del = await request(api)
+      .delete(`/api/v1/payroll/loans/${id}/attachments/${list.body.data[0].id}`)
+      .set(as('admin'));
+    expect(del.status).toBe(204);
+    expect((await get('admin', `/payroll/loans/${id}/attachments`)).body.data).toHaveLength(0);
+    // سلفة غير موجودة
+    expect(
+      (await get('admin', '/payroll/loans/018f0000-0000-7000-8000-000000000000/attachments'))
+        .status,
+    ).toBe(404);
   });
 });

@@ -68,7 +68,8 @@ export type SaveFileInput = {
     | 'brand'
     | 'report'
     | 'admin_action'
-    | 'leave_request';
+    | 'leave_request'
+    | 'loan';
   encrypt: boolean;
   parentId?: string | null;
   variant?: string | null;

@@ -33,7 +33,7 @@ import { ensureDefaultTypes } from '../modules/admin-actions/index.js';
 import { createNotifier } from '../notifications/index.js';
 import type { FieldCrypto } from '../shared/crypto.js';
 import { saveStoredFile, type FileDeps } from '../shared/stored-files.js';
-import { demoBrandImages } from './demo-brand-assets.js';
+import { demoBrandImages, demoInvoiceImage } from './demo-brand-assets.js';
 import { DEMO_EMAIL_DOMAIN, DEMO_PREFIX } from './demo.js';
 
 export type ExtrasPart =
@@ -54,6 +54,7 @@ export type ExtrasPart =
   | 'reports'
   | 'brand'
   | 'payslipVerify'
+  | 'loanAttachments'
   | 'payslipTemplates'
   | 'payrollAccounting'
   | 'accounts'
@@ -1997,6 +1998,55 @@ const seedPayslipVerify = async (ctx: Ctx): Promise<string | undefined> => {
   return 'مطابقة الأرقام + تاريخ الميلاد';
 };
 
+/**
+ * مرفقات فواتير الذمم: نوع «فاتورة ذمم» يتطلب مرفقاً، وصورة فاتورة لأول فاتورتين تجريبيتين؛ والثالثة بلا مرفق لتظهر شارة «ناقص».
+ * Receivable invoice attachments: the receivable type requires an attachment, the first two demo invoices get an
+ * image, the third has none so the "Missing" badge shows.
+ */
+const seedLoanAttachments = async (ctx: Ctx, files?: FileDeps): Promise<string | undefined> => {
+  const { trx, companyId } = ctx;
+  if (!files?.storage) return 'skip';
+  const loans = await trx
+    .selectFrom('loans')
+    .select(['id', 'reference'])
+    .where('companyId', '=', companyId)
+    .where('reference', 'in', ['INV-1001', 'INV-1002'])
+    .execute();
+  if (!loans.length) return 'skip';
+  const has = await trx
+    .selectFrom('loanAttachments')
+    .select('id')
+    .where('companyId', '=', companyId)
+    .where(
+      'loanId',
+      'in',
+      loans.map((l) => l.id),
+    )
+    .executeTakeFirst();
+  if (has) return 'skip';
+  await trx
+    .updateTable('loanTypes')
+    .set({ requiresAttachment: true })
+    .where('companyId', '=', companyId)
+    .where('code', '=', 'receivable')
+    .execute();
+  const img = await demoInvoiceImage();
+  for (const l of loans) {
+    const file = await saveStoredFile(ctx, files, {
+      buffer: img,
+      mime: 'image/png',
+      originalName: `${l.reference ?? 'invoice'}.png`,
+      purpose: 'loan',
+      encrypt: !!files.crypto,
+    });
+    await trx
+      .insertInto('loanAttachments')
+      .values({ companyId, loanId: l.id, fileId: file.id, uploadedBy: null })
+      .execute();
+  }
+  return `${loans.length} مرفق`;
+};
+
 const seedBrand = async (ctx: Ctx, files?: FileDeps): Promise<string | undefined> => {
   const { trx, companyId } = ctx;
   const marker = await trx
@@ -2265,6 +2315,7 @@ export const seedDemoExtras = async (
     ['reports', (ctx) => seedReports(ctx)],
     ['brand', (ctx) => seedBrand(ctx, opts.files)],
     ['payslipVerify', (ctx) => seedPayslipVerify(ctx)],
+    ['loanAttachments', (ctx) => seedLoanAttachments(ctx, opts.files)],
     ['payslipTemplates', (ctx) => seedPayslipTemplates(ctx)],
     ['payrollAccounting', (ctx) => seedPayrollAccounting(ctx)],
     ['adminActions', (ctx) => seedAdminActions(ctx)],

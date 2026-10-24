@@ -2,6 +2,7 @@ import {
   Alert,
   Badge,
   Button,
+  FileInput,
   Drawer,
   Group,
   Modal,
@@ -27,6 +28,7 @@ import { useLookup } from '../employees/shared';
 import type { Installment, LoanDetail, LoanRow } from './loans-types';
 import { useLoanTypes, typeName } from './loan-types-api';
 import { BulkInvoiceModal } from './BulkInvoiceModal';
+import { LOAN_ACCEPT, LoanAttachments, uploadLoanFile } from './LoanAttachments';
 import { MarkPaidModal } from './MarkPaidModal';
 
 const statusColor = { active: 'blue', settled: 'teal', cancelled: 'gray' } as const;
@@ -56,6 +58,7 @@ const NewLoanModal = ({ employeeId, onClose }: { employeeId?: string; onClose: (
     month: now.getMonth() + 1,
     reason: '',
   });
+  const [file, setFile] = useState<File | null>(null);
   const types = useLoanTypes();
   const type = (types.data ?? []).find((x) => x.id === v.typeId) ?? types.data?.[0];
   const count = Math.min(v.count, type?.maxInstallments ?? v.count);
@@ -80,6 +83,13 @@ const NewLoanModal = ({ employeeId, onClose }: { employeeId?: string; onClose: (
     onSuccess: async (res) => {
       if ((res.meta?.['warnings'] as string[] | undefined)?.includes('MONTHLY_LIMIT_EXCEEDED'))
         notifications.show({ color: 'orange', message: t('loans.limitWarning') });
+      // المرفق اختياري: فشل رفعه لا يُلغي السلفة المنشأة ويمكن إعادته من التفاصيل
+      // The attachment is optional: a failed upload never undoes the created loan and can be retried from the details
+      const created = (res.data as { id?: string } | undefined)?.id;
+      if (file && created)
+        await uploadLoanFile(created, file).catch((e) =>
+          notifications.show({ color: 'red', message: errorMessage(e, t) }),
+        );
       await qc.invalidateQueries({ queryKey: ['/payroll'] });
       onClose();
     },
@@ -165,6 +175,19 @@ const NewLoanModal = ({ employeeId, onClose }: { employeeId?: string; onClose: (
           value={v.reason}
           onChange={(e) => setV({ ...v, reason: e.currentTarget.value })}
         />
+        <FileInput
+          label={t('loans.attachments.file')}
+          description={t('loans.attachments.hint')}
+          accept={LOAN_ACCEPT}
+          value={file}
+          onChange={setFile}
+          clearable
+        />
+        {type?.requiresAttachment && !file && (
+          <Text size="xs" c="orange">
+            {t('loans.attachments.missing')}
+          </Text>
+        )}
         {preview.length > 0 && (
           <Text size="sm" c="dimmed" dir="ltr">
             {preview
@@ -512,6 +535,12 @@ const LoanDrawer = ({ id, onClose }: { id: string; onClose: () => void }) => {
             <Text size="sm" dir="ltr">{`${t('loans.remaining')}: ${loan.remaining}`}</Text>
           </Group>
           {loan.reason && <Text size="sm">{loan.reason}</Text>}
+          <Title order={5}>{t('loans.attachments.title')}</Title>
+          <LoanAttachments
+            loanId={id}
+            canEdit={can('payroll.loan.create')}
+            requiresAttachment={loan.requiresAttachment === true}
+          />
           {loan.cancelReason && (
             <Alert color="gray">{`${t('loans.cancelReason')}: ${loan.cancelReason}`}</Alert>
           )}
@@ -664,6 +693,7 @@ export const LoansPanel = ({ employeeId }: { employeeId?: string }) => {
             <Table.Th>{t('loans.principal')}</Table.Th>
             <Table.Th>{t('loans.repaid')}</Table.Th>
             <Table.Th>{t('loans.remaining')}</Table.Th>
+            <Table.Th>{t('loans.attachments.column')}</Table.Th>
             <Table.Th>{t('payroll.run.status')}</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -688,6 +718,15 @@ export const LoansPanel = ({ employeeId }: { employeeId?: string }) => {
               <Table.Td dir="ltr">{`${l.principal} ${l.currency}`}</Table.Td>
               <Table.Td dir="ltr">{l.repaid}</Table.Td>
               <Table.Td dir="ltr">{l.remaining}</Table.Td>
+              <Table.Td>
+                {(l.attachmentsCount ?? 0) > 0 ? (
+                  <Badge variant="light" color="teal">{`📎 ${l.attachmentsCount}`}</Badge>
+                ) : l.requiresAttachment ? (
+                  <Badge variant="light" color="orange">
+                    {t('loans.attachments.pending')}
+                  </Badge>
+                ) : null}
+              </Table.Td>
               <Table.Td>
                 <Badge color={statusColor[l.status]}>{t(`loans.statuses.${l.status}`)}</Badge>
               </Table.Td>

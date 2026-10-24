@@ -76,6 +76,20 @@ export const loansEn = {
   unmark: 'Unmark',
   exportCsv: 'Export CSV',
   noPayments: 'No payments',
+  attachments: {
+    title: 'Attachments',
+    column: 'Files',
+    missing:
+      'This type requires an attachment (invoice image or voucher) and none has been uploaded yet.',
+    none: 'No attachments.',
+    add: 'Attach a file',
+    hint: 'PDF or JPG/PNG image, up to 5 files',
+    upload: 'Upload',
+    download: 'Download',
+    remove: 'Delete',
+    pending: 'Missing',
+    file: 'Attachment (optional)',
+  },
 };
 
 export const loansGridEn = {
@@ -97,6 +111,9 @@ export const loansGridEn = {
   empty: 'No loans or receivables this month for the selected filters.',
 };
 export const loanTypesEn = {
+  requiresAttachment: 'Requires an attachment (warning only)',
+  requiresAttachmentHint:
+    'A "Missing" badge shows when there is no attachment; saving is never blocked.',
   color: 'Colour',
   disburses: 'Payout',
   cash: 'Paid in cash',

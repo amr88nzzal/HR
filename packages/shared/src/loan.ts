@@ -19,6 +19,8 @@ export const loanTypeInput = z.object({
   maxInstallments: z.number().int().min(1).max(120).default(12),
   monthlyLimitPercent: z.number().min(0.01).max(100).nullish(),
   glAccount: z.string().trim().max(40).nullish(),
+  /** تنبيه فقط عند غياب مرفق، لا منع / a warning only when no attachment exists, never a block */
+  requiresAttachment: z.boolean().default(false),
   isActive: z.boolean().default(true),
   sortOrder: z.number().int().min(0).max(1000).default(0),
 });

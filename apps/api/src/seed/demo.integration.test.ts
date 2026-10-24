@@ -112,6 +112,7 @@ describe('البيانات التجريبية', () => {
       'reports:done',
       'brand:done',
       'payslipVerify:done',
+      'loanAttachments:done',
       'payslipTemplates:done',
       'payrollAccounting:done',
       'adminActions:done',
@@ -273,6 +274,8 @@ describe('البيانات التجريبية', () => {
         sql`status = 'active' and body_html like '%{{document.qr}}%'`,
       ),
     ).toBe(2);
+
+    expect(await n('loan_attachments')).toBe(2);
 
     const again = await seedDemoExtras(admin, companyId, {
       crypto,

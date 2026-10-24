@@ -70,6 +70,19 @@ export const loansAr = {
   unmark: 'إلغاء التعليم',
   exportCsv: 'تصدير CSV',
   noPayments: 'لا دفعات',
+  attachments: {
+    title: 'المرفقات',
+    column: 'المرفقات',
+    missing: 'هذا النوع يتطلب مرفقاً (صورة الفاتورة أو السند) ولم يُرفع بعد.',
+    none: 'لا مرفقات.',
+    add: 'إرفاق ملف',
+    hint: 'PDF أو صورة JPG/PNG، حتى 5 ملفات',
+    upload: 'رفع',
+    download: 'تنزيل',
+    remove: 'حذف',
+    pending: 'ناقص',
+    file: 'مرفق (اختياري)',
+  },
 };
 
 export const loansGridAr = {
@@ -91,6 +104,8 @@ export const loansGridAr = {
   empty: 'لا سلف أو ذمم في هذا الشهر بحسب المرشحات.',
 };
 export const loanTypesAr = {
+  requiresAttachment: 'يتطلب مرفقاً (تنبيه فقط)',
+  requiresAttachmentHint: 'تظهر شارة «ناقص» عند غياب المرفق دون منع الحفظ.',
   color: 'اللون',
   disburses: 'الصرف',
   cash: 'يُصرف نقداً',

@@ -481,7 +481,8 @@ export type StoredFilesTable = {
     | 'brand'
     | 'report'
     | 'admin_action'
-    | 'leave_request';
+    | 'leave_request'
+    | 'loan';
   parentId: string | null;
   variant: string | null;
   createdBy: string | null;
@@ -1268,6 +1269,15 @@ export type AdminActionAttachmentsTable = {
   uploadedBy: string | null;
   createdAt: Generated<Date>;
 };
+export type LoanAttachmentsTable = {
+  id: Generated<string>;
+  companyId: string;
+  loanId: string;
+  fileId: string;
+  uploadedBy: string | null;
+  createdAt: Generated<Date>;
+};
+
 export type PayslipVerifyOtpsTable = {
   id: Generated<string>;
   companyId: string;
@@ -1365,6 +1375,7 @@ export type LoanTypesTable = Versioned & {
   maxInstallments: Generated<number>;
   monthlyLimitPercent: string | null;
   glAccount: string | null;
+  requiresAttachment: Generated<boolean>;
   isActive: Generated<boolean>;
   sortOrder: Generated<number>;
 };
@@ -1578,6 +1589,7 @@ export type Database = {
   adminActionAttachments: AdminActionAttachmentsTable;
   leaveRequestAttachments: LeaveRequestAttachmentsTable;
   payslipVerifyOtps: PayslipVerifyOtpsTable;
+  loanAttachments: LoanAttachmentsTable;
   shortfallPolicies: ShortfallPoliciesTable;
   shortfallDecisions: ShortfallDecisionsTable;
   payslipShortfalls: PayslipShortfallsTable;
