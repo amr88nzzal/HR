@@ -39,6 +39,10 @@ services:
       ENCRYPTION_KEYS: ${ENCRYPTION_KEYS:-}
       ENCRYPTION_KEY_ID: ${ENCRYPTION_KEY_ID:-}
       ENCRYPTION_DIGEST_KEY: ${ENCRYPTION_DIGEST_KEY:-}
+      # مخزن الملفات نفسه للـ API: يحتاجه seed-demo لحفظ شعار وختم الشركة التجريبيين
+      STORAGE_DIR: /data/files
+    volumes:
+      - filesdata:/data/files
     depends_on:
       postgres:
         condition: service_healthy
