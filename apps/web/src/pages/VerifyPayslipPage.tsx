@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
+import { PayslipVerifyActions, type Methods } from './PayslipVerifyActions';
 
 type Result =
   | { valid: false; status: 'mismatch' }
@@ -13,6 +14,7 @@ type Result =
       holder: string;
       year: number;
       month: number;
+      methods: Methods;
     };
 
 /**
@@ -69,6 +71,7 @@ export const VerifyPayslipPage = () => {
               <Text size="xs" c="dimmed">
                 {t('verify.payslipHint')}
               </Text>
+              <PayslipVerifyActions token={token} methods={d.methods} />
             </>
           )}
         </Stack>

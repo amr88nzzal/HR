@@ -1268,6 +1268,18 @@ export type AdminActionAttachmentsTable = {
   uploadedBy: string | null;
   createdAt: Generated<Date>;
 };
+export type PayslipVerifyOtpsTable = {
+  id: Generated<string>;
+  companyId: string;
+  payslipId: string;
+  channel: 'telegram' | 'email';
+  codeHash: string;
+  expiresAt: Date;
+  attempts: Generated<number>;
+  usedAt: TsNullable;
+  createdAt: Generated<Date>;
+};
+
 export type LeaveRequestAttachmentsTable = {
   id: Generated<string>;
   companyId: string;
@@ -1565,6 +1577,7 @@ export type Database = {
   adminActions: AdminActionsTable;
   adminActionAttachments: AdminActionAttachmentsTable;
   leaveRequestAttachments: LeaveRequestAttachmentsTable;
+  payslipVerifyOtps: PayslipVerifyOtpsTable;
   shortfallPolicies: ShortfallPoliciesTable;
   shortfallDecisions: ShortfallDecisionsTable;
   payslipShortfalls: PayslipShortfallsTable;

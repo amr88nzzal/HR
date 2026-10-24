@@ -11,7 +11,7 @@ import { withTenant } from '../../db/tenant.js';
 import { startTestPg, type TestPg } from '../../test/pg.js';
 import { createLocalStorage } from '../../shared/storage.js';
 import { loadPayslipDoc } from './payslip-doc.js';
-import { payslipVerifyToken } from './payslip-verify.js';
+import { hashOtp, payslipVerifyToken } from './payslip-verify.js';
 import { hashPassword, seedDefaultRoles, syncPermissionCatalog } from '../identity/index.js';
 
 const PASSWORD = 'correct-horse-battery';
@@ -307,6 +307,96 @@ describe('قوالب تصميم قسيمة الراتب', () => {
     expect(r.body.data.html).not.toContain('مكافآت');
     expect(r.body.data.html).not.toContain('<script>alert(1)');
     expect(r.body.data.html).toContain('&lt;script&gt;');
+  });
+  it('التحقق العام المؤمَّن: مطابقة الأرقام، القيمة السرية، OTP، القفل، والاسم الكامل بالإعداد', async () => {
+    const d = await withTenant(admin, { companyId: acme }, (ctx) => loadPayslipDoc(ctx, slip));
+    const token = payslipVerifyToken(settings.jwtSecret, acme, d);
+    const url = `/api/v1/public/verify/payslip/${token}`;
+    const setOpt = async (v: object) => {
+      await admin.executeQuery(
+        sql`delete from settings where company_id = ${acme} and key = 'payslipVerify'`.compile(
+          admin,
+        ),
+      );
+      await admin.executeQuery(
+        sql`insert into settings (company_id, scope_type, key, value)
+            values (${acme}, 'company', 'payslipVerify', ${JSON.stringify(v)}::jsonb)`.compile(
+          admin,
+        ),
+      );
+    };
+    const base = {
+      figures: true,
+      otpTelegram: false,
+      otpEmail: false,
+      secretField: 'none',
+      secretCustomKey: '',
+      fullName: false,
+    };
+    await setOpt(base);
+    // افتراضياً: اسم مقنّع، مطابقة الأرقام فقط
+    const g = await request(api).get(url);
+    expect(g.body.data.methods).toMatchObject({ figures: true, otpTelegram: false, secret: null });
+    expect(g.body.data.holder).toContain('***');
+    const right = {
+      gross: d.gross,
+      deductions: d.deductions,
+      payable: d.payable,
+    };
+    expect((await request(api).post(`${url}/check`).send(right)).body.data.match).toBe(true);
+    expect(
+      (
+        await request(api)
+          .post(`${url}/check`)
+          .send({ ...right, payable: '999999' })
+      ).body.data.match,
+    ).toBe(false);
+    // الكشف معطّل ما لم تُفعَّل طريقة
+    expect((await request(api).post(`${url}/reveal`).send({ secret: '1990-01-01' })).status).toBe(
+      403,
+    );
+    expect((await request(api).post(`${url}/reveal`).send({ otp: '123456' })).status).toBe(403);
+
+    // القيمة السرية: تاريخ الميلاد
+    await admin.executeQuery(
+      sql`update employees set birth_date = '1990-05-17'
+           where id = (select employee_id from payslips where id = ${slip})`.compile(admin),
+    );
+    await setOpt({ ...base, secretField: 'birthDate', fullName: true });
+    const g2 = await request(api).get(url);
+    expect(g2.body.data.methods.secret).toBe('birthDate');
+    expect(g2.body.data.holder).not.toContain('***');
+    const bad = await request(api).post(`${url}/reveal`).send({ secret: '1990-05-18' });
+    expect(bad.status).toBe(401);
+    expect(JSON.stringify(bad.body)).not.toContain(d.payable);
+    const good = await request(api).post(`${url}/reveal`).send({ secret: '1990-05-17' });
+    expect(good.status).toBe(200);
+    expect(good.body.data.payable).toBe(d.payable);
+    expect(good.body.data.earnings.length).toBeGreaterThan(0);
+
+    // OTP: رمز صحيح يعمل مرة واحدة فقط
+    await setOpt({ ...base, otpEmail: true });
+    await admin.executeQuery(
+      sql`insert into payslip_verify_otps (company_id, payslip_id, channel, code_hash, expires_at, created_at)
+          values (${acme}, ${slip}, 'email', ${hashOtp(settings.jwtSecret, slip, '482913')},
+                  now() + interval '5 minutes', now() - interval '5 minutes')`.compile(admin),
+    );
+    expect((await request(api).post(`${url}/reveal`).send({ otp: '000000' })).status).toBe(401);
+    const ok = await request(api).post(`${url}/reveal`).send({ otp: '482913' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.data.net).toBe(d.net);
+    expect((await request(api).post(`${url}/reveal`).send({ otp: '482913' })).status).toBe(401);
+    // الإرسال بلا قناة مهيّأة يفشل بوضوح
+    expect((await request(api).post(`${url}/otp`).send({ channel: 'email' })).status).toBe(409);
+
+    // قفل بعد 5 محاولات خاطئة
+    await setOpt({ ...base, secretField: 'birthDate' });
+    for (let i = 0; i < 5; i++)
+      await request(api)
+        .post(`${url}/reveal`)
+        .send({ secret: `2000-01-0${i + 1}` });
+    const locked = await request(api).post(`${url}/reveal`).send({ secret: '1990-05-17' });
+    expect(locked.status).toBe(429);
   });
   it('QR التحقق: يظهر بقسم qr، والتحقق العام يطابق ثم يرفض بعد أي تعديل ولا يكشف مبالغ', async () => {
     const cfg = { ...base, sections: [...base.sections, 'qr'] };

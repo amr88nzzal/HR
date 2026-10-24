@@ -670,6 +670,25 @@ export const en: Messages = {
       },
     },
   },
+  payslipVerify: {
+    title: 'Public payslip verification (QR)',
+    hint: 'Controls what someone scanning the payslip code sees. Amounts are never shown until entitlement is proven (an OTP or a secret value).',
+    figures: 'Match the printed figures',
+    figuresHint:
+      'The verifier types gross, deductions and net as on the paper and the system confirms the match without revealing the numbers.',
+    otpTelegram: 'OTP via Telegram',
+    otpHint:
+      'The button only shows when the employee is linked to Telegram (and the channel is on); the code is valid 10 minutes and the employee hands it to the verifier.',
+    otpEmail: 'OTP via email',
+    secretField: 'Secret value the verifier knows',
+    secretHint:
+      'Reveals the full payslip when entered correctly. A birth date is weaker than an OTP; enable with care.',
+    secret: { none: 'None', birthDate: 'Date of birth', custom: 'Custom field (e.g. national ID)' },
+    customKey: 'Custom field key',
+    customKeyHint: "The key as in the employee's custom fields.",
+    fullName: 'Show the full name instead of the masked one',
+    fullNameHint: 'Default is a masked name (two letters of each word).',
+  },
   verify: {
     title: 'Document verification',
     notFound: 'No document found for this code.',
@@ -686,7 +705,31 @@ export const en: Messages = {
     payslipMismatchHint:
       'This payslip is not genuine or was altered after printing. Do not rely on it; contact the company.',
     payslipHint:
-      'The printed figures match what the company has on record. Amounts are not shown here for privacy.',
+      'This payslip was genuinely issued by the company. Amounts are only shown after proving entitlement, so check the printed figures below.',
+    figures: {
+      title: 'Match the printed figures',
+      hint: 'Type the figures as printed on the payslip; the system confirms the match without revealing any number.',
+      gross: 'Gross',
+      deductions: 'Deductions',
+      payable: 'Net payable',
+      check: 'Check figures',
+      match: 'Figures match the record',
+      noMatch: 'Figures do not match: this payslip is suspect',
+    },
+    reveal: {
+      title: 'Show the full payslip',
+      hint: 'Details are shown after proof of entitlement: a code sent to the payslip owner, or a secret value they know.',
+      sendTelegram: 'Send the code via Telegram',
+      sendEmail: 'Send the code by email',
+      sent: 'A code was sent to {{hint}}. Ask the payslip owner for it (valid 10 minutes).',
+      otp: 'Code (6 digits)',
+      show: 'Show',
+      secret: { birthDate: "Employee's date of birth", custom: 'Secret value (e.g. national ID)' },
+      earnings: 'Earnings',
+      deductions: 'Deductions',
+      loans: 'Loan installments',
+      net: 'Net',
+    },
     employee: 'Employee',
     month: 'Month',
   },

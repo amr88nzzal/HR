@@ -111,6 +111,7 @@ describe('البيانات التجريبية', () => {
       'payslips:done',
       'reports:done',
       'brand:done',
+      'payslipVerify:done',
       'payslipTemplates:done',
       'payrollAccounting:done',
       'adminActions:done',

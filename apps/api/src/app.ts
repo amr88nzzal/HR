@@ -155,7 +155,12 @@ export const createApp = ({ logger, checkDb, checks, reporter, auth }: AppDeps):
     // التحقق العام بلا مصادقة (قبل أي راوتر يفرضها)
     api.use(
       '/public/verify/payslip',
-      createPublicPayslipVerifyRouter(auth.db, auth.rateLimit !== false, auth.settings.jwtSecret),
+      createPublicPayslipVerifyRouter(auth.db, auth.rateLimit !== false, auth.settings.jwtSecret, {
+        telegram,
+        mail:
+          auth.mail?.provider ??
+          createMailProvider({ crypto: auth.crypto, envSmtpUrl: undefined, envFrom: '' }),
+      }),
     );
     api.use('/public/verify', createPublicVerifyRouter(auth.db, auth.rateLimit !== false));
     api.use(
